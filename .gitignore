@@ -1,0 +1,30 @@
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── Node / Next.js ────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+*.log
+
+# ── Env / secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+garmin_tokens/
+*.pem
+
+# ── Editors / OS ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
