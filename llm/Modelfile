@@ -1,0 +1,12 @@
+# Modelfile for the FencingCoach AI default local model.
+# Build:  docker compose exec llm ollama create coach -f /path/Modelfile
+# Or simply pull a base and configure via app prompts (default approach).
+#
+# This file is optional — the app injects the system prompt at runtime,
+# so any OpenAI-compatible chat model works out of the box.
+
+FROM qwen3:8b
+
+PARAMETER temperature 0.7
+PARAMETER num_ctx 32768
+PARAMETER top_p 0.9
