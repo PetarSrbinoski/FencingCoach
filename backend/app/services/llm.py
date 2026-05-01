@@ -49,7 +49,12 @@ class LLMClient:
         # OpenAI SDK requires a non-empty api_key string even for local servers.
         self.api_key = api_key or settings.LLM_API_KEY or "not-needed"
         self.model = model or settings.LLM_MODEL
-        self._client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+        self._client = OpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            timeout=180.0,
+            max_retries=1,
+        )
 
     # ── completions ────────────────────────────────────────────────
     def chat(
@@ -58,15 +63,20 @@ class LLMClient:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        reasoning_effort: str | None = None,
     ) -> LLMResponse:
-        resp = self._client.chat.completions.create(
-            model=self.model,
-            messages=list(messages),
-            max_tokens=max_tokens or settings.LLM_MAX_TOKENS,
-            temperature=settings.LLM_TEMPERATURE
+        kwargs = {
+            "model": self.model,
+            "messages": list(messages),
+            "max_tokens": max_tokens or settings.LLM_MAX_TOKENS,
+            "temperature": settings.LLM_TEMPERATURE
             if temperature is None
             else temperature,
-        )
+        }
+        if self.model.startswith("deepseek-ai/deepseek-v4"):
+            effort = reasoning_effort or "high"
+            kwargs["reasoning_effort"] = effort
+        resp = self._client.chat.completions.create(**kwargs)
         choice = resp.choices[0]
         usage = resp.usage
         # Some reasoning models (Nemotron Super/Ultra) put output in
@@ -89,16 +99,21 @@ class LLMClient:
         *,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        reasoning_effort: str | None = None,
     ) -> Iterator[str]:
-        stream = self._client.chat.completions.create(
-            model=self.model,
-            messages=list(messages),
-            max_tokens=max_tokens or settings.LLM_MAX_TOKENS,
-            temperature=settings.LLM_TEMPERATURE
+        kwargs = {
+            "model": self.model,
+            "messages": list(messages),
+            "max_tokens": max_tokens or settings.LLM_MAX_TOKENS,
+            "temperature": settings.LLM_TEMPERATURE
             if temperature is None
             else temperature,
-            stream=True,
-        )
+            "stream": True,
+        }
+        if self.model.startswith("deepseek-ai/deepseek-v4"):
+            effort = reasoning_effort or "high"
+            kwargs["reasoning_effort"] = effort
+        stream = self._client.chat.completions.create(**kwargs)
         in_think = False
         for chunk in stream:
             if not chunk.choices:

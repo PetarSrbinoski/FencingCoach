@@ -155,6 +155,11 @@ class TargetsOut(BaseModel):
     fiber_g: float
     micros: dict[str, float]
     notes: str
+    override_source: str = "auto"  # "auto" or "manual"
+
+
+class DayTypeOverrideRequest(BaseModel):
+    day_type: str
 
 
 class MealPlanOut(BaseModel):
@@ -234,3 +239,39 @@ class CompetitionCreate(BaseModel):
 class CompetitionOut(CompetitionCreate):
     id: int
     result: dict[str, Any] | None = None
+
+
+# ── Profile ───────────────────────────────────────────────────────────
+class ProfileOut(BaseModel):
+    id: int
+    name: str | None = None
+    sport: str = "fencing-epee"
+    level: str = "elite"
+    age: int | None = None
+    height_cm: float | None = None
+    weight_kg: float | None = None
+    fencing_style: str | None = None
+    goals: str | None = None
+    weaknesses: str | None = None
+    body_comp_goal: str | None = None
+    dietary_restrictions: str | None = None
+    food_budget: str | None = None
+    supplements: str | None = None
+    notes: str | None = None
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    sport: str | None = None
+    level: str | None = None
+    age: int | None = None
+    height_cm: float | None = None
+    weight_kg: float | None = None
+    fencing_style: str | None = None
+    goals: str | None = None
+    weaknesses: str | None = None
+    body_comp_goal: str | None = None
+    dietary_restrictions: str | None = None
+    food_budget: str | None = None
+    supplements: str | None = None
+    notes: str | None = None

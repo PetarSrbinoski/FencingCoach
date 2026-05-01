@@ -261,17 +261,34 @@ def _plateau_section(db: Session) -> str:
 def _profile_section(db: Session) -> str:
     p = db.scalar(select(AthleteProfile).limit(1))
     if not p:
-        return ""
-    bits = [f"profile: {p.sport} / {p.level}"]
-    if p.weight_kg:
-        bits.append(f"{p.weight_kg:.1f}kg")
+        return "## Athlete Profile — not configured yet"
+    lines = ["## Athlete Profile"]
+    lines.append(f"  Sport: {p.sport} | Level: {p.level}")
+    if p.name:
+        lines.append(f"  Name: {p.name}")
+    if p.age:
+        lines.append(f"  Age: {p.age}")
     if p.height_cm:
-        bits.append(f"{p.height_cm:.0f}cm")
+        lines.append(f"  Height: {p.height_cm:.0f} cm")
+    if p.weight_kg:
+        lines.append(f"  Weight: {p.weight_kg:.1f} kg")
+    if p.fencing_style:
+        lines.append(f"  Fencing style: {p.fencing_style}")
     if p.body_comp_goal:
-        bits.append(f"goal: {p.body_comp_goal}")
+        lines.append(f"  Body composition goal: {p.body_comp_goal}")
     if p.goals:
-        bits.append(f"target: {p.goals}")
-    return "## Athlete\n  " + ", ".join(bits)
+        lines.append(f"  Primary goal: {p.goals}")
+    if p.weaknesses:
+        lines.append(f"  Weaknesses to address: {p.weaknesses}")
+    if p.food_budget:
+        lines.append(f"  Food budget: {p.food_budget}")
+    if p.dietary_restrictions:
+        lines.append(f"  Dietary restrictions: {p.dietary_restrictions}")
+    if p.supplements:
+        lines.append(f"  Supplements: {p.supplements}")
+    if p.notes:
+        lines.append(f"  Notes: {p.notes}")
+    return "\n".join(lines)
 
 
 # ── orchestration ─────────────────────────────────────────────────────
@@ -287,6 +304,7 @@ def build_context(
     budget = token_budget or max(2048, settings.LLM_CONTEXT_TOKENS // 4)
 
     sections_in_order = [
+        ("profile", lambda: _profile_section(db)),
         ("readiness", lambda: _readiness_section(db, today)),
         ("phase", lambda: _phase_section(db, today)),
         ("targets", lambda: _targets_section(db, today)),
@@ -296,7 +314,6 @@ def build_context(
         ("competitions", lambda: _competitions_section(db, today)),
         ("plateaus", lambda: _plateau_section(db)),
         ("training_plan", lambda: _training_plan_section(db, today)),
-        ("profile", lambda: _profile_section(db)),
         ("metrics_28d", lambda: _metrics_section(db, today, days=28)),
     ]
 

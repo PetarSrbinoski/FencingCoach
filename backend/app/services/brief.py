@@ -34,7 +34,12 @@ def generate_daily_brief(db: Session, day: date | None = None) -> DailyBrief:
         {"role": "system", "content": context},
         {"role": "user", "content": DAILY_BRIEF_PROMPT},
     ]
-    resp = get_llm().chat(messages, temperature=0.5, max_tokens=600)
+    resp = get_llm().chat(
+        messages,
+        temperature=0.5,
+        max_tokens=900,
+        reasoning_effort="high",
+    )
 
     payload = {
         "readiness": readiness.to_dict(),

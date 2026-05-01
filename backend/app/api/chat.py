@@ -10,6 +10,7 @@ always sees current data.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from openai import APITimeoutError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -51,6 +52,7 @@ def chat(
         .where(CoachMessage.conversation_id == conv.id)
         .order_by(CoachMessage.created_at)
     ).all()
+    history = history[-20:]
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": COACH_SYSTEM_PROMPT}
@@ -60,7 +62,18 @@ def chat(
     messages.extend({"role": m.role, "content": m.content} for m in history)
 
     # ── call LLM ──────────────────────────────────────────────────────
-    resp = get_llm().chat(messages)
+    try:
+        resp = get_llm().chat(
+            messages,
+            temperature=0.4,
+            max_tokens=1200,
+            reasoning_effort="high",
+        )
+    except APITimeoutError as e:
+        raise HTTPException(
+            504,
+            "The LLM request timed out. This model is running in quality-first mode and can take a while.",
+        ) from e
 
     db.add(
         CoachMessage(

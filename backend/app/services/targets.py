@@ -27,10 +27,10 @@ from typing import Any
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from app.models import Activity, AthleteProfile, Competition
+from app.models import Activity, AthleteProfile, Competition, DayTypeOverride
 from app.services.periodization import Phase, compute_phase
 
-DEFAULT_WEIGHT_KG = 80.0
+DEFAULT_WEIGHT_KG = 89.0
 DEFAULT_BODY_COMP = "lean"
 
 # Carbs g/kg by day type — base values, then phase-adjusted
@@ -84,6 +84,7 @@ class NutritionTargets:
     fiber_g: float
     micros: dict[str, float]
     notes: str
+    override_source: str = "auto"
 
     def to_dict(self) -> dict[str, Any]:
         return {**asdict(self), "day": self.day.isoformat()}
@@ -106,12 +107,22 @@ def _athlete_goal(db: Session) -> str:
     return DEFAULT_BODY_COMP
 
 
-def detect_day_type(db: Session, day: date) -> str:
-    """Heuristic. Returns rest|gym|fencing|double|competition."""
+VALID_DAY_TYPES = {"rest", "gym", "fencing", "double", "competition"}
+
+
+def detect_day_type(db: Session, day: date) -> tuple[str, str]:
+    """Heuristic. Returns (day_type, source) where source is 'auto' or 'manual'."""
+    # Check for manual override first
+    override = db.scalar(
+        select(DayTypeOverride).where(DayTypeOverride.day == day).limit(1)
+    )
+    if override is not None and override.override_type in VALID_DAY_TYPES:
+        return override.override_type, "manual"
+
     # Competition on this day?
     comp = db.scalar(select(Competition).where(Competition.event_date == day).limit(1))
     if comp is not None:
-        return "competition"
+        return "competition", "auto"
 
     # Default pattern: Mon=0..Sun=6
     weekday = day.weekday()
@@ -134,7 +145,7 @@ def detect_day_type(db: Session, day: date) -> str:
         )
     ).all()
     if not rows:
-        return default
+        return default, "auto"
 
     types = {(a.activity_type or "").lower() for a in rows}
     has_strength = any(
@@ -145,10 +156,10 @@ def detect_day_type(db: Session, day: date) -> str:
     )
 
     if default in ("fencing", "rest") and has_strength:
-        return "double" if default == "fencing" else "gym"
+        return ("double" if default == "fencing" else "gym"), "auto"
     if default == "gym" and has_cardio:
-        return "double"
-    return default
+        return "double", "auto"
+    return default, "auto"
 
 
 # ── public api ────────────────────────────────────────────────────────
@@ -157,7 +168,7 @@ def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
     weight = _athlete_weight(db)
     goal = _athlete_goal(db)
     phase: Phase = compute_phase(db, day)
-    day_type = detect_day_type(db, day)
+    day_type, override_source = detect_day_type(db, day)
 
     # Protein: 2.2 g/kg base; +0.1 in build/peak; floor 2.0, ceiling 2.5
     protein_per_kg = 2.2
@@ -206,4 +217,5 @@ def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
         fiber_g=MICRO_TARGETS["fiber_g"],
         micros={k: v for k, v in MICRO_TARGETS.items() if k != "fiber_g"},
         notes=notes,
+        override_source=override_source,
     )

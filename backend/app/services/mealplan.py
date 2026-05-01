@@ -110,6 +110,7 @@ def generate_day_plan(db: Session, day: date | None = None) -> NutritionPlan:
         ],
         temperature=0.4,
         max_tokens=2000,
+        reasoning_effort="high",
     )
 
     try:

@@ -44,6 +44,25 @@ def session_for_day(
     return TrainingSessionOut(**build_session(db, day))
 
 
+@router.get("/week", response_model=list[TrainingSessionOut])
+def session_week(
+    _user: CurrentUser,
+    start: Date | None = None,
+    db: Session = Depends(get_db),
+) -> list[TrainingSessionOut]:
+    """Return training sessions for a full week (Mon–Sun).
+
+    If `start` is not provided, defaults to the Monday of the current week.
+    """
+    if start is None:
+        today = Date.today()
+        start = today - timedelta(days=today.weekday())  # Monday
+    return [
+        TrainingSessionOut(**build_session(db, start + timedelta(days=i)))
+        for i in range(7)
+    ]
+
+
 @router.get("/exercises", response_model=list[str])
 def exercises(_user: CurrentUser) -> list[str]:
     """All exercises the system knows from the default templates."""

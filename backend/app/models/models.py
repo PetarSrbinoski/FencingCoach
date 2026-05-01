@@ -288,3 +288,18 @@ class DataSummary(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Day-type overrides
+# ─────────────────────────────────────────────────────────────────────
+class DayTypeOverride(Base):
+    """Manual override for the auto-detected day type on a given day."""
+
+    __tablename__ = "day_type_overrides"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    override_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

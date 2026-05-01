@@ -11,6 +11,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from garminconnect import (
     Garmin,
@@ -144,8 +145,9 @@ class GarminService:
         stats = raw.get("stats") or {}
         readiness = raw.get("training_readiness") or {}
         if isinstance(readiness, list) and readiness:
-            readiness = readiness[0]
+            readiness = readiness[-1]  # most recent reading
 
+        # ── Sleep: duration + sleep score ─────────────────────────────
         sleep_seconds = get(sleep, "dailySleepDTO", "sleepTimeSeconds")
         cls._upsert_metric(
             db,
@@ -156,31 +158,59 @@ class GarminService:
             else None,
             payload=sleep,
         )
+        sleep_score = get(sleep, "dailySleepDTO", "sleepScores", "overall", "value")
+        cls._upsert_metric(
+            db,
+            "sleep_score",
+            day,
+            value=float(sleep_score) if isinstance(sleep_score, (int, float)) else None,
+            payload=None,
+        )
 
-        hrv_avg = get(hrv, "hrvSummary", "weeklyAvg") or get(
-            hrv, "hrvSummary", "lastNightAvg"
+        # ── HRV: lastNightAvg primary, weeklyAvg fallback + separate weekly metric
+        hrv_avg = get(hrv, "hrvSummary", "lastNightAvg") or get(
+            hrv, "hrvSummary", "weeklyAvg"
         )
         cls._upsert_metric(db, "hrv", day, value=hrv_avg, payload=hrv)
+        hrv_weekly = get(hrv, "hrvSummary", "weeklyAvg")
+        cls._upsert_metric(
+            db,
+            "hrv_weekly",
+            day,
+            value=float(hrv_weekly) if isinstance(hrv_weekly, (int, float)) else None,
+            payload=None,
+        )
 
-        bb_max = None
-        if isinstance(bb, list) and bb:
+        # ── Body Battery: most recent value from stats, fallback to last array entry
+        bb_value = None
+        if isinstance(stats, dict):
+            bb_value = stats.get("bodyBatteryMostRecentValue")
+        if bb_value is None and isinstance(bb, list) and bb:
             try:
-                # API returns list of [(ts, value), ...] per day
-                vals: list[float] = []
-                for entry in bb:
+                # fallback: last entry of bodyBatteryValuesArray
+                for entry in reversed(bb):
                     arr = (
                         entry.get("bodyBatteryValuesArray")
                         if isinstance(entry, dict)
                         else None
                     )
                     if arr:
-                        vals.extend(
-                            v[1] for v in arr if isinstance(v, list) and len(v) >= 2
-                        )
-                bb_max = max(vals) if vals else None
+                        # find last valid entry
+                        for v in reversed(arr):
+                            if isinstance(v, list) and len(v) >= 2 and v[1] is not None:
+                                bb_value = v[1]
+                                break
+                    if bb_value is not None:
+                        break
             except Exception:  # noqa: BLE001
-                bb_max = None
-        cls._upsert_metric(db, "body_battery", day, value=bb_max, payload=bb)
+                bb_value = None
+        cls._upsert_metric(
+            db,
+            "body_battery",
+            day,
+            value=float(bb_value) if isinstance(bb_value, (int, float)) else None,
+            payload=bb,
+        )
 
         cls._upsert_metric(
             db,
@@ -281,7 +311,8 @@ class GarminService:
 
     # ── orchestration ─────────────────────────────────────────────────
     def sync_recent(self, db: Session, days: int = 2) -> dict[str, Any]:
-        today = date.today()
+        tz = ZoneInfo(settings.ATHLETE_TIMEZONE)
+        today = datetime.now(tz).date()
         days_synced = 0
         for i in range(days):
             d = today - timedelta(days=i)
@@ -292,7 +323,8 @@ class GarminService:
         return {"days_synced": days_synced, "activities_added": activities_added}
 
     def sync_full(self, db: Session, days: int = 30) -> dict[str, Any]:
-        today = date.today()
+        tz = ZoneInfo(settings.ATHLETE_TIMEZONE)
+        today = datetime.now(tz).date()
         days_synced = 0
         for i in range(days):
             d = today - timedelta(days=i)

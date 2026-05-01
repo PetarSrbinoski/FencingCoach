@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     GARMIN_FULL_SYNC_HOUR: int = 3
     GARMIN_TOKEN_DIR: str = "/app/garmin_tokens"
 
+    # ── Athlete ───────────────────────────────────────────────────────
+    ATHLETE_TIMEZONE: str = "Europe/Berlin"
+
 
 @lru_cache
 def get_settings() -> Settings:

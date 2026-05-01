@@ -18,7 +18,9 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 ALLOWED_KINDS = {
     "hrv",
+    "hrv_weekly",
     "sleep",
+    "sleep_score",
     "body_battery",
     "stress_daily",
     "resting_hr",

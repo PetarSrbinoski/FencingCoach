@@ -19,6 +19,7 @@ from app.api import (
     metrics,
     nutrition,
     phase,
+    profile,
     readiness,
     targets,
     training,
@@ -54,6 +55,7 @@ app.include_router(mealplan.router)
 app.include_router(mealplan.shopping_router)
 app.include_router(training.router)
 app.include_router(competitions.router)
+app.include_router(profile.router)
 
 
 @app.get("/")
