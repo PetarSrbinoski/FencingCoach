@@ -1,7 +1,5 @@
 "use client";
 
-// Legacy re-exports for backward compatibility.
-// New code should import from @/components/ui/* directly.
 import React from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -12,6 +10,10 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+/**
+ * Application-level Card wrapper — adds title, action, icon props
+ * on top of the base shadcn Card (which now uses Bauhaus hard shadows + thick borders).
+ */
 export function Card({
   title,
   action,
@@ -26,12 +28,16 @@ export function Card({
   icon?: React.ReactNode;
 }) {
   return (
-    <ShadCard className={cn("animate-fade-in", className)}>
+    <ShadCard className={cn("relative animate-fade-in", className)}>
+      {/* Geometric corner decoration */}
+      {title && (
+        <div className="absolute top-2 right-2 w-3 h-3 bg-bauhaus-red" />
+      )}
       {title && (
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium tracking-tight">
-              {icon && <span className="text-muted-foreground">{icon}</span>}
+            <CardTitle className="flex items-center gap-2 text-sm">
+              {icon && <span className="text-foreground">{icon}</span>}
               {title}
             </CardTitle>
             {action}
@@ -51,14 +57,14 @@ export function Card({
 export function BandPill({ band }: { band: "red" | "amber" | "green" | string }) {
   const colorClass =
     band === "green"
-      ? "bg-emerald-500/12 text-emerald-400 border-emerald-500/20"
+      ? "bg-bauhaus-blue text-white border-foreground"
       : band === "amber"
-        ? "bg-amber-500/12 text-amber-400 border-amber-500/20"
+        ? "bg-bauhaus-yellow text-foreground border-foreground"
         : band === "red"
-          ? "bg-red-500/12 text-red-400 border-red-500/20"
-          : "bg-muted text-muted-foreground border-border";
+          ? "bg-bauhaus-red text-white border-foreground"
+          : "bg-muted text-foreground border-foreground";
   return (
-    <Badge variant="outline" className={cn("uppercase tracking-wider text-[10px] font-semibold", colorClass)}>
+    <Badge variant="outline" className={cn("text-[10px] font-bold", colorClass)}>
       {band}
     </Badge>
   );
@@ -74,11 +80,11 @@ export function StatRow({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between text-sm py-2 border-b border-border/50 last:border-0">
-      <span className="text-muted-foreground text-[13px]">{label}</span>
-      <span className="font-mono text-foreground font-medium text-[13px]">
+    <div className="flex items-baseline justify-between text-sm py-2 border-b-2 border-foreground/10 last:border-0">
+      <span className="text-muted-foreground text-xs font-bold uppercase tracking-wider">{label}</span>
+      <span className="font-mono text-foreground font-bold text-sm">
         {value}
-        {hint && <span className="text-muted-foreground/50 text-xs ml-1.5">{hint}</span>}
+        {hint && <span className="text-muted-foreground/60 text-xs ml-1.5 font-medium">{hint}</span>}
       </span>
     </div>
   );

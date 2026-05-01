@@ -1,12 +1,21 @@
 import "../styles/globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Outfit, JetBrains_Mono } from "next/font/google";
 import { SidebarLayout } from "@/components/sidebar-layout";
+import { ThemeProvider } from "@/components/theme-provider";
 
-const inter = Inter({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-outfit",
+  display: "swap",
+  weight: ["400", "500", "700", "900"],
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -16,14 +25,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html lang="en" className={`${outfit.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           <SidebarLayout>{children}</SidebarLayout>
         </ThemeProvider>
       </body>

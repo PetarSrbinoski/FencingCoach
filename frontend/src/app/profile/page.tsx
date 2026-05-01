@@ -108,16 +108,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
-            <User className="h-5 w-5 text-primary" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b-4 border-foreground pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center h-10 w-10 border-2 border-foreground bg-bauhaus-red shadow-hard-sm">
+            <User className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
-            <p className="text-xs text-muted-foreground">Your athlete identity and coaching preferences</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Profile</h1>
+            <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 font-mono">Your athlete identity and coaching preferences</p>
           </div>
         </div>
         {profile && (
@@ -127,22 +127,22 @@ export default function ProfilePage() {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {saving ? "Saving..." : "Save"}
+            {saving ? "SAVING..." : "SAVE"}
           </Button>
         )}
       </div>
 
       {/* Messages */}
       {msg && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-          <p className="text-emerald-400 text-sm">{msg}</p>
+        <div className="flex items-center gap-2 p-3 border-2 border-bauhaus-blue bg-bauhaus-blue/5">
+          <CheckCircle2 className="h-4 w-4 text-bauhaus-blue shrink-0" />
+          <p className="text-bauhaus-blue text-sm font-bold">{msg}</p>
         </div>
       )}
       {err && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-          <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-          <p className="text-red-400 text-sm">{err}</p>
+        <div className="flex items-center gap-2 p-3 border-2 border-bauhaus-red bg-bauhaus-red/5">
+          <AlertCircle className="h-4 w-4 text-bauhaus-red shrink-0" />
+          <p className="text-bauhaus-red text-sm font-bold">{err}</p>
         </div>
       )}
 
@@ -150,14 +150,14 @@ export default function ProfilePage() {
         <Card>
           <div className="space-y-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 rounded-lg" />
+              <Skeleton key={i} className="h-10" />
             ))}
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Basic info */}
-          <Card title="Athlete Info" icon={<Dumbbell className="h-4 w-4 text-blue-400" />}>
+          <Card title="Athlete Info" icon={<Dumbbell className="h-4 w-4" />}>
             <div className="space-y-4">
               <Field label="Name">
                 <Input
@@ -252,7 +252,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Goals & Nutrition */}
-          <Card title="Goals & Nutrition" icon={<Target className="h-4 w-4 text-emerald-400" />}>
+          <Card title="Goals & Nutrition" icon={<Target className="h-4 w-4" />}>
             <div className="space-y-4">
               <Field label="Body Composition Goal">
                 <Select
@@ -375,12 +375,12 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>
+      <label className="text-2xs font-bold text-foreground uppercase tracking-wider">{label}</label>
       {children}
     </div>
   );
 }
 
 function FieldNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] leading-relaxed text-muted-foreground/70 mt-1">{children}</p>;
+  return <p className="text-[11px] leading-relaxed text-muted-foreground mt-1 font-mono">{children}</p>;
 }

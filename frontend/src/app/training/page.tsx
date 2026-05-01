@@ -34,10 +34,10 @@ function classifyDay(s: TrainingSession): "fencing" | "gym" | "rest" {
   return "rest";
 }
 
-const DAY_ACCENT: Record<string, { border: string; bg: string; text: string }> = {
-  fencing: { border: "border-l-blue-500/70", bg: "bg-blue-500/8", text: "text-blue-400" },
-  gym: { border: "border-l-violet-500/70", bg: "bg-violet-500/8", text: "text-violet-400" },
-  rest: { border: "border-l-border", bg: "bg-muted/30", text: "text-muted-foreground" },
+const DAY_ACCENT: Record<string, { border: string; bg: string; text: string; color: string }> = {
+  fencing: { border: "border-l-bauhaus-blue", bg: "bg-bauhaus-blue/10", text: "text-bauhaus-blue", color: "bauhaus-blue" },
+  gym: { border: "border-l-bauhaus-red", bg: "bg-bauhaus-red/10", text: "text-bauhaus-red", color: "bauhaus-red" },
+  rest: { border: "border-l-foreground/20", bg: "bg-muted", text: "text-muted-foreground", color: "muted" },
 };
 
 // ── main ─────────────────────────────────────────────────────────────
@@ -139,21 +139,21 @@ export default function TrainingPage() {
   weekEndDate.setDate(weekEndDate.getDate() + 6);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 border-b-4 border-foreground pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Training</h1>
-          <p className="text-sm text-muted-foreground mt-1">Weekly split & workout log</p>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Training</h1>
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">Weekly split & workout log</p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={prevWeek} className="h-8 w-8">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button variant="outline" size="icon" onClick={prevWeek} className="h-9 w-9">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium text-muted-foreground min-w-[150px] text-center font-mono">
+          <span className="text-xs sm:text-sm font-bold uppercase tracking-wider min-w-[130px] sm:min-w-[160px] text-center font-mono border-2 border-foreground px-2 sm:px-3 py-1.5">
             {formatDate(isoDate(weekStart))} — {formatDate(isoDate(weekEndDate))}
           </span>
-          <Button variant="ghost" size="icon" onClick={nextWeek} className="h-8 w-8">
+          <Button variant="outline" size="icon" onClick={nextWeek} className="h-9 w-9">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -161,9 +161,9 @@ export default function TrainingPage() {
 
       {/* ── Weekly Pin Board ───────────────────────────────────────── */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
           {[...Array(7)].map((_, i) => (
-            <div key={i} className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
+            <div key={i} className="border-2 border-foreground bg-card p-4 md:p-5 space-y-3 shadow-hard">
               <Skeleton className="h-5 w-24" />
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-20 w-full" />
@@ -171,7 +171,7 @@ export default function TrainingPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
           {week.map((session) => {
             const dayType = classifyDay(session);
             const isToday = session.day === today;
@@ -181,27 +181,30 @@ export default function TrainingPage() {
               <div
                 key={session.day}
                 className={`
-                  relative rounded-xl border border-border/50 border-l-[3px] ${accent.border}
-                  bg-card p-5 transition-all duration-200
-                  hover:shadow-card-hover hover:-translate-y-0.5
-                  ${isToday ? "ring-1 ring-primary/30 shadow-glow-sm" : ""}
+                  relative border-2 border-foreground border-l-[6px] ${accent.border}
+                  bg-card p-4 md:p-5 shadow-hard transition-all duration-200
+                  hover:-translate-y-0.5 hover:shadow-hard-md
+                  ${isToday ? "ring-2 ring-bauhaus-yellow ring-offset-2" : ""}
                 `}
               >
+                {/* Geometric corner decoration */}
+                <div className={`absolute top-0 right-0 w-3 h-3 ${dayType === "fencing" ? "bg-bauhaus-blue" : dayType === "gym" ? "bg-bauhaus-red" : "bg-foreground/20"}`} />
+
                 {/* Day header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     {dayType === "fencing" && <Swords className={`h-4 w-4 ${accent.text}`} />}
                     {dayType === "gym" && <Dumbbell className={`h-4 w-4 ${accent.text}`} />}
                     {dayType === "rest" && <BedDouble className={`h-4 w-4 ${accent.text}`} />}
-                    <span className="font-semibold text-sm tracking-tight">{session.weekday}</span>
+                    <span className="font-bold text-sm uppercase tracking-wider">{session.weekday}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {isToday && (
-                      <Badge className="text-2xs bg-primary/15 text-primary border-primary/20 px-1.5 py-0">
+                      <Badge variant="default" className="text-2xs bg-bauhaus-yellow text-foreground border-foreground">
                         TODAY
                       </Badge>
                     )}
-                    <span className="text-[11px] text-muted-foreground/60 font-mono">
+                    <span className="text-[11px] text-muted-foreground font-mono">
                       {formatDate(session.day)}
                     </span>
                   </div>
@@ -210,13 +213,13 @@ export default function TrainingPage() {
                 {/* Fencing day */}
                 {dayType === "fencing" && (
                   <div className="space-y-2">
-                    <Badge variant="outline" className={`text-[10px] ${accent.bg} ${accent.text} border-blue-500/15`}>
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-bauhaus-blue text-bauhaus-blue">
                       Fencing
                     </Badge>
-                    <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Club session — conditioning + sparring (~2h)
                     </p>
-                    <p className="text-[10px] text-muted-foreground/50 font-mono">
+                    <p className="text-[10px] text-muted-foreground font-mono font-bold">
                       {session.weekday === "Saturday" ? "11:00" : "20:00"}
                     </p>
                   </div>
@@ -225,10 +228,10 @@ export default function TrainingPage() {
                 {/* Rest day */}
                 {dayType === "rest" && (
                   <div className="space-y-2">
-                    <Badge variant="outline" className="text-[10px] bg-muted/30 text-muted-foreground border-border/40">
+                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
                       Rest
                     </Badge>
-                    <p className="text-xs text-muted-foreground/60 leading-relaxed">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Recovery day — no structured training.
                     </p>
                   </div>
@@ -238,23 +241,23 @@ export default function TrainingPage() {
                 {dayType === "gym" && session.session && (
                   <div className="space-y-2.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={`text-[10px] ${accent.bg} ${accent.text} border-violet-500/15`}>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider border-bauhaus-red text-bauhaus-red">
                         Gym
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground/60 capitalize font-mono">
+                      <span className="text-[10px] text-muted-foreground capitalize font-mono font-bold">
                         {session.session.name.replace(/_/g, " ")}
                       </span>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 border-t-2 border-foreground/10 pt-2">
                       {session.session.exercises.map((rx) => (
                         <div
                           key={rx.exercise}
                           className="flex items-center justify-between text-xs py-0.5"
                         >
-                          <span className="text-foreground/80 truncate mr-2 text-[12px]">
+                          <span className="text-foreground/80 truncate mr-2 text-[12px] font-medium">
                             {rx.exercise}
                           </span>
-                          <span className="font-mono text-muted-foreground/60 text-[10px] whitespace-nowrap">
+                          <span className="font-mono text-muted-foreground text-[10px] whitespace-nowrap font-bold">
                             {rx.sets}x{rx.reps}
                             {rx.load_kg != null ? ` @${rx.load_kg}kg` : ""}
                           </span>
@@ -262,15 +265,15 @@ export default function TrainingPage() {
                       ))}
                     </div>
                     {isToday && (
-                      <div className="pt-2 border-t border-border/30 mt-2">
+                      <div className="pt-2 border-t-2 border-foreground/10 mt-2">
                         <div className="flex flex-wrap gap-1">
                           {session.session.exercises.map((rx) => (
                             <Button
                               key={rx.exercise}
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => fillFromRx(rx)}
-                              className="h-6 text-[10px] text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 px-2"
+                              className="h-6 text-[10px] text-bauhaus-red hover:bg-bauhaus-red/10 px-2"
                             >
                               <Play className="h-2.5 w-2.5 mr-0.5" />
                               {rx.exercise.split(" ").slice(0, 2).join(" ")}
@@ -284,8 +287,8 @@ export default function TrainingPage() {
 
                 {/* Phase & readiness (today only) */}
                 {isToday && (
-                  <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-border/30">
-                    <Badge variant="outline" className="font-mono text-2xs">
+                  <div className="flex items-center gap-2 mt-3 pt-2.5 border-t-2 border-foreground/10">
+                    <Badge variant="outline" className="font-mono text-2xs font-bold">
                       {(session.phase as any)?.name ?? "\u2014"}
                     </Badge>
                     {(session.readiness as any)?.band && (
@@ -342,18 +345,18 @@ export default function TrainingPage() {
           />
           <Button onClick={submitLog} disabled={busy || !exercise} className="gap-2">
             <Dumbbell className="h-4 w-4" />
-            {busy ? "Logging..." : "Log Set"}
+            {busy ? "LOGGING..." : "LOG SET"}
           </Button>
         </div>
         {err && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 mt-3">
-            <p className="text-destructive text-sm">{err}</p>
+          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
+            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
           </div>
         )}
       </Card>
 
       {/* ── Today's Sets & Recent ────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
         <Card title={`Today's sets${todayLogs.length > 0 ? ` (${todayLogs.length})` : ""}`}>
           {loading && (
             <div className="space-y-2">
@@ -361,9 +364,11 @@ export default function TrainingPage() {
             </div>
           )}
           {!loading && todayLogs.length === 0 && (
-            <div className="flex flex-col items-center py-6 text-center">
-              <Dumbbell className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-muted-foreground/60 text-sm">Nothing logged yet.</p>
+            <div className="flex flex-col items-center py-8 text-center">
+              <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
+                <Dumbbell className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">Nothing logged yet</p>
             </div>
           )}
           {!loading && todayLogs.length > 0 && (
@@ -381,13 +386,13 @@ export default function TrainingPage() {
                 {todayLogs.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <span className="font-medium">{l.exercise}</span>
-                      <span className="text-muted-foreground/50 text-xs ml-1">#{l.set_number}</span>
+                      <span className="font-bold">{l.exercise}</span>
+                      <span className="text-muted-foreground text-xs ml-1 font-mono">#{l.set_number}</span>
                     </TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="text-right font-mono font-bold">
                       {l.weight_kg != null ? `${l.weight_kg} kg` : "\u2014"}
                     </TableCell>
-                    <TableCell className="text-right font-mono">{l.reps ?? "\u2014"}</TableCell>
+                    <TableCell className="text-right font-mono font-bold">{l.reps ?? "\u2014"}</TableCell>
                     <TableCell className="text-right font-mono text-muted-foreground">
                       {l.rpe != null ? `@${l.rpe}` : ""}
                     </TableCell>
@@ -395,7 +400,7 @@ export default function TrainingPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        className="h-7 w-7 text-muted-foreground hover:text-bauhaus-red hover:bg-bauhaus-red/10"
                         onClick={() => deleteLog(l.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -415,9 +420,11 @@ export default function TrainingPage() {
             </div>
           )}
           {!loading && earlier.length === 0 && (
-            <div className="flex flex-col items-center py-6 text-center">
-              <TrendingUp className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-muted-foreground/60 text-sm">No earlier sets.</p>
+            <div className="flex flex-col items-center py-8 text-center">
+              <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
+                <TrendingUp className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No earlier sets</p>
             </div>
           )}
           {!loading && earlier.length > 0 && (
@@ -433,12 +440,12 @@ export default function TrainingPage() {
                 <TableBody>
                   {earlier.slice(0, 30).map((l) => (
                     <TableRow key={l.id} className="text-xs">
-                      <TableCell className="text-muted-foreground font-mono">{l.day}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono font-bold">{l.day}</TableCell>
                       <TableCell>
                         {l.exercise}
-                        <span className="text-muted-foreground/50 ml-1">#{l.set_number}</span>
+                        <span className="text-muted-foreground ml-1 font-mono">#{l.set_number}</span>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right font-mono font-bold">
                         {l.weight_kg ?? "\u2014"} kg x {l.reps ?? "\u2014"}
                       </TableCell>
                     </TableRow>
@@ -465,9 +472,11 @@ export default function TrainingPage() {
       >
         {!progressEx && (
           <div className="flex flex-col items-center py-8 text-center">
-            <TrendingUp className="h-8 w-8 text-muted-foreground/20 mb-2" />
-            <p className="text-muted-foreground/60 text-sm">
-              Enter an exercise name to see estimated 1RM history.
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
+              <TrendingUp className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">
+              Enter an exercise name to see estimated 1RM history
             </p>
           </div>
         )}
@@ -483,7 +492,7 @@ export default function TrainingPage() {
         )}
         {progressEx && progress && progress.points.length === 0 && (
           <div className="flex flex-col items-center py-8 text-center">
-            <p className="text-muted-foreground/60 text-sm">No data for &ldquo;{progressEx}&rdquo;.</p>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No data for &ldquo;{progressEx}&rdquo;</p>
           </div>
         )}
         {progressEx && progress && progress.points.length > 0 && (
@@ -493,7 +502,7 @@ export default function TrainingPage() {
               height={80}
               unit="kg"
             />
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-3 gap-3 border-t-2 border-foreground/10 pt-4">
               <StatRow
                 label="Latest est. 1RM"
                 value={`${progress.points[progress.points.length - 1].est_1rm.toFixed(1)} kg`}

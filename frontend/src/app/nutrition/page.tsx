@@ -136,7 +136,7 @@ export default function NutritionPage() {
 
     if (found.length === 0) {
       return (
-        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted/30 p-4 rounded-lg max-h-96 overflow-auto">
+        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted p-4 border-2 border-foreground/10 max-h-96 overflow-auto">
           {JSON.stringify(plan, null, 2)}
         </pre>
       );
@@ -148,15 +148,15 @@ export default function NutritionPage() {
           const mealData = plan[mealKey] as any;
           const label = mealKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
           return (
-            <div key={mealKey} className="rounded-lg border border-border/40 bg-surface-2/50 p-4">
-              <h4 className="text-sm font-semibold text-foreground/90 mb-2">{label}</h4>
+            <div key={mealKey} className="border-2 border-foreground/20 bg-card p-4">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">{label}</h4>
               {Array.isArray(mealData?.items ?? mealData) ? (
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   {(mealData?.items ?? mealData).map((item: any, i: number) => (
                     <li key={i} className="flex justify-between">
                       <span>{typeof item === "string" ? item : item?.name ?? item?.food ?? JSON.stringify(item)}</span>
                       {item?.amount && (
-                        <span className="text-muted-foreground/50 font-mono text-xs">
+                        <span className="text-muted-foreground font-mono text-xs font-bold">
                           {item.amount}{item.unit ? ` ${item.unit}` : ""}
                         </span>
                       )}
@@ -167,7 +167,7 @@ export default function NutritionPage() {
                 <div className="text-sm text-muted-foreground">
                   {mealData.description && <p>{mealData.description}</p>}
                   {mealData.kcal && (
-                    <p className="text-xs text-muted-foreground/50 mt-1.5 font-mono">
+                    <p className="text-xs text-muted-foreground mt-1.5 font-mono font-bold">
                       ~{mealData.kcal} kcal
                       {mealData.protein_g ? ` · P${mealData.protein_g}` : ""}
                       {mealData.carbs_g ? ` · C${mealData.carbs_g}` : ""}
@@ -182,7 +182,7 @@ export default function NutritionPage() {
           );
         })}
         {plan.totals != null && (
-          <p className="text-xs text-muted-foreground/50 font-mono mt-2">
+          <p className="text-xs text-muted-foreground font-mono font-bold mt-2">
             Plan totals: {JSON.stringify(plan.totals)}
           </p>
         )}
@@ -194,15 +194,16 @@ export default function NutritionPage() {
   const earlierLogs = logs.filter((l) => l.day !== today);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Nutrition</h1>
-        <p className="text-sm text-muted-foreground mt-1">Track meals, macros, and meal plans</p>
+    <div className="space-y-6 md:space-y-8">
+      {/* Header */}
+      <div className="border-b-4 border-foreground pb-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Nutrition</h1>
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">Track meals, macros, and meal plans</p>
       </div>
 
       {/* Log a meal */}
       <Card title="Log a meal" icon={<Utensils className="h-4 w-4" />}>
-        <p className="text-xs text-muted-foreground/60 mb-3">
+        <p className="text-xs text-muted-foreground mb-3 font-mono">
           Describe what you ate. The coach LLM will estimate macros, key micros,
           and a confidence level. Quantities help — &ldquo;200g chicken with 1
           cup of rice&rdquo; beats &ldquo;chicken with rice&rdquo;.
@@ -210,7 +211,7 @@ export default function NutritionPage() {
         <div className="flex flex-col sm:flex-row gap-2.5">
           <Select value={meal} onValueChange={setMeal}>
             <SelectTrigger className="w-[140px]">
-              <Utensils className="h-3.5 w-3.5 mr-1.5 text-muted-foreground/50" />
+              <Utensils className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Meal" />
             </SelectTrigger>
             <SelectContent>
@@ -231,12 +232,12 @@ export default function NutritionPage() {
             className="flex-1"
           />
           <Button onClick={submit} disabled={busy}>
-            {busy ? "Estimating\u2026" : "Log"}
+            {busy ? "ESTIMATING..." : "LOG"}
           </Button>
         </div>
         {err && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 mt-3">
-            <p className="text-destructive text-sm">{err}</p>
+          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
+            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
           </div>
         )}
       </Card>
@@ -257,7 +258,7 @@ export default function NutritionPage() {
         <Card
           title={`Targets vs intake — ${targets.day_type} day, ${targets.phase} phase`}
           action={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
               <Badge
                 variant={targets.override_source === "manual" ? "default" : "secondary"}
               >
@@ -265,7 +266,7 @@ export default function NutritionPage() {
               </Badge>
               <Select value={dayTypeOverride} onValueChange={handleDayTypeChange}>
                 <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground/50" />
+                  <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,13 +288,13 @@ export default function NutritionPage() {
             <MacroProgress label="Fiber" actual={totals.fiber_g} target={targets.fiber_g} unit="g" />
           </div>
           {targets.notes && (
-            <p className="text-xs text-muted-foreground/50 mt-3">{targets.notes}</p>
+            <p className="text-xs text-muted-foreground mt-3 font-mono">{targets.notes}</p>
           )}
         </Card>
       ) : null}
 
       {/* Summary + Micros + Today's entries */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         <Card title={`Today (${today})`}>
           {loading && !totals ? (
             <div className="space-y-2">
@@ -310,8 +311,10 @@ export default function NutritionPage() {
             </>
           ) : (
             <div className="flex flex-col items-center py-6 text-center">
-              <Utensils className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-muted-foreground/60 text-sm">No data yet.</p>
+              <div className="h-10 w-10 border-2 border-foreground flex items-center justify-center mb-2 shadow-hard-sm">
+                <Utensils className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No data yet</p>
             </div>
           )}
         </Card>
@@ -333,7 +336,7 @@ export default function NutritionPage() {
               ))
           ) : (
             <div className="flex flex-col items-center py-6 text-center">
-              <p className="text-muted-foreground/60 text-sm">No data yet.</p>
+              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No data yet</p>
             </div>
           )}
         </Card>
@@ -351,12 +354,12 @@ export default function NutritionPage() {
             </div>
           ) : todayLogs.length === 0 ? (
             <div className="flex flex-col items-center py-6 text-center">
-              <p className="text-muted-foreground/60 text-sm">Nothing logged yet.</p>
+              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">Nothing logged yet</p>
             </div>
           ) : (
             <ul className="space-y-3">
               {todayLogs.map((l) => (
-                <li key={l.id} className="text-sm border-b border-border/30 pb-3 last:border-0">
+                <li key={l.id} className="text-sm border-b-2 border-foreground/10 pb-3 last:border-0">
                   <div className="flex items-center justify-between">
                     <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
                       {l.meal || "\u2014"}
@@ -364,15 +367,15 @@ export default function NutritionPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground/40 hover:text-destructive"
+                      className="h-6 w-6 text-muted-foreground hover:text-bauhaus-red hover:bg-bauhaus-red/10"
                       onClick={() => remove(l.id)}
                       aria-label="Delete entry"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="text-foreground/90 mt-1">{l.raw_text}</div>
-                  <div className="text-muted-foreground/50 text-xs mt-1 font-mono">
+                  <div className="text-foreground mt-1 font-medium">{l.raw_text}</div>
+                  <div className="text-muted-foreground text-xs mt-1 font-mono font-bold">
                     {l.kcal?.toFixed(0)} kcal · P{" "}
                     {l.protein_g?.toFixed(0)} / C {l.carbs_g?.toFixed(0)} / F{" "}
                     {l.fat_g?.toFixed(0)}
@@ -391,18 +394,19 @@ export default function NutritionPage() {
         action={
           <Button onClick={generatePlan} disabled={planBusy} size="sm" variant={plan ? "outline" : "default"}>
             <ChefHat className="h-3.5 w-3.5 mr-1.5" />
-            {planBusy ? "Generating\u2026" : plan ? "Regenerate" : "Generate"}
+            {planBusy ? "GENERATING..." : plan ? "REGENERATE" : "GENERATE"}
           </Button>
         }
       >
         {!plan ? (
           <div className="flex flex-col items-center py-8 text-center">
-            <div className="h-10 w-10 rounded-xl bg-primary/8 flex items-center justify-center mb-3">
-              <ChefHat className="h-5 w-5 text-primary/40" />
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
+              <ChefHat className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground/60 text-sm">
-              No plan for today yet. Click Generate to have the coach build one.
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">
+              No plan for today yet
             </p>
+            <p className="text-muted-foreground text-xs mt-1 font-mono">Click Generate to have the coach build one</p>
           </div>
         ) : (
           renderMealPlan(plan.plan)
@@ -416,21 +420,22 @@ export default function NutritionPage() {
         action={
           <Button onClick={loadShopping} disabled={shopBusy} size="sm" variant="outline">
             <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-            {shopBusy ? "Loading\u2026" : shopping ? "Refresh" : "Load"}
+            {shopBusy ? "LOADING..." : shopping ? "REFRESH" : "LOAD"}
           </Button>
         }
       >
         {!shopping ? (
           <div className="flex flex-col items-center py-8 text-center">
-            <div className="h-10 w-10 rounded-xl bg-muted/50 flex items-center justify-center mb-3">
-              <ShoppingCart className="h-5 w-5 text-muted-foreground/30" />
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
+              <ShoppingCart className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground/60 text-sm">
-              Aggregates ingredients from generated meal plans for the next 7 days.
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">
+              Weekly shopping aggregator
             </p>
+            <p className="text-muted-foreground text-xs mt-1 font-mono">Aggregates ingredients from generated meal plans for the next 7 days</p>
           </div>
         ) : shopping.item_count === 0 ? (
-          <p className="text-muted-foreground/60 text-sm">
+          <p className="text-muted-foreground text-sm font-mono">
             No meal plans generated yet for {shopping.start} → {shopping.end}.
             {shopping.missing_days.length > 0 && (
               <> Missing: {shopping.missing_days.join(", ")}</>
@@ -438,7 +443,7 @@ export default function NutritionPage() {
           </p>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground/50 mb-3 font-mono">
+            <p className="text-xs text-muted-foreground mb-3 font-mono font-bold">
               {shopping.start} → {shopping.end} · {shopping.item_count} items ·
               covered: {shopping.days_covered.length}d
               {shopping.missing_days.length > 0 && (
@@ -447,9 +452,9 @@ export default function NutritionPage() {
             </p>
             <ul className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {shopping.items.map((it, i) => (
-                <li key={i} className="flex justify-between border-b border-border/30 py-2">
-                  <span className="text-foreground/90">{it.name}</span>
-                  <span className="font-mono text-muted-foreground/50 text-xs">
+                <li key={i} className="flex justify-between border-b-2 border-foreground/10 py-2">
+                  <span className="text-foreground font-medium">{it.name}</span>
+                  <span className="font-mono text-muted-foreground text-xs font-bold">
                     {it.amount ?? ""} {it.unit ?? ""}
                   </span>
                 </li>
@@ -463,17 +468,17 @@ export default function NutritionPage() {
       <Card title="Earlier (last 7 days)">
         {earlierLogs.length === 0 ? (
           <div className="flex flex-col items-center py-6 text-center">
-            <p className="text-muted-foreground/60 text-sm">No earlier entries.</p>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No earlier entries</p>
           </div>
         ) : (
           <ul className="space-y-1 text-sm">
             {earlierLogs.map((l) => (
-              <li key={l.id} className="flex justify-between text-muted-foreground py-1">
+              <li key={l.id} className="flex justify-between text-muted-foreground py-1 border-b border-foreground/5">
                 <span>
-                  <span className="text-muted-foreground/50 mr-2 font-mono text-xs">{l.day}</span>
-                  <span className="text-foreground/80">{l.raw_text}</span>
+                  <span className="text-muted-foreground mr-2 font-mono text-xs font-bold">{l.day}</span>
+                  <span className="text-foreground font-medium">{l.raw_text}</span>
                 </span>
-                <span className="font-mono text-muted-foreground/50 text-xs">
+                <span className="font-mono text-muted-foreground text-xs font-bold">
                   {l.kcal?.toFixed(0)} kcal
                 </span>
               </li>

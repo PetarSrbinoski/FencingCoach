@@ -96,16 +96,16 @@ export default function WeeklyPage() {
     icon: React.ReactNode;
     unit?: string;
   }[] = [
-    { title: "HRV", series: hrv, color: "#60a5fa", icon: <Heart className="h-4 w-4 text-blue-400" />, unit: "ms" },
-    { title: "Sleep", series: sleep, color: "#a78bfa", icon: <Moon className="h-4 w-4 text-violet-400" />, unit: "hrs" },
-    { title: "Sleep Score", series: sleepScore, color: "#818cf8", icon: <Star className="h-4 w-4 text-indigo-400" /> },
-    { title: "Resting HR", series: rhr, color: "#f472b6", icon: <Heart className="h-4 w-4 text-pink-400" />, unit: "bpm" },
-    { title: "Training Readiness", series: readinessSeries, color: "#10b981", icon: <Target className="h-4 w-4 text-emerald-400" /> },
+    { title: "HRV", series: hrv, color: "#1040C0", icon: <Heart className="h-4 w-4 text-bauhaus-blue" />, unit: "ms" },
+    { title: "Sleep", series: sleep, color: "#121212", icon: <Moon className="h-4 w-4" />, unit: "hrs" },
+    { title: "Sleep Score", series: sleepScore, color: "#1040C0", icon: <Star className="h-4 w-4 text-bauhaus-blue" /> },
+    { title: "Resting HR", series: rhr, color: "#D02020", icon: <Heart className="h-4 w-4 text-bauhaus-red" />, unit: "bpm" },
+    { title: "Training Readiness", series: readinessSeries, color: "#1040C0", icon: <Target className="h-4 w-4 text-bauhaus-blue" /> },
     {
       title: "Weekly Summary",
       series: null,
-      color: "#fbbf24",
-      icon: <Flame className="h-4 w-4 text-amber-400" />,
+      color: "#F0C020",
+      icon: <Flame className="h-4 w-4 text-bauhaus-yellow" />,
     },
   ];
 
@@ -118,22 +118,22 @@ export default function WeeklyPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">This Week</h1>
-        <p className="text-sm text-muted-foreground mt-1">28-day trends and weekly performance overview</p>
+      <div className="border-b-4 border-foreground pb-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">This Week</h1>
+        <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">28-day trends and weekly performance overview</p>
       </div>
 
       {/* ── Bar charts: Training load & Calories ─────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Card title="Training Load" icon={<TrendingUp className="h-4 w-4 text-emerald-400" />}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <Card title="Training Load" icon={<TrendingUp className="h-4 w-4" />}>
           {loading ? (
-            <Skeleton className="h-[120px] w-full rounded-lg" />
+            <Skeleton className="h-[120px] w-full" />
           ) : (
             <>
-              <BarChartComponent values={last7Days} color="#10b981" height={120} unit=" load" />
-              <div className="mt-4 pt-3 border-t border-border/50 text-sm space-y-1.5">
+              <BarChartComponent values={last7Days} color="#1040C0" height={120} unit=" load" />
+              <div className="mt-4 pt-3 border-t-2 border-foreground/10 text-sm space-y-1.5">
                 <StatRow label="Total load (7d)" value={totalLoad7.toFixed(0)} />
                 <StatRow label="Sessions (7d)" value={sessions7} />
               </div>
@@ -141,13 +141,13 @@ export default function WeeklyPage() {
           )}
         </Card>
 
-        <Card title="Calories Logged" icon={<Utensils className="h-4 w-4 text-violet-400" />}>
+        <Card title="Calories Logged" icon={<Utensils className="h-4 w-4" />}>
           {loading ? (
-            <Skeleton className="h-[120px] w-full rounded-lg" />
+            <Skeleton className="h-[120px] w-full" />
           ) : (
             <>
-              <BarChartComponent values={last7Kcal} color="#a78bfa" height={120} unit=" kcal" />
-              <div className="mt-4 pt-3 border-t border-border/50 text-sm space-y-1.5">
+              <BarChartComponent values={last7Kcal} color="#D02020" height={120} unit=" kcal" />
+              <div className="mt-4 pt-3 border-t-2 border-foreground/10 text-sm space-y-1.5">
                 <StatRow label="Avg/day" value={`${avgKcal} kcal`} />
               </div>
             </>
@@ -157,18 +157,18 @@ export default function WeeklyPage() {
 
       {/* ── 28-day sparkline grid (2×3) ──────────────────────────────── */}
       <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">28-Day Trends</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <h2 className="text-sm font-bold text-foreground mb-4 uppercase tracking-wider">28-Day Trends</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {sparklines.map((s) => (
             <Card key={s.title}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center justify-center h-7 w-7 rounded-md bg-surface-2">
+                <div className="flex items-center justify-center h-7 w-7 border-2 border-foreground">
                   {s.icon}
                 </div>
-                <span className="text-sm font-medium">{s.title}</span>
+                <span className="text-sm font-bold uppercase tracking-wider">{s.title}</span>
               </div>
               {loading ? (
-                <Skeleton className="h-[70px] w-full rounded-lg" />
+                <Skeleton className="h-[70px] w-full" />
               ) : s.title === "Weekly Summary" ? (
                 <div className="text-sm space-y-2 pt-1">
                   <StatRow label="Sessions (7d)" value={sessions7} />
@@ -180,9 +180,9 @@ export default function WeeklyPage() {
               ) : (
                 <>
                   <Sparkline points={s.series?.points ?? []} color={s.color} height={70} unit={s.unit} />
-                  <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground">
-                    <span>Latest: <span className="text-foreground font-medium">{latestValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
-                    <span>28d avg: <span className="text-foreground font-medium">{avgValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
+                  <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground font-mono">
+                    <span>Latest: <span className="text-foreground font-bold">{latestValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
+                    <span>28d avg: <span className="text-foreground font-bold">{avgValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
                   </div>
                 </>
               )}
@@ -192,22 +192,23 @@ export default function WeeklyPage() {
       </div>
 
       {/* ── Activities table ─────────────────────────────────────────── */}
-      <Card title="Activities" icon={<ActivityIcon className="h-4 w-4 text-blue-400" />} action={<span className="text-xs text-muted-foreground">Last 28 days</span>}>
+      <Card title="Activities" icon={<ActivityIcon className="h-4 w-4" />} action={<span className="text-xs text-muted-foreground font-mono font-bold uppercase">Last 28 days</span>}>
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-full rounded" />
+              <Skeleton key={i} className="h-8 w-full" />
             ))}
           </div>
         ) : activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 rounded-full bg-surface-2 flex items-center justify-center mb-3">
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
               <ActivityIcon className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground text-sm">No activities synced yet</p>
-            <p className="text-muted-foreground/60 text-xs mt-1">Connect Garmin to start tracking</p>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No activities synced yet</p>
+            <p className="text-muted-foreground text-xs mt-1 font-mono">Connect Garmin to start tracking</p>
           </div>
         ) : (
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -221,7 +222,7 @@ export default function WeeklyPage() {
             <TableBody>
               {activities.slice(0, 30).map((a) => (
                 <TableRow key={a.id}>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground font-mono text-sm">
                     {new Date(a.start_time).toLocaleString(undefined, {
                       weekday: "short",
                       month: "short",
@@ -236,19 +237,20 @@ export default function WeeklyPage() {
                       {a.activity_type ?? "Unknown"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
+                  <TableCell className="text-right font-mono text-sm font-bold">
                     {a.duration_s ? `${Math.round(a.duration_s / 60)}m` : "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
+                  <TableCell className="text-right font-mono text-sm font-bold">
                     {a.avg_hr ? `${a.avg_hr}/${a.max_hr ?? "—"}` : "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
+                  <TableCell className="text-right font-mono text-sm font-bold">
                     {a.training_load?.toFixed(0) ?? "—"}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </Card>
     </div>

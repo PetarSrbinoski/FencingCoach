@@ -100,17 +100,15 @@ export default function CompetitionsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Page header */}
-      <div>
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-amber-500/10">
-            <Trophy className="h-5 w-5 text-amber-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Competitions</h1>
-            <p className="text-xs text-muted-foreground">Manage your competition calendar</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b-4 border-foreground pb-4">
+        <div className="flex items-center justify-center h-10 w-10 border-2 border-foreground bg-bauhaus-yellow shadow-hard-sm">
+          <Trophy className="h-5 w-5 text-foreground" />
+        </div>
+        <div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Competitions</h1>
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 font-mono">Manage your competition calendar</p>
         </div>
       </div>
 
@@ -131,7 +129,7 @@ export default function CompetitionsPage() {
             placeholder="Location"
           />
           <div className="space-y-1">
-            <label className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">Start Date</label>
+            <label className="text-2xs font-bold text-foreground uppercase tracking-wider">Start Date</label>
             <Input
               type="date"
               value={form.event_date}
@@ -139,7 +137,7 @@ export default function CompetitionsPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-2xs font-medium text-muted-foreground uppercase tracking-wider">End Date</label>
+            <label className="text-2xs font-bold text-foreground uppercase tracking-wider">End Date</label>
             <Input
               type="date"
               value={form.end_date ?? ""}
@@ -185,31 +183,35 @@ export default function CompetitionsPage() {
             className="sm:col-span-2"
           />
         </div>
-        <div className="flex gap-2 mt-4 pt-3 border-t border-border/40">
+        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t-2 border-foreground/10">
           <Button onClick={submit} disabled={busy || !form.name.trim()}>
-            {busy ? "..." : editingId ? "Update" : "Add Competition"}
+            {busy ? "..." : editingId ? "UPDATE" : "ADD COMPETITION"}
           </Button>
           {editingId && (
             <Button variant="outline" onClick={reset}>
-              Cancel
+              CANCEL
             </Button>
           )}
         </div>
-        {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
+        {err && (
+          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
+            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
+          </div>
+        )}
       </Card>
 
       {/* Upcoming */}
       <Card
         title={`Upcoming (${upcoming.length})`}
-        icon={<CalendarDays className="h-4 w-4 text-blue-400" />}
+        icon={<CalendarDays className="h-4 w-4" />}
       >
         {upcoming.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="h-12 w-12 rounded-full bg-surface-2 flex items-center justify-center mb-3">
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
               <Swords className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground text-sm">No upcoming competitions</p>
-            <p className="text-muted-foreground/60 text-xs mt-1">Add one above to start planning</p>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No upcoming competitions</p>
+            <p className="text-muted-foreground text-xs mt-1 font-mono">Add one above to start planning</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -220,41 +222,41 @@ export default function CompetitionsPage() {
               return (
                 <li
                   key={c.id}
-                  className="flex items-start justify-between rounded-lg border border-border/50 bg-surface-0 p-3 transition-colors hover:bg-surface-1"
+                  className="flex items-start justify-between border-2 border-foreground bg-card p-4 shadow-hard-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-hard"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-muted-foreground text-xs">
+                      <span className="font-mono text-muted-foreground text-xs font-bold">
                         {c.event_date}
                       </span>
-                      <Badge variant="outline" className="text-2xs">
+                      <Badge variant="outline" className="text-2xs font-bold">
                         T-{dOut}d
                       </Badge>
                       <BandPill band={c.priority === "A" ? "red" : c.priority === "B" ? "amber" : "green"} />
                     </div>
-                    <div className="text-foreground font-medium">{c.name}</div>
+                    <div className="text-foreground font-bold text-lg">{c.name}</div>
                     {(c.location || c.level) && (
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-mono">
                         {c.location && (
                           <>
                             <MapPin className="h-3 w-3" />
                             <span>{c.location}</span>
                           </>
                         )}
-                        {c.location && c.level && <span className="text-border">|</span>}
-                        {c.level && <span className="capitalize">{c.level}</span>}
+                        {c.location && c.level && <span className="text-foreground/20">|</span>}
+                        {c.level && <span className="uppercase font-bold">{c.level}</span>}
                       </div>
                     )}
                     {c.notes && (
-                      <p className="text-muted-foreground/80 text-xs leading-relaxed">{c.notes}</p>
+                      <p className="text-muted-foreground text-xs leading-relaxed">{c.notes}</p>
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0 ml-3">
                     <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-400" />
+                    <Button variant="ghost" size="icon" onClick={() => remove(c.id)} className="hover:text-bauhaus-red hover:bg-bauhaus-red/10">
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </li>
@@ -265,15 +267,16 @@ export default function CompetitionsPage() {
       </Card>
 
       {/* Past */}
-      <Card title={`Past (${past.length})`} icon={<Trophy className="h-4 w-4 text-muted-foreground" />}>
+      <Card title={`Past (${past.length})`} icon={<Trophy className="h-4 w-4" />}>
         {past.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="h-12 w-12 rounded-full bg-surface-2 flex items-center justify-center mb-3">
+            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
               <Trophy className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground text-sm">No past competitions</p>
+            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No past competitions</p>
           </div>
         ) : (
+          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -290,14 +293,14 @@ export default function CompetitionsPage() {
                 .reverse()
                 .map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-mono text-muted-foreground text-sm">
+                    <TableCell className="font-mono text-muted-foreground text-sm font-bold">
                       {c.event_date}
                     </TableCell>
-                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell className="font-bold">{c.name}</TableCell>
                     <TableCell>{priorityBadge(c.priority)}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {c.result ? JSON.stringify(c.result) : (
-                        <span className="text-muted-foreground/60">no result</span>
+                        <span className="text-muted-foreground">no result</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -305,7 +308,7 @@ export default function CompetitionsPage() {
                         <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => remove(c.id)} className="hover:text-bauhaus-red hover:bg-bauhaus-red/10">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -314,6 +317,7 @@ export default function CompetitionsPage() {
                 ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </Card>
     </div>

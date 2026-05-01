@@ -102,51 +102,49 @@ export default function GarminPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Page header */}
-      <div>
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-emerald-500/10">
-            <Watch className="h-5 w-5 text-emerald-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Garmin Connect</h1>
-            <p className="text-xs text-muted-foreground">Sync your wearable data</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b-4 border-foreground pb-4">
+        <div className="flex items-center justify-center h-10 w-10 border-2 border-foreground bg-bauhaus-blue shadow-hard-sm">
+          <Watch className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Garmin</h1>
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 font-mono">Sync your wearable data</p>
         </div>
       </div>
 
       {/* Status */}
-      <Card title="Connection Status" icon={<Activity className="h-4 w-4 text-blue-400" />}>
+      <Card title="Connection Status" icon={<Activity className="h-4 w-4" />}>
         {status ? (
           <div className="space-y-2">
             <StatRow
               label="Last fetch"
               value={
                 status.last_fetch ? (
-                  <span className="font-mono text-sm">{status.last_fetch}</span>
+                  <span className="font-mono text-sm font-bold">{status.last_fetch}</span>
                 ) : (
                   <Badge variant="outline">never</Badge>
                 )
               }
             />
             <StatRow label="Metric rows stored" value={
-              <span className="font-mono text-sm">{status.metric_rows.toLocaleString()}</span>
+              <span className="font-mono text-sm font-bold">{status.metric_rows.toLocaleString()}</span>
             } />
           </div>
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Loading status...</span>
+            <span className="font-mono">Loading status...</span>
           </div>
         )}
       </Card>
 
       {/* Login & Sync */}
-      <Card title="Authentication" icon={<LogIn className="h-4 w-4 text-muted-foreground" />}>
-        <p className="text-xs text-muted-foreground/80 mb-4 leading-relaxed">
+      <Card title="Authentication" icon={<LogIn className="h-4 w-4" />}>
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed font-mono">
           Uses the unofficial garminconnect library. Credentials are sent once; the
-          backend persists OAuth tokens to <code className="text-foreground/70 bg-surface-2 px-1 py-0.5 rounded text-2xs">/app/garmin_tokens</code>.
+          backend persists OAuth tokens to <code className="text-foreground bg-muted px-1 py-0.5 border border-foreground/20 text-2xs font-bold">/app/garmin_tokens</code>.
         </p>
         <div className="space-y-3">
           <Input
@@ -161,39 +159,39 @@ export default function GarminPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <div className="flex gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1">
             <Button onClick={login} disabled={busy}>
               <LogIn className="h-4 w-4 mr-2" />
-              Login
+              LOGIN
             </Button>
             <Button variant="secondary" onClick={syncRecent} disabled={busy}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Sync recent (2 days)
+              SYNC RECENT (2D)
             </Button>
           </div>
         </div>
         {msg && (
-          <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
-            <p className="text-emerald-400 text-sm whitespace-pre-wrap">{msg}</p>
+          <div className="flex items-start gap-2 mt-4 p-3 border-2 border-bauhaus-blue bg-bauhaus-blue/5">
+            <CheckCircle2 className="h-4 w-4 text-bauhaus-blue mt-0.5 shrink-0" />
+            <p className="text-bauhaus-blue text-sm font-bold whitespace-pre-wrap">{msg}</p>
           </div>
         )}
         {err && (
-          <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-            <AlertCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-            <p className="text-red-400 text-sm">{err}</p>
+          <div className="flex items-start gap-2 mt-4 p-3 border-2 border-bauhaus-red bg-bauhaus-red/5">
+            <AlertCircle className="h-4 w-4 text-bauhaus-red mt-0.5 shrink-0" />
+            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
           </div>
         )}
       </Card>
 
       {/* Full History Sync */}
-      <Card title="Full History Sync" icon={<History className="h-4 w-4 text-amber-400" />}>
-        <p className="text-xs text-muted-foreground/80 mb-4 leading-relaxed">
+      <Card title="Full History Sync" icon={<History className="h-4 w-4" />}>
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed font-mono">
           Pull your entire Garmin history. This may take several minutes depending on how
           far back you go. The backend will upsert all metrics so existing data is not
           duplicated.
         </p>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <Select value={historyDays} onValueChange={setHistoryDays}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -216,21 +214,21 @@ export default function GarminPage() {
             ) : (
               <History className="h-4 w-4 mr-2" />
             )}
-            {historyBusy ? "Syncing..." : "Sync Full History"}
+            {historyBusy ? "SYNCING..." : "SYNC FULL HISTORY"}
           </Button>
         </div>
         {historyBusy && (
-          <div className="flex items-center gap-2 mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-            <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
-            <p className="text-xs text-amber-400/80">
+          <div className="flex items-center gap-2 mt-4 p-3 border-2 border-bauhaus-yellow bg-bauhaus-yellow/10">
+            <Loader2 className="h-4 w-4 text-foreground animate-spin shrink-0" />
+            <p className="text-xs text-foreground font-bold font-mono">
               Syncing {historyDays} days of data. This may take a while...
             </p>
           </div>
         )}
         {historyMsg && (
-          <div className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" />
-            <p className="text-emerald-400 text-sm whitespace-pre-wrap">{historyMsg}</p>
+          <div className="flex items-start gap-2 mt-4 p-3 border-2 border-bauhaus-blue bg-bauhaus-blue/5">
+            <CheckCircle2 className="h-4 w-4 text-bauhaus-blue mt-0.5 shrink-0" />
+            <p className="text-bauhaus-blue text-sm font-bold whitespace-pre-wrap">{historyMsg}</p>
           </div>
         )}
       </Card>

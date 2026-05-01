@@ -49,17 +49,17 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
     restart: unless-stopped
     env_file: .env
     depends_on:
       - backend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    command: npm run dev
+    environment:
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
 
   # ── Local LLM (DISABLED — using NVIDIA NIM cloud API) ────────────────
   # Uncomment this service and change LLM_BASE_URL=http://llm:11434/v1
