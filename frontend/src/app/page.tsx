@@ -1,0 +1,551 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  api,
+  Activity,
+  Brief,
+  MetricSeries,
+  NutritionDayTotals,
+  Phase,
+  Readiness,
+  Targets,
+} from "@/lib/api";
+import { Sparkline, Gauge } from "@/components/charts";
+import { Card, BandPill, StatRow } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Heart,
+  Moon,
+  Zap,
+  Activity as ActivityIcon,
+  Target,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Footprints,
+  Flame,
+} from "lucide-react";
+
+export default function Home() {
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [phase, setPhase] = useState<Phase | null>(null);
+  const [targets, setTargets] = useState<Targets | null>(null);
+  const [hrv, setHrv] = useState<MetricSeries | null>(null);
+  const [sleep, setSleep] = useState<MetricSeries | null>(null);
+  const [sleepScore, setSleepScore] = useState<MetricSeries | null>(null);
+  const [rhr, setRhr] = useState<MetricSeries | null>(null);
+  const [bb, setBb] = useState<MetricSeries | null>(null);
+  const [readinessSeries, setReadinessSeries] = useState<MetricSeries | null>(null);
+  const [steps, setSteps] = useState<MetricSeries | null>(null);
+  const [calories, setCalories] = useState<MetricSeries | null>(null);
+  const [nutritionToday, setNutritionToday] = useState<NutritionDayTotals | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function loadAll() {
+    setErr(null);
+    api.readiness.today().then(setReadiness).catch((e) => setErr(String(e)));
+    api.brief.today().then(setBrief).catch(() => {});
+    api.phase.today().then(setPhase).catch(() => {});
+    api.targets.today().then(setTargets).catch(() => {});
+    api.metrics.series("hrv", 14).then(setHrv).catch(() => {});
+    api.metrics.series("sleep", 14).then(setSleep).catch(() => {});
+    api.metrics.series("sleep_score", 14).then(setSleepScore).catch(() => {});
+    api.metrics.series("resting_hr", 14).then(setRhr).catch(() => {});
+    api.metrics.series("body_battery", 14).then(setBb).catch(() => {});
+    api.metrics.series("training_readiness", 14).then(setReadinessSeries).catch(() => {});
+    api.metrics.series("steps", 14).then(setSteps).catch(() => {});
+    api.metrics.series("calories", 14).then(setCalories).catch(() => {});
+    api.activities.recent(3).then(setActivities).catch(() => {});
+    const today = new Date().toISOString().slice(0, 10);
+    api.nutrition.totals(today).then(setNutritionToday).catch(() => {});
+  }
+
+  useEffect(loadAll, []);
+
+  async function generateBrief() {
+    setGenerating(true);
+    setErr(null);
+    try {
+      const b = await api.brief.generate();
+      setBrief(b);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setErr(message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  // Extract today's raw values from readiness inputs
+  const ri = readiness?.inputs;
+
+  return (
+    <div className="space-y-6">
+      {/* ── Page header ───────────────────────────────────────────── */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Today</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
+        </div>
+        {phase && (
+          <Badge variant="outline" className="gap-1.5 font-normal h-7">
+            <span className="font-medium">{phase.name}</span>
+            {phase.next_event_name && phase.days_to_event != null && (
+              <span className="text-muted-foreground">
+                {"\u2192"} {phase.next_event_name} (T-{phase.days_to_event}d)
+              </span>
+            )}
+          </Badge>
+        )}
+      </div>
+
+      {err && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <p className="text-destructive text-sm">{err}</p>
+        </div>
+      )}
+
+      {/* ── Top stats bar: readiness gauge + key vitals ─────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-5">
+        {/* Readiness gauge */}
+        <Card className="min-w-[200px]">
+          {readiness ? (
+            <div className="flex flex-col items-center gap-3 py-2">
+              <Gauge score={readiness.score} size={150} />
+              <BandPill band={readiness.band} />
+              <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 mt-2 text-xs w-full">
+                {Object.entries(readiness.components).map(([k, c]) => (
+                  <div key={k} className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground capitalize text-[11px]">
+                      {k.replace(/_/g, " ")}
+                    </span>
+                    <span className="font-mono font-semibold text-[12px]">{Math.round(c.score)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 py-6">
+              <Skeleton className="h-36 w-36 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-md" />
+            </div>
+          )}
+        </Card>
+
+        {/* Key vitals grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <VitalCard
+            label="HRV"
+            value={ri?.hrv_today}
+            unit="ms"
+            icon={<ActivityIcon className="h-3.5 w-3.5 text-blue-400" />}
+            series={hrv}
+          />
+          <VitalCard
+            label="Sleep"
+            value={ri?.sleep_h}
+            unit="h"
+            format={(v) => v.toFixed(1)}
+            icon={<Moon className="h-3.5 w-3.5 text-violet-400" />}
+            series={sleep}
+          />
+          <VitalCard
+            label="Sleep Score"
+            value={lastValue(sleepScore)}
+            unit=""
+            icon={<Star className="h-3.5 w-3.5 text-indigo-400" />}
+            series={sleepScore}
+          />
+          <VitalCard
+            label="RHR"
+            value={ri?.rhr}
+            unit="bpm"
+            icon={<Heart className="h-3.5 w-3.5 text-pink-400" />}
+            series={rhr}
+            lowerIsBetter
+          />
+          <VitalCard
+            label="Body Battery"
+            value={ri?.body_battery_max}
+            unit=""
+            icon={<Zap className="h-3.5 w-3.5 text-emerald-400" />}
+            series={bb}
+          />
+          <VitalCard
+            label="Readiness"
+            value={lastValue(readinessSeries)}
+            unit=""
+            icon={<Target className="h-3.5 w-3.5 text-amber-400" />}
+            series={readinessSeries}
+          />
+        </div>
+      </div>
+
+      {/* ── 14-day sparkline metrics (2x4 grid) ──────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard
+          title="HRV"
+          icon={<ActivityIcon className="h-4 w-4 text-blue-400" />}
+          series={hrv}
+          unit="ms"
+          color="#60a5fa"
+        />
+        <MetricCard
+          title="Sleep"
+          icon={<Moon className="h-4 w-4 text-violet-400" />}
+          series={sleep}
+          unit="h"
+          color="#a78bfa"
+        />
+        <MetricCard
+          title="Resting HR"
+          icon={<Heart className="h-4 w-4 text-pink-400" />}
+          series={rhr}
+          unit="bpm"
+          color="#f472b6"
+          lowerIsBetter
+        />
+        <MetricCard
+          title="Body Battery"
+          icon={<Zap className="h-4 w-4 text-emerald-400" />}
+          series={bb}
+          unit=""
+          color="#10b981"
+        />
+        <MetricCard
+          title="Sleep Score"
+          icon={<Star className="h-4 w-4 text-indigo-400" />}
+          series={sleepScore}
+          unit=""
+          color="#818cf8"
+        />
+        <MetricCard
+          title="Training Readiness"
+          icon={<Target className="h-4 w-4 text-amber-400" />}
+          series={readinessSeries}
+          unit=""
+          color="#f59e0b"
+        />
+        <MetricCard
+          title="Steps"
+          icon={<Footprints className="h-4 w-4 text-cyan-400" />}
+          series={steps}
+          unit=""
+          color="#22d3ee"
+        />
+        <MetricCard
+          title="Calories"
+          icon={<Flame className="h-4 w-4 text-orange-400" />}
+          series={calories}
+          unit="kcal"
+          color="#f97316"
+        />
+      </div>
+
+      {/* ── Brief + intake + activities (3-col) ───────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Coach brief */}
+        <Card
+          title="Coach brief"
+          className="md:col-span-2"
+          action={
+            <Button
+              size="sm"
+              variant={brief ? "outline" : "default"}
+              onClick={generateBrief}
+              disabled={generating}
+            >
+              {generating ? "Generating\u2026" : brief ? "Regenerate" : "Generate"}
+            </Button>
+          }
+        >
+          {brief ? (
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+              {brief.summary}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
+                <Star className="h-5 w-5 text-primary/60" />
+              </div>
+              <p className="text-muted-foreground text-sm">
+                No brief for today yet.
+              </p>
+              <p className="text-muted-foreground/60 text-xs mt-1">
+                Click Generate to create one from your latest data.
+              </p>
+            </div>
+          )}
+          {brief?.payload?.model && (
+            <p className="text-[11px] text-muted-foreground/50 mt-4 font-mono">
+              model: {brief.payload.model}
+            </p>
+          )}
+        </Card>
+
+        {/* Today's intake */}
+        <Card title="Today's intake">
+          {nutritionToday ? (
+            <>
+              <StatRow
+                label="Calories"
+                value={`${nutritionToday.kcal.toFixed(0)} kcal`}
+                hint={targets ? `/ ${targets.kcal.toFixed(0)}` : undefined}
+              />
+              <StatRow
+                label="Protein"
+                value={`${nutritionToday.protein_g.toFixed(0)} g`}
+                hint={targets ? `/ ${targets.protein_g.toFixed(0)}` : undefined}
+              />
+              <StatRow
+                label="Carbs"
+                value={`${nutritionToday.carbs_g.toFixed(0)} g`}
+                hint={targets ? `/ ${targets.carbs_g.toFixed(0)}` : undefined}
+              />
+              <StatRow
+                label="Fat"
+                value={`${nutritionToday.fat_g.toFixed(0)} g`}
+                hint={targets ? `/ ${targets.fat_g.toFixed(0)}` : undefined}
+              />
+              <StatRow label="Entries" value={nutritionToday.entry_count} />
+              {targets && (
+                <p className="text-[11px] text-muted-foreground/60 mt-3 font-mono">
+                  {targets.day_type} day {"\u00b7"} {targets.phase} phase
+                </p>
+              )}
+              <a
+                href="/nutrition"
+                className="inline-flex items-center gap-1 mt-3 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                Log a meal {"\u2192"}
+              </a>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-5 rounded" />
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Recent activities ─────────────────────────────────────── */}
+      {activities.length > 0 && (
+        <Card title="Recent Activities">
+          <div className="divide-y divide-border/40">
+            {activities.slice(0, 5).map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between py-3 text-sm"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Badge variant="outline" className="text-[10px] shrink-0 font-mono">
+                    {a.activity_type ?? "activity"}
+                  </Badge>
+                  <span className="truncate text-foreground/90">{a.name ?? "Untitled"}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 ml-4 font-mono">
+                  {a.duration_s != null && (
+                    <span>{Math.round(a.duration_s / 60)}m</span>
+                  )}
+                  {a.calories != null && <span>{a.calories} kcal</span>}
+                  {a.avg_hr != null && <span>{a.avg_hr} bpm</span>}
+                  <span className="text-muted-foreground/60">
+                    {new Date(a.start_time).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ── Helper: extract last non-null value from series ──────────────── */
+function lastValue(series: MetricSeries | null): number | null {
+  if (!series) return null;
+  const pts = series.points.filter((p) => p.value !== null);
+  return pts.length > 0 ? pts[pts.length - 1].value : null;
+}
+
+/* ── Helper: compute stats from series ────────────────────────────── */
+function seriesStats(series: MetricSeries | null) {
+  if (!series) return null;
+  const vals = series.points
+    .map((p) => p.value)
+    .filter((v): v is number => v !== null);
+  if (vals.length === 0) return null;
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  // Trend: compare last 3 avg vs first 3 avg
+  const recent = vals.slice(-3);
+  const earlier = vals.slice(0, 3);
+  const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const earlierAvg = earlier.reduce((a, b) => a + b, 0) / earlier.length;
+  const trend =
+    recentAvg > earlierAvg * 1.03
+      ? "up"
+      : recentAvg < earlierAvg * 0.97
+        ? "down"
+        : "flat";
+  return { avg, min, max, trend };
+}
+
+/* ── VitalCard: compact stat for the top bar ──────────────────────── */
+function VitalCard({
+  label,
+  value,
+  unit,
+  icon,
+  series,
+  format,
+  lowerIsBetter = false,
+}: {
+  label: string;
+  value: number | null | undefined;
+  unit: string;
+  icon: React.ReactNode;
+  series: MetricSeries | null;
+  format?: (v: number) => string;
+  lowerIsBetter?: boolean;
+}) {
+  const stats = seriesStats(series);
+  const displayValue =
+    value != null ? (format ? format(value) : Math.round(value).toString()) : "\u2014";
+
+  const trendColor =
+    stats?.trend === "up"
+      ? lowerIsBetter
+        ? "text-red-400"
+        : "text-emerald-400"
+      : stats?.trend === "down"
+        ? lowerIsBetter
+          ? "text-emerald-400"
+          : "text-red-400"
+        : "text-muted-foreground";
+
+  return (
+    <Card className="!p-3.5">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        {icon}
+        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-mono font-bold tracking-tight">{displayValue}</span>
+        {unit && value != null && (
+          <span className="text-[10px] text-muted-foreground/60">{unit}</span>
+        )}
+      </div>
+      {stats && (
+        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground/70">
+          <span className="font-mono">avg {stats.avg.toFixed(stats.avg >= 100 ? 0 : 1)}</span>
+          <span className={trendColor}>
+            {stats.trend === "up" ? "\u2191" : stats.trend === "down" ? "\u2193" : "\u2192"}
+          </span>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ── MetricCard: sparkline + stats ────────────────────────────────── */
+function MetricCard({
+  title,
+  icon,
+  series,
+  unit,
+  color,
+  lowerIsBetter = false,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  series: MetricSeries | null;
+  unit: string;
+  color: string;
+  lowerIsBetter?: boolean;
+}) {
+  const last = series?.points.filter((p) => p.value !== null).slice(-1)[0];
+  const displayValue = last?.value;
+  const stats = seriesStats(series);
+
+  const TrendIcon =
+    stats?.trend === "up"
+      ? TrendingUp
+      : stats?.trend === "down"
+        ? TrendingDown
+        : Minus;
+
+  const trendColor =
+    stats?.trend === "up"
+      ? lowerIsBetter
+        ? "text-red-400"
+        : "text-emerald-400"
+      : stats?.trend === "down"
+        ? lowerIsBetter
+          ? "text-emerald-400"
+          : "text-red-400"
+        : "text-muted-foreground/50";
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <span className="text-xs font-medium text-muted-foreground">{title}</span>
+        </div>
+        {stats && <TrendIcon className={`h-3.5 w-3.5 ${trendColor}`} />}
+      </div>
+      {series ? (
+        <>
+          <Sparkline points={series.points} color={color} unit={unit} height={48} />
+          <div className="flex items-baseline justify-between mt-2">
+            <span className="text-lg font-mono font-semibold tracking-tight">
+              {displayValue != null ? displayValue.toFixed(displayValue >= 100 ? 0 : 1) : "\u2014"}
+              {displayValue != null && unit && (
+                <span className="text-[10px] font-normal text-muted-foreground/60 ml-0.5">
+                  {unit}
+                </span>
+              )}
+            </span>
+            {stats && (
+              <div className="text-[10px] text-muted-foreground/60 space-x-1.5 font-mono">
+                <span>{stats.min.toFixed(stats.min >= 100 ? 0 : 1)}</span>
+                <span className="text-muted-foreground/30">/</span>
+                <span>{stats.avg.toFixed(stats.avg >= 100 ? 0 : 1)}</span>
+                <span className="text-muted-foreground/30">/</span>
+                <span>{stats.max.toFixed(stats.max >= 100 ? 0 : 1)}</span>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full rounded" />
+          <Skeleton className="h-5 w-16 rounded" />
+        </div>
+      )}
+    </Card>
+  );
+}
