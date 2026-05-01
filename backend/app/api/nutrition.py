@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date as Date
 from datetime import timedelta
 
@@ -14,6 +15,9 @@ from app.core.security import CurrentUser
 from app.models import NutritionLog
 from app.schemas import NutritionDayTotals, NutritionLogCreate, NutritionLogOut
 from app.services import nutrition as nutrition_service
+from app.services import usda as usda_service
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
@@ -29,6 +33,24 @@ def log_meal(
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"LLM nutrition estimation failed: {e}") from e
 
+    # Cross-reference with USDA data to improve estimation
+    usda_refs = []
+    try:
+        usda_refs = usda_service.cross_reference_meal(db, body.text)
+    except Exception as e:  # noqa: BLE001
+        log.debug("USDA cross-reference skipped: %s", e)
+
+    micros_data = {
+        **est.micros,
+        "items": est.items,
+        "confidence": est.confidence,
+        "notes": est.notes,
+    }
+    if usda_refs:
+        micros_data["usda_refs"] = [
+            {"fdc_id": r["fdc_id"], "matched": r["matched"]} for r in usda_refs
+        ]
+
     entry = NutritionLog(
         day=body.day or Date.today(),
         meal=body.meal,
@@ -38,13 +60,8 @@ def log_meal(
         carbs_g=est.carbs_g,
         fat_g=est.fat_g,
         fiber_g=est.fiber_g,
-        micros={
-            **est.micros,
-            "items": est.items,
-            "confidence": est.confidence,
-            "notes": est.notes,
-        },
-        estimated_by="llm",
+        micros=micros_data,
+        estimated_by="llm+usda" if usda_refs else "llm",
     )
     db.add(entry)
     db.commit()

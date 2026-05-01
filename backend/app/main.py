@@ -16,13 +16,16 @@ from app.api import (
     garmin,
     health,
     mealplan,
+    mental,
     metrics,
     nutrition,
     phase,
     profile,
     readiness,
+    summaries,
     targets,
     training,
+    usda,
 )
 from app.core.config import settings
 
@@ -56,6 +59,9 @@ app.include_router(mealplan.shopping_router)
 app.include_router(training.router)
 app.include_router(competitions.router)
 app.include_router(profile.router)
+app.include_router(mental.router)
+app.include_router(usda.router)
+app.include_router(summaries.router)
 
 
 @app.get("/")

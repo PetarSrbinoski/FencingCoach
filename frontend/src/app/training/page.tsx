@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, TrainingSession } from "@/lib/api";
+import { useEffect, useState, useCallback } from "react";
+import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput } from "@/lib/api";
 import { BandPill } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dumbbell, Swords, BedDouble, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Dumbbell, Swords, BedDouble, ChevronLeft, ChevronRight,
+  Brain, Send, Trash2, TrendingUp, TrendingDown, Minus, X,
+} from "lucide-react";
 
 // ── helpers ──────────────────────────────────────────────────────────
 function mondayOf(d: Date): Date {
@@ -30,6 +33,317 @@ function classifyDay(s: TrainingSession): "fencing" | "gym" | "rest" {
   return "rest";
 }
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+const ENTRY_TYPE_LABELS: Record<string, string> = {
+  check_in: "Check-in",
+  pre_comp: "Pre-comp",
+  reflection: "Reflection",
+};
+
+// ── Mental Training Section ──────────────────────────────────────────
+function MentalTrainingSection() {
+  const [entries, setEntries] = useState<MentalEntry[] | null>(null);
+  const [insight, setInsight] = useState<MentalInsight | null>(null);
+  const [entryType, setEntryType] = useState<MentalEntryInput["entry_type"]>("check_in");
+  const [mood, setMood] = useState<number>(7);
+  const [energy, setEnergy] = useState<number>(7);
+  const [focus, setFocus] = useState<number>(7);
+  const [confidence, setConfidence] = useState<number>(7);
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingInsight, setLoadingInsight] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchEntries = useCallback(() => {
+    api.mental.list(14).then(setEntries).catch(() => setEntries([]));
+  }, []);
+
+  const fetchInsight = useCallback(() => {
+    setLoadingInsight(true);
+    api.mental.insight(14).then(setInsight).catch(() => {}).finally(() => setLoadingInsight(false));
+  }, []);
+
+  useEffect(() => {
+    fetchEntries();
+    fetchInsight();
+  }, [fetchEntries, fetchInsight]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.mental.create({
+        entry_type: entryType,
+        mood_score: mood,
+        energy_score: energy,
+        focus_score: focus,
+        confidence_score: confidence,
+        content: content.trim() || undefined,
+      });
+      setContent("");
+      fetchEntries();
+      fetchInsight();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save entry");
+    }
+    setSubmitting(false);
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      await api.mental.delete(id);
+      fetchEntries();
+      fetchInsight();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete entry");
+    }
+  }
+
+  const TrendIcon = insight?.trend === "improving" ? TrendingUp
+    : insight?.trend === "declining" ? TrendingDown
+    : Minus;
+
+  const trendColor = insight?.trend === "improving" ? "text-green-500"
+    : insight?.trend === "declining" ? "text-accent"
+    : "text-muted-foreground";
+
+  return (
+    <section>
+      {/* Section header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <Brain className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground font-mono">
+            Mental training
+          </p>
+        </div>
+        <div className="h-px w-full bg-border" />
+      </div>
+
+      {error && (
+        <div className="border border-accent/30 bg-accent/5 px-4 py-3 mb-6 flex items-center justify-between">
+          <p className="text-accent text-xs">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="text-accent/60 hover:text-accent text-xs font-mono"
+          >
+            dismiss
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        {/* ── Check-in / Editor ──────────────────────────── */}
+        <div className="lg:col-span-1">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Entry type selector */}
+            <div className="flex gap-1">
+              {(["check_in", "pre_comp", "reflection"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEntryType(t)}
+                  className={`
+                    px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest transition-colors duration-150
+                    ${entryType === t
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground border border-border"
+                    }
+                  `}
+                >
+                  {ENTRY_TYPE_LABELS[t]}
+                </button>
+              ))}
+            </div>
+
+            {/* Score sliders */}
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ["Mood", mood, setMood],
+                ["Energy", energy, setEnergy],
+                ["Focus", focus, setFocus],
+                ["Confidence", confidence, setConfidence],
+              ] as [string, number, React.Dispatch<React.SetStateAction<number>>][]).map(
+                ([label, value, setter]) => (
+                  <div key={label} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono">
+                        {label}
+                      </span>
+                      <span className="text-xs font-mono text-foreground">{value}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      value={value}
+                      onChange={(e) => setter(Number(e.target.value))}
+                      className="w-full h-1 bg-border appearance-none cursor-pointer accent-foreground [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-foreground"
+                      aria-label={`${label} score`}
+                    />
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Content textarea */}
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder={
+                entryType === "check_in"
+                  ? "How are you feeling today?"
+                  : entryType === "pre_comp"
+                  ? "Mindset and goals for the upcoming competition..."
+                  : "Reflect on today's training or competition..."
+              }
+              rows={3}
+              className="w-full bg-transparent border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-foreground resize-none font-mono"
+              aria-label="Mental training content"
+            />
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors duration-150"
+            >
+              <Send className="h-3 w-3" strokeWidth={1.5} />
+              {submitting ? "Saving..." : "Log entry"}
+            </button>
+          </form>
+        </div>
+
+        {/* ── Recent entries ─────────────────────────────── */}
+        <div className="lg:col-span-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+            Recent entries
+          </p>
+          {entries === null ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full" />
+              ))}
+            </div>
+          ) : entries.length === 0 ? (
+            <p className="text-sm text-muted-foreground/60">
+              No entries yet. Start with a check-in.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {entries.slice(0, 8).map((entry) => (
+                <div
+                  key={entry.id}
+                  className="border border-border p-3 group relative"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
+                        {ENTRY_TYPE_LABELS[entry.entry_type] || entry.entry_type}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {formatDate(entry.day)}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-accent transition-opacity duration-150"
+                      aria-label="Delete entry"
+                    >
+                      <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+                    </button>
+                  </div>
+
+                  {/* Scores bar */}
+                  <div className="flex gap-3 text-[10px] font-mono text-muted-foreground mb-1">
+                    {entry.mood_score != null && <span>M:{entry.mood_score}</span>}
+                    {entry.energy_score != null && <span>E:{entry.energy_score}</span>}
+                    {entry.focus_score != null && <span>F:{entry.focus_score}</span>}
+                    {entry.confidence_score != null && <span>C:{entry.confidence_score}</span>}
+                  </div>
+
+                  {entry.content && (
+                    <p className="text-xs text-foreground/60 leading-relaxed line-clamp-2">
+                      {entry.content}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Insight / Snapshot ─────────────────────────── */}
+        <div className="lg:col-span-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+            Insight
+          </p>
+          {loadingInsight ? (
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-20 w-full" />
+            </div>
+          ) : insight && insight.entry_count > 0 ? (
+            <div className="space-y-4">
+              {/* Trend */}
+              <div className="flex items-center gap-2">
+                <TrendIcon className={`h-4 w-4 ${trendColor}`} strokeWidth={1.5} />
+                <span className={`text-xs font-mono uppercase tracking-wide ${trendColor}`}>
+                  {insight.trend}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  ({insight.entry_count} entries / {insight.period_days}d)
+                </span>
+              </div>
+
+              {/* Averages */}
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["Mood", insight.avg_mood],
+                  ["Energy", insight.avg_energy],
+                  ["Focus", insight.avg_focus],
+                  ["Confidence", insight.avg_confidence],
+                ] as [string, number | null][]).map(([label, val]) => (
+                  <div key={label} className="border border-border p-2">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono">
+                      {label}
+                    </p>
+                    <p className="text-lg font-bold tracking-tight">
+                      {val != null ? val.toFixed(1) : "\u2014"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* LLM insight text */}
+              <div className="border-l-2 border-accent pl-3">
+                <p className="text-xs text-foreground/70 leading-relaxed">
+                  {insight.insight}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground/60">
+              Log at least 3 entries to see insights.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── main ─────────────────────────────────────────────────────────────
 export default function TrainingPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -41,11 +355,11 @@ export default function TrainingPage() {
     return d.toISOString().slice(0, 10);
   }
 
-  function fetchWeek() {
+  const fetchWeek = useCallback(() => {
     api.training.week(isoDate(weekStart)).then(setWeek).catch((e) => setErr(e?.message));
-  }
+  }, [weekStart]);
 
-  useEffect(() => { fetchWeek(); }, [weekStart]);
+  useEffect(() => { fetchWeek(); }, [fetchWeek]);
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -139,9 +453,11 @@ export default function TrainingPage() {
                     {dayType === "fencing" && <Swords className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />}
                     {dayType === "gym" && <Dumbbell className="h-4 w-4 text-accent" strokeWidth={1.5} />}
                     {dayType === "rest" && <BedDouble className="h-4 w-4 text-muted-foreground/50" strokeWidth={1.5} />}
-                    <span className="font-medium text-sm tracking-wide">{session.weekday}</span>
+                    <span className="font-semibold text-base tracking-wide text-foreground">
+                      {session.weekday}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground font-mono tracking-wide">
+                  <span className="text-xs text-foreground/75 font-mono tracking-wide">
                     {formatDate(session.day)}
                   </span>
                 </div>
@@ -149,13 +465,13 @@ export default function TrainingPage() {
                 {/* Fencing day */}
                 {dayType === "fencing" && (
                   <div className="space-y-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-foreground/80">
                       Fencing
                     </span>
-                    <p className="text-sm text-foreground/70 leading-relaxed">
+                    <p className="text-base text-foreground/90 leading-relaxed">
                       Club session — conditioning + sparring (~2h)
                     </p>
-                    <p className="text-[10px] text-muted-foreground/60 font-mono">
+                    <p className="text-xs text-foreground/70 font-mono">
                       {session.weekday === "Saturday" ? "11:00" : "20:00"}
                     </p>
                   </div>
@@ -164,10 +480,10 @@ export default function TrainingPage() {
                 {/* Rest day */}
                 {dayType === "rest" && (
                   <div className="space-y-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-foreground/70">
                       Rest
                     </span>
-                    <p className="text-sm text-foreground/50 leading-relaxed">
+                    <p className="text-base text-foreground/80 leading-relaxed">
                       Recovery day — no structured training.
                     </p>
                   </div>
@@ -177,10 +493,10 @@ export default function TrainingPage() {
                 {dayType === "gym" && session.session && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-accent">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-accent">
                         Gym
                       </span>
-                      <span className="text-[10px] text-muted-foreground capitalize font-mono">
+                      <span className="text-xs text-foreground/75 capitalize font-mono">
                         {session.session.name.replace(/_/g, " ")}
                       </span>
                     </div>
@@ -190,10 +506,10 @@ export default function TrainingPage() {
                           key={rx.exercise}
                           className="flex items-center justify-between text-sm"
                         >
-                          <span className="text-foreground/70 truncate mr-3 text-xs">
+                          <span className="text-foreground truncate mr-3 text-sm leading-snug">
                             {rx.exercise}
                           </span>
-                          <span className="font-mono text-muted-foreground text-[10px] whitespace-nowrap">
+                          <span className="font-mono text-foreground/75 text-xs whitespace-nowrap">
                             {rx.sets}x{rx.reps}
                             {rx.load_kg != null ? ` @${rx.load_kg}kg` : ""}
                           </span>
@@ -206,7 +522,7 @@ export default function TrainingPage() {
                 {/* Phase & readiness (today only) */}
                 {isToday && (
                   <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-xs font-mono text-foreground/75">
                       {(session.phase as any)?.name ?? "\u2014"}
                     </span>
                     {(session.readiness as any)?.band && (
@@ -219,6 +535,9 @@ export default function TrainingPage() {
           })}
         </div>
       )}
+
+      {/* ── Mental Training ────────────────────────────────────────── */}
+      <MentalTrainingSection />
     </div>
   );
 }

@@ -214,6 +214,41 @@ export type Profile = {
 };
 export type ProfileInput = Omit<Profile, "id">;
 
+export type MentalEntry = {
+  id: number;
+  day: string;
+  entry_type: "check_in" | "pre_comp" | "reflection";
+  mood_score: number | null;
+  energy_score: number | null;
+  focus_score: number | null;
+  confidence_score: number | null;
+  content: string | null;
+  tags: Record<string, unknown> | null;
+  created_at: string;
+};
+
+export type MentalEntryInput = {
+  entry_type: "check_in" | "pre_comp" | "reflection";
+  mood_score?: number;
+  energy_score?: number;
+  focus_score?: number;
+  confidence_score?: number;
+  content?: string;
+  tags?: string[];
+  day?: string;
+};
+
+export type MentalInsight = {
+  period_days: number;
+  entry_count: number;
+  avg_mood: number | null;
+  avg_energy: number | null;
+  avg_focus: number | null;
+  avg_confidence: number | null;
+  trend: "improving" | "stable" | "declining";
+  insight: string;
+};
+
 // ── api ──────────────────────────────────────────────────────────────
 export const api = {
   health: () =>
@@ -392,5 +427,21 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(body),
       }),
+  },
+
+  mental: {
+    create: (entry: MentalEntryInput) =>
+      request<MentalEntry>("/mental/entry", {
+        method: "POST",
+        body: JSON.stringify(entry),
+      }),
+    list: (days = 14, entryType?: string) =>
+      request<MentalEntry[]>(
+        `/mental/entries?days=${days}${entryType ? `&entry_type=${entryType}` : ""}`
+      ),
+    insight: (days = 14) =>
+      request<MentalInsight>(`/mental/insight?days=${days}`),
+    delete: (id: number) =>
+      request<void>(`/mental/entry/${id}`, { method: "DELETE" }),
   },
 };

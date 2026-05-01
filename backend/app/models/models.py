@@ -276,11 +276,16 @@ class DataSummary(Base):
 
     __tablename__ = "data_summaries"
     __table_args__ = (
-        UniqueConstraint("period", "period_start", name="uq_summary_period"),
-        Index("ix_summary_period_start", "period", "period_start"),
+        UniqueConstraint(
+            "domain", "period", "period_start", name="uq_summary_domain_period"
+        ),
+        Index("ix_summary_domain_period", "domain", "period", "period_start"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    domain: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="general"
+    )  # training|nutrition|garmin|mental|chat|general
     period: Mapped[str] = mapped_column(String(20))  # week|month
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)
@@ -301,5 +306,53 @@ class DayTypeOverride(Base):
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     override_type: Mapped[str] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Mental Training
+# ─────────────────────────────────────────────────────────────────────
+class MentalEntry(Base):
+    """Mental check-in, pre-competition mindset, or reflection journal entry."""
+
+    __tablename__ = "mental_entries"
+    __table_args__ = (Index("ix_mental_entries_day", "day"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    entry_type: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # check_in | pre_comp | reflection
+    mood_score: Mapped[int | None] = mapped_column(Integer)  # 1-10
+    energy_score: Mapped[int | None] = mapped_column(Integer)  # 1-10
+    focus_score: Mapped[int | None] = mapped_column(Integer)  # 1-10
+    confidence_score: Mapped[int | None] = mapped_column(Integer)  # 1-10
+    content: Mapped[str | None] = mapped_column(Text)
+    tags: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# USDA Food Reference
+# ─────────────────────────────────────────────────────────────────────
+class USDAFood(Base):
+    """Cached USDA FoodData Central item for nutrition cross-reference."""
+
+    __tablename__ = "usda_foods"
+    __table_args__ = (Index("ix_usda_foods_description_trgm", "description_lower"),)
+
+    fdc_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    description_lower: Mapped[str] = mapped_column(String(500), nullable=False)
+    data_type: Mapped[str | None] = mapped_column(
+        String(40)
+    )  # Foundation|SR Legacy|Survey
+    category: Mapped[str | None] = mapped_column(String(200))
+    nutrients: Mapped[dict[str, Any]] = mapped_column(JSONB)  # per-100g macros + micros
+    serving_size_g: Mapped[float | None] = mapped_column(Float)
+    imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

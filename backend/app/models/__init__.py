@@ -10,8 +10,10 @@ from app.models.models import (  # noqa: F401
     DataSummary,
     DayTypeOverride,
     GarminMetric,
+    MentalEntry,
     NutritionLog,
     NutritionPlan,
     TrainingPlan,
+    USDAFood,
     WorkoutLog,
 )

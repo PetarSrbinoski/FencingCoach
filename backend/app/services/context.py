@@ -31,11 +31,13 @@ from app.models import (
     Activity,
     AthleteProfile,
     Competition,
+    DataSummary,
     GarminMetric,
     NutritionLog,
     NutritionPlan,
     TrainingPlan,
 )
+from app.services.mental import mental_context_section
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
 from app.services.targets import compute_targets
@@ -291,6 +293,51 @@ def _profile_section(db: Session) -> str:
     return "\n".join(lines)
 
 
+def _summaries_section(db: Session) -> str:
+    """Include recent long-term data summaries for historical context."""
+    rows = db.scalars(
+        select(DataSummary)
+        .where(DataSummary.period == "month")
+        .order_by(DataSummary.period_start.desc())
+        .limit(6)
+    ).all()
+    if not rows:
+        return ""
+    lines = ["## Long-term summaries (monthly)"]
+    for r in rows:
+        domain = r.domain
+        period = f"{r.period_start.isoformat()} → {r.period_end.isoformat()}"
+        # Compact summary for each domain
+        s = r.summary or {}
+        if domain == "training":
+            lines.append(
+                f"  {period} [{domain}] {s.get('training_days', 0)} days, "
+                f"{s.get('total_sets', 0)} sets"
+            )
+        elif domain == "nutrition":
+            lines.append(
+                f"  {period} [{domain}] avg {s.get('avg_daily_kcal', 0):.0f} kcal/day, "
+                f"P {s.get('avg_daily_protein_g', 0):.0f}g"
+            )
+        elif domain == "garmin":
+            avgs = s.get("metric_averages", {})
+            hrv = avgs.get("hrv", "·")
+            sleep = avgs.get("sleep", "·")
+            lines.append(
+                f"  {period} [{domain}] HRV avg {hrv}, sleep avg {sleep}, "
+                f"{s.get('total_activities', 0)} activities"
+            )
+        elif domain == "mental":
+            lines.append(
+                f"  {period} [{domain}] mood avg {s.get('avg_mood', '·')}, "
+                f"focus avg {s.get('avg_focus', '·')}, "
+                f"{s.get('total_entries', 0)} entries"
+            )
+        else:
+            lines.append(f"  {period} [{domain}]")
+    return "\n".join(lines)
+
+
 # ── orchestration ─────────────────────────────────────────────────────
 def build_context(
     db: Session,
@@ -311,9 +358,11 @@ def build_context(
         ("metrics_7d", lambda: _metrics_section(db, today, days=7)),
         ("activities_7d", lambda: _activities_section(db, today, days=7)),
         ("nutrition_3d", lambda: _nutrition_section(db, today, days=3)),
+        ("mental_7d", lambda: mental_context_section(db, today, days=7)),
         ("competitions", lambda: _competitions_section(db, today)),
         ("plateaus", lambda: _plateau_section(db)),
         ("training_plan", lambda: _training_plan_section(db, today)),
+        ("summaries", lambda: _summaries_section(db)),
         ("metrics_28d", lambda: _metrics_section(db, today, days=28)),
     ]
 

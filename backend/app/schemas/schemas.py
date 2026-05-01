@@ -275,3 +275,72 @@ class ProfileUpdate(BaseModel):
     food_budget: str | None = None
     supplements: str | None = None
     notes: str | None = None
+
+
+# ── Mental Training ───────────────────────────────────────────────────
+class MentalEntryCreate(BaseModel):
+    entry_type: str = Field(pattern=r"^(check_in|pre_comp|reflection)$")
+    mood_score: int | None = Field(None, ge=1, le=10)
+    energy_score: int | None = Field(None, ge=1, le=10)
+    focus_score: int | None = Field(None, ge=1, le=10)
+    confidence_score: int | None = Field(None, ge=1, le=10)
+    content: str | None = None
+    tags: list[str] | None = None
+    day: Date | None = None
+
+
+class MentalEntryOut(BaseModel):
+    id: int
+    day: Date
+    entry_type: str
+    mood_score: int | None
+    energy_score: int | None
+    focus_score: int | None
+    confidence_score: int | None
+    content: str | None
+    tags: dict[str, Any] | None
+    created_at: datetime
+
+
+class MentalInsightOut(BaseModel):
+    period_days: int
+    entry_count: int
+    avg_mood: float | None
+    avg_energy: float | None
+    avg_focus: float | None
+    avg_confidence: float | None
+    trend: str  # improving|stable|declining
+    insight: str  # LLM-generated summary
+
+
+# ── USDA Food ─────────────────────────────────────────────────────────
+class USDAFoodOut(BaseModel):
+    fdc_id: int
+    description: str
+    data_type: str | None
+    category: str | None
+    nutrients: dict[str, Any]
+    serving_size_g: float | None
+
+
+class USDASearchResult(BaseModel):
+    query: str
+    results: list[USDAFoodOut]
+    count: int
+
+
+class USDAImportResult(BaseModel):
+    imported: int
+    skipped: int
+    errors: int
+
+
+# ── Data Summary ──────────────────────────────────────────────────────
+class DataSummaryOut(BaseModel):
+    id: int
+    domain: str
+    period: str
+    period_start: Date
+    period_end: Date
+    summary: dict[str, Any]
+    generated_at: datetime

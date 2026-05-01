@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # ── Athlete ───────────────────────────────────────────────────────
     ATHLETE_TIMEZONE: str = "Europe/Berlin"
 
+    # ── USDA ──────────────────────────────────────────────────────────
+    USDA_API_KEY: str = "DEMO_KEY"
+
 
 @lru_cache
 def get_settings() -> Settings:
