@@ -5,26 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-bold uppercase tracking-wider border-2 border-foreground transition-all duration-100 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
+  "relative inline-flex items-center justify-center whitespace-nowrap font-semibold uppercase tracking-wider transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 active:translate-y-px",
   {
     variants: {
       variant: {
         default:
-          "bg-foreground text-background shadow-hard hover:bg-foreground/90",
-        destructive:
-          "bg-bauhaus-red text-white shadow-hard hover:bg-bauhaus-red/90",
+          "text-accent gap-2 px-0 py-2 group",
         outline:
-          "bg-background text-foreground shadow-hard hover:bg-foreground hover:text-background",
+          "border border-foreground text-foreground px-6 gap-2 hover:bg-foreground hover:text-background",
+        ghost:
+          "text-muted-foreground px-4 gap-2 hover:text-foreground group",
         secondary:
-          "bg-bauhaus-blue text-white shadow-hard hover:bg-bauhaus-blue/90",
-        ghost: "border-transparent shadow-none hover:bg-muted active:translate-x-0 active:translate-y-0",
-        link: "border-transparent shadow-none underline-offset-4 hover:underline active:translate-x-0 active:translate-y-0",
+          "border border-foreground text-foreground px-6 gap-2 hover:bg-foreground hover:text-background",
+        destructive:
+          "text-destructive gap-2 px-0 py-2 group",
+        link:
+          "text-foreground underline underline-offset-4 px-0 gap-2",
       },
       size: {
-        default: "h-10 px-6 py-2",
-        sm: "h-8 px-4 text-xs",
-        lg: "h-12 px-8 text-base",
-        icon: "h-10 w-10",
+        default: "h-10 text-sm [&_svg]:size-4",
+        sm: "h-8 text-xs [&_svg]:size-3.5",
+        lg: "h-12 text-base [&_svg]:size-5",
+        icon: "h-10 w-10 px-0 [&_svg]:size-4",
       },
     },
     defaultVariants: {
@@ -41,14 +43,21 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    const hasUnderline = variant === "default" || variant === "destructive" || !variant
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
-      />
+      >
+        {children}
+        {hasUnderline && (
+          <span className="absolute bottom-1.5 left-0 right-0 h-0.5 bg-current origin-left scale-x-100 group-hover:scale-x-110 transition-transform duration-150" />
+        )}
+      </Comp>
     )
   }
 )

@@ -13,7 +13,6 @@ import {
 } from "@/lib/api";
 import { Sparkline, Gauge } from "@/components/charts";
 import { Card, BandPill, StatRow } from "@/components/ui";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -28,6 +27,7 @@ import {
   Minus,
   Footprints,
   Flame,
+  ArrowRight,
 } from "lucide-react";
 
 export default function Home() {
@@ -83,145 +83,132 @@ export default function Home() {
     }
   }
 
-  const ri = readiness?.inputs;
-
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* ── Page header ───────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 border-b-4 border-foreground pb-4">
-        <div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Today</h1>
-          <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </p>
-        </div>
+    <div className="space-y-16 md:space-y-20">
+      {/* ── Hero header ───────────────────────────────────────────── */}
+      <header className="relative">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+          {new Date().toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
+        </p>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+          Today
+        </h1>
         {phase && (
-          <Badge variant="outline" className="gap-1.5 font-bold h-7 sm:h-8 self-start sm:self-auto text-xs">
-            <span>{phase.name}</span>
+          <p className="mt-4 text-sm text-muted-foreground font-mono">
+            {phase.name}
             {phase.next_event_name && phase.days_to_event != null && (
-              <span className="text-muted-foreground hidden sm:inline">
-                {"\u2192"} {phase.next_event_name} (T-{phase.days_to_event}d)
+              <span className="text-accent ml-3">
+                {phase.next_event_name} — T-{phase.days_to_event}d
               </span>
             )}
-          </Badge>
+          </p>
         )}
-      </div>
+        {/* Accent bar */}
+        <div className="h-1 w-16 bg-accent mt-6" />
+      </header>
 
       {err && (
-        <div className="border-2 border-bauhaus-red bg-bauhaus-red/10 px-4 py-3">
-          <p className="text-bauhaus-red text-sm font-bold">{err}</p>
+        <div className="border border-accent/30 bg-accent/5 px-5 py-4">
+          <p className="text-accent text-sm">{err}</p>
         </div>
       )}
 
-      {/* ── Top: readiness gauge + key vitals ─────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 md:gap-6">
-        {/* Readiness gauge */}
-        <Card>
+      {/* ── Readiness gauge section ───────────────────────────────── */}
+      <section className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-12 lg:gap-16">
+        {/* Gauge */}
+        <div className="flex flex-col items-center lg:items-start gap-4">
           {readiness ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <Gauge score={readiness.score} size={140} />
+            <>
+              <Gauge score={readiness.score} size={160} />
               <BandPill band={readiness.band} />
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2 text-xs w-full">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-2 w-full">
                 {Object.entries(readiness.components).map(([k, c]) => (
-                  <div key={k} className="flex items-center justify-between gap-1">
-                    <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-wider truncate">
+                  <div key={k} className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-widest">
                       {k.replace(/_/g, " ")}
                     </span>
-                    <span className="font-mono font-black text-[12px]">{Math.round(c.score)}</span>
+                    <span className="font-mono text-xs font-medium">{Math.round(c.score)}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            </>
           ) : (
             <div className="flex flex-col items-center gap-4 py-6">
-              <Skeleton className="h-36 w-36" />
+              <Skeleton className="h-40 w-40" />
               <Skeleton className="h-5 w-20" />
             </div>
           )}
-        </Card>
-
-        {/* Key vitals grid — 2 cols on mobile, 3 on sm, 6 on xl */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
-          <VitalCard label="HRV" value={ri?.hrv_today} unit="ms" icon={<ActivityIcon className="h-3.5 w-3.5" />} series={hrv} />
-          <VitalCard label="Sleep" value={ri?.sleep_h} unit="h" format={(v) => v.toFixed(1)} icon={<Moon className="h-3.5 w-3.5" />} series={sleep} />
-          <VitalCard label="Sleep Score" value={lastValue(sleepScore)} unit="" icon={<Star className="h-3.5 w-3.5" />} series={sleepScore} />
-          <VitalCard label="RHR" value={ri?.rhr} unit="bpm" icon={<Heart className="h-3.5 w-3.5" />} series={rhr} lowerIsBetter />
-          <VitalCard label="Body Battery" value={ri?.body_battery_max} unit="" icon={<Zap className="h-3.5 w-3.5" />} series={bb} />
-          <VitalCard label="Readiness" value={lastValue(readinessSeries)} unit="" icon={<Target className="h-3.5 w-3.5" />} series={readinessSeries} />
         </div>
-      </div>
 
-      {/* ── 14-day sparkline metrics ──────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <MetricCard title="HRV" icon={<ActivityIcon className="h-4 w-4" />} series={hrv} unit="ms" color="var(--bauhaus-blue)" />
-        <MetricCard title="Sleep" icon={<Moon className="h-4 w-4" />} series={sleep} unit="h" color="var(--bauhaus-blue)" />
-        <MetricCard title="Resting HR" icon={<Heart className="h-4 w-4" />} series={rhr} unit="bpm" color="var(--bauhaus-red)" lowerIsBetter />
-        <MetricCard title="Body Battery" icon={<Zap className="h-4 w-4" />} series={bb} unit="" color="hsl(var(--foreground))" />
-        <MetricCard title="Sleep Score" icon={<Star className="h-4 w-4" />} series={sleepScore} unit="" color="var(--bauhaus-blue)" />
-        <MetricCard title="Training Readiness" icon={<Target className="h-4 w-4" />} series={readinessSeries} unit="" color="var(--bauhaus-yellow)" />
-        <MetricCard title="Steps" icon={<Footprints className="h-4 w-4" />} series={steps} unit="" color="hsl(var(--foreground))" />
-        <MetricCard title="Calories" icon={<Flame className="h-4 w-4" />} series={calories} unit="kcal" color="var(--bauhaus-red)" />
-      </div>
+        {/* 14-day sparkline metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          <MetricCard title="HRV" icon={<ActivityIcon className="h-4 w-4" />} series={hrv} unit="ms" />
+          <MetricCard title="Sleep" icon={<Moon className="h-4 w-4" />} series={sleep} unit="h" />
+          <MetricCard title="Resting HR" icon={<Heart className="h-4 w-4" />} series={rhr} unit="bpm" lowerIsBetter />
+          <MetricCard title="Body Battery" icon={<Zap className="h-4 w-4" />} series={bb} unit="" />
+          <MetricCard title="Sleep Score" icon={<Star className="h-4 w-4" />} series={sleepScore} unit="" />
+          <MetricCard title="Readiness" icon={<Target className="h-4 w-4" />} series={readinessSeries} unit="" />
+          <MetricCard title="Steps" icon={<Footprints className="h-4 w-4" />} series={steps} unit="" />
+          <MetricCard title="Calories" icon={<Flame className="h-4 w-4" />} series={calories} unit="kcal" />
+        </div>
+      </section>
 
-      {/* ── Brief + intake + activities ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
+      {/* ── Brief + intake ──────────────────────────────────────────── */}
+      <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12 border-t border-border pt-16">
         {/* Coach brief */}
-        <Card
-          title="Coach Brief"
-          className="lg:col-span-2"
-          action={
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coach Brief</h2>
             <Button
+              variant={brief ? "ghost" : "default"}
               size="sm"
-              variant={brief ? "outline" : "default"}
               onClick={generateBrief}
               disabled={generating}
             >
-              {generating ? "GENERATING..." : brief ? "REGENERATE" : "GENERATE"}
+              {generating ? "Generating..." : brief ? "Regenerate" : "Generate"}
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
-          }
-        >
+          </div>
           {brief ? (
-            <div className="whitespace-pre-wrap text-sm leading-relaxed font-medium">
+            <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground/90 max-w-2xl">
               {brief.summary}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 bg-bauhaus-yellow/20">
-                <Star className="h-6 w-6" strokeWidth={1.5} />
-              </div>
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No brief for today yet</p>
-              <p className="text-muted-foreground text-xs mt-1 font-mono">Click Generate to create one</p>
+            <div className="py-12 text-center border border-border">
+              <p className="text-muted-foreground text-sm uppercase tracking-wider">No brief for today</p>
+              <p className="text-muted-foreground/60 text-xs mt-2 font-mono">Click generate to create one</p>
             </div>
           )}
           {brief?.payload?.model && (
-            <p className="text-[11px] text-muted-foreground/50 mt-4 font-mono border-t-2 border-foreground/10 pt-2">
+            <p className="text-[11px] text-muted-foreground/40 mt-6 font-mono">
               model: {brief.payload.model}
             </p>
           )}
-        </Card>
+        </div>
 
         {/* Today's intake */}
-        <Card title="Today's Intake">
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">Today&apos;s Intake</h2>
           {nutritionToday ? (
-            <>
+            <div className="space-y-0">
               <StatRow label="Calories" value={`${nutritionToday.kcal.toFixed(0)} kcal`} hint={targets ? `/ ${targets.kcal.toFixed(0)}` : undefined} />
               <StatRow label="Protein" value={`${nutritionToday.protein_g.toFixed(0)} g`} hint={targets ? `/ ${targets.protein_g.toFixed(0)}` : undefined} />
               <StatRow label="Carbs" value={`${nutritionToday.carbs_g.toFixed(0)} g`} hint={targets ? `/ ${targets.carbs_g.toFixed(0)}` : undefined} />
               <StatRow label="Fat" value={`${nutritionToday.fat_g.toFixed(0)} g`} hint={targets ? `/ ${targets.fat_g.toFixed(0)}` : undefined} />
               <StatRow label="Entries" value={nutritionToday.entry_count} />
               {targets && (
-                <p className="text-[11px] text-muted-foreground mt-3 font-mono">
-                  {targets.day_type} day {"\u00b7"} {targets.phase} phase
+                <p className="text-[11px] text-muted-foreground mt-4 font-mono">
+                  {targets.day_type} day · {targets.phase} phase
                 </p>
               )}
-              <a href="/nutrition" className="inline-flex items-center gap-1 mt-3 text-xs font-bold uppercase tracking-wider hover:underline">
-                Log a meal {"\u2192"}
+              <a href="/nutrition" className="inline-flex items-center gap-2 mt-4 text-xs font-semibold uppercase tracking-wider text-accent hover:text-accent/80 transition-colors duration-150">
+                Log a meal <ArrowRight className="h-3 w-3" />
               </a>
-            </>
+            </div>
           ) : (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -229,45 +216,40 @@ export default function Home() {
               ))}
             </div>
           )}
-        </Card>
-      </div>
+        </div>
+      </section>
 
       {/* ── Recent activities ─────────────────────────────────────── */}
       {activities.length > 0 && (
-        <Card title="Recent Activities">
-          <div className="divide-y-2 divide-foreground/10">
+        <section className="border-t border-border pt-16">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-8">Recent Activities</h2>
+          <div className="divide-y divide-border">
             {activities.slice(0, 5).map((a) => (
-              <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-2 text-sm">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Badge variant="outline" className="text-[10px] shrink-0 font-mono">
+              <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-2">
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border border-border px-2 py-0.5 shrink-0">
                     {a.activity_type ?? "activity"}
-                  </Badge>
-                  <span className="truncate font-medium">{a.name ?? "Untitled"}</span>
+                  </span>
+                  <span className="truncate text-sm font-medium">{a.name ?? "Untitled"}</span>
                 </div>
-                <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground shrink-0 font-mono font-bold pl-0 sm:pl-4">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 font-mono pl-0 sm:pl-4">
                   {a.duration_s != null && <span>{Math.round(a.duration_s / 60)}m</span>}
                   {a.calories != null && <span>{a.calories} kcal</span>}
                   {a.avg_hr != null && <span>{a.avg_hr} bpm</span>}
-                  <span className="text-muted-foreground/60">
+                  <span className="text-muted-foreground/50">
                     {new Date(a.start_time).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </span>
                 </div>
               </div>
             ))}
           </div>
-        </Card>
+        </section>
       )}
     </div>
   );
 }
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
-function lastValue(series: MetricSeries | null): number | null {
-  if (!series) return null;
-  const pts = series.points.filter((p) => p.value !== null);
-  return pts.length > 0 ? pts[pts.length - 1].value : null;
-}
-
 function seriesStats(series: MetricSeries | null) {
   if (!series) return null;
   const vals = series.points.map((p) => p.value).filter((v): v is number => v !== null);
@@ -283,35 +265,9 @@ function seriesStats(series: MetricSeries | null) {
   return { avg, min, max, trend };
 }
 
-function VitalCard({ label, value, unit, icon, series, format, lowerIsBetter = false }: {
-  label: string; value: number | null | undefined; unit: string; icon: React.ReactNode;
-  series: MetricSeries | null; format?: (v: number) => string; lowerIsBetter?: boolean;
-}) {
-  const stats = seriesStats(series);
-  const displayValue = value != null ? (format ? format(value) : Math.round(value).toString()) : "\u2014";
-
-  return (
-    <Card className="!p-3">
-      <div className="flex items-center gap-1.5 mb-1">
-        {icon}
-        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{label}</span>
-      </div>
-      <div className="flex items-baseline gap-1">
-        <span className="text-lg sm:text-xl font-mono font-black tracking-tight">{displayValue}</span>
-        {unit && value != null && <span className="text-[10px] text-muted-foreground">{unit}</span>}
-      </div>
-      {stats && (
-        <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/70">
-          <span className="font-mono font-bold">avg {stats.avg.toFixed(stats.avg >= 100 ? 0 : 1)}</span>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function MetricCard({ title, icon, series, unit, color, lowerIsBetter = false }: {
+function MetricCard({ title, icon, series, unit, lowerIsBetter = false }: {
   title: string; icon: React.ReactNode; series: MetricSeries | null;
-  unit: string; color: string; lowerIsBetter?: boolean;
+  unit: string; lowerIsBetter?: boolean;
 }) {
   const last = series?.points.filter((p) => p.value !== null).slice(-1)[0];
   const displayValue = last?.value;
@@ -320,26 +276,26 @@ function MetricCard({ title, icon, series, unit, color, lowerIsBetter = false }:
   const TrendIcon = stats?.trend === "up" ? TrendingUp : stats?.trend === "down" ? TrendingDown : Minus;
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          {icon}
-          <span className="text-xs font-bold uppercase tracking-wider">{title}</span>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">{icon}</span>
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</span>
         </div>
-        {stats && <TrendIcon className="h-3.5 w-3.5 text-muted-foreground" />}
+        {stats && <TrendIcon className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />}
       </div>
       {series ? (
         <>
-          <Sparkline points={series.points} color={color} unit={unit} height={44} />
-          <div className="flex items-baseline justify-between mt-2 border-t-2 border-foreground/10 pt-2">
-            <span className="text-base sm:text-lg font-mono font-black tracking-tight">
+          <Sparkline points={series.points} color="hsl(var(--accent))" unit={unit} height={44} />
+          <div className="flex items-baseline justify-between pt-2 border-t border-border">
+            <span className="text-lg font-mono font-medium tracking-tight">
               {displayValue != null ? displayValue.toFixed(displayValue >= 100 ? 0 : 1) : "\u2014"}
               {displayValue != null && unit && (
-                <span className="text-[10px] font-medium text-muted-foreground ml-0.5">{unit}</span>
+                <span className="text-[10px] text-muted-foreground ml-1">{unit}</span>
               )}
             </span>
             {stats && (
-              <div className="text-[10px] text-muted-foreground/60 space-x-1 font-mono font-bold">
+              <div className="text-[10px] text-muted-foreground/50 space-x-1 font-mono">
                 <span>{stats.min.toFixed(stats.min >= 100 ? 0 : 1)}</span>
                 <span>/</span>
                 <span>{stats.avg.toFixed(stats.avg >= 100 ? 0 : 1)}</span>
@@ -355,6 +311,6 @@ function MetricCard({ title, icon, series, unit, color, lowerIsBetter = false }:
           <Skeleton className="h-5 w-16" />
         </div>
       )}
-    </Card>
+    </div>
   );
 }

@@ -1,14 +1,20 @@
 import "../styles/globals.css";
 import type { Metadata } from "next";
-import { Outfit, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import { SidebarLayout } from "@/components/sidebar-layout";
 import { ThemeProvider } from "@/components/theme-provider";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
   display: "swap",
-  weight: ["400", "500", "700", "900"],
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+  weight: ["400", "700"],
 });
 
 const jetbrains = JetBrains_Mono({
@@ -19,13 +25,13 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FencingCoach AI",
+  title: "FencingCoach",
   description: "Elite epee performance platform",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${outfit.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${playfair.variable} ${jetbrains.variable} dark`} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
         <ThemeProvider>
           <SidebarLayout>{children}</SidebarLayout>

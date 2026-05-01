@@ -8,11 +8,10 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 /**
- * Application-level Card wrapper — adds title, action, icon props
- * on top of the base shadcn Card (which now uses Bauhaus hard shadows + thick borders).
+ * Application-level Card wrapper — minimal editorial styling.
+ * Content separated by thin borders, generous space.
  */
 export function Card({
   title,
@@ -20,24 +19,22 @@ export function Card({
   children,
   className,
   icon,
+  bordered = true,
 }: {
   title?: string;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   icon?: React.ReactNode;
+  bordered?: boolean;
 }) {
   return (
-    <ShadCard className={cn("relative animate-fade-in", className)}>
-      {/* Geometric corner decoration */}
-      {title && (
-        <div className="absolute top-2 right-2 w-3 h-3 bg-bauhaus-red" />
-      )}
+    <ShadCard className={cn(!bordered && "border-transparent hover:border-transparent", className)}>
       {title && (
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              {icon && <span className="text-foreground">{icon}</span>}
+            <CardTitle className="flex items-center gap-2">
+              {icon && <span className="text-accent">{icon}</span>}
               {title}
             </CardTitle>
             {action}
@@ -57,16 +54,16 @@ export function Card({
 export function BandPill({ band }: { band: "red" | "amber" | "green" | string }) {
   const colorClass =
     band === "green"
-      ? "bg-bauhaus-blue text-white border-foreground"
+      ? "border-emerald-500 text-emerald-400"
       : band === "amber"
-        ? "bg-bauhaus-yellow text-foreground border-foreground"
+        ? "border-amber-500 text-amber-400"
         : band === "red"
-          ? "bg-bauhaus-red text-white border-foreground"
-          : "bg-muted text-foreground border-foreground";
+          ? "border-accent text-accent"
+          : "border-muted-foreground text-muted-foreground";
   return (
-    <Badge variant="outline" className={cn("text-[10px] font-bold", colorClass)}>
+    <span className={cn("inline-flex items-center border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest", colorClass)}>
       {band}
-    </Badge>
+    </span>
   );
 }
 
@@ -80,11 +77,11 @@ export function StatRow({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between text-sm py-2 border-b-2 border-foreground/10 last:border-0">
-      <span className="text-muted-foreground text-xs font-bold uppercase tracking-wider">{label}</span>
-      <span className="font-mono text-foreground font-bold text-sm">
+    <div className="flex items-baseline justify-between text-sm py-2.5 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">{label}</span>
+      <span className="font-mono text-foreground font-medium text-sm">
         {value}
-        {hint && <span className="text-muted-foreground/60 text-xs ml-1.5 font-medium">{hint}</span>}
+        {hint && <span className="text-muted-foreground text-xs ml-1.5">{hint}</span>}
       </span>
     </div>
   );

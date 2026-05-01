@@ -4,61 +4,60 @@
 
 @layer base {
   :root {
-    --background: 0 0% 94%;
-    --foreground: 0 0% 7%;
+    --background: 0 0% 96%;
+    --foreground: 0 0% 4%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 0 0% 7%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 88%;
-    --secondary-foreground: 0 0% 7%;
-    --muted: 0 0% 88%;
-    --muted-foreground: 0 0% 40%;
-    --accent: 0 0% 7%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 75% 47%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 0 0% 4%;
+    --primary-foreground: 0 0% 96%;
+    --secondary: 0 0% 90%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 14 100% 50%;
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 7%;
-    --border-light: 0 0% 80%;
-    --input: 0 0% 7%;
-    --ring: 0 0% 7%;
+    --border: 0 0% 82%;
+    --input: 0 0% 92%;
+    --ring: 14 100% 50%;
     --radius: 0px;
 
-    --bauhaus-red: #D02020;
-    --bauhaus-blue: #1040C0;
-    --bauhaus-yellow: #F0C020;
-    --shadow-color: #121212;
+    /* Legacy compatibility — mapped to new palette */
+    --bauhaus-red: #FF3D00;
+    --bauhaus-blue: #737373;
+    --bauhaus-yellow: #FF3D00;
   }
 
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 92%;
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 92%;
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 92%;
-    --primary: 0 0% 92%;
-    --primary-foreground: 0 0% 8%;
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 0 0% 92%;
-    --accent-foreground: 0 0% 8%;
-    --destructive: 0 75% 55%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 4%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 14 100% 50%;
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 92%;
-    --border-light: 0 0% 25%;
-    --input: 0 0% 92%;
-    --ring: 0 0% 92%;
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 14 100% 50%;
     --radius: 0px;
 
-    --bauhaus-red: #E83030;
-    --bauhaus-blue: #3060E0;
-    --bauhaus-yellow: #F0C020;
-    --shadow-color: #000000;
+    /* Legacy compatibility — mapped to new palette */
+    --bauhaus-red: #FF3D00;
+    --bauhaus-blue: #737373;
+    --bauhaus-yellow: #FF3D00;
+    --shadow-color: transparent;
   }
 }
 
@@ -76,71 +75,35 @@
     @apply bg-background text-foreground;
   }
 
+  /* Subtle noise grain texture overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
   /* Minimal scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: hsl(var(--background));
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground));
+    background: hsl(var(--muted-foreground) / 0.3);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--foreground));
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
-  }
-
-  .shadow-hard-sm {
-    box-shadow: 2px 2px 0px 0px var(--shadow-color);
-  }
-  .shadow-hard {
-    box-shadow: 4px 4px 0px 0px var(--shadow-color);
-  }
-  .shadow-hard-md {
-    box-shadow: 6px 6px 0px 0px var(--shadow-color);
-  }
-  .shadow-hard-lg {
-    box-shadow: 8px 8px 0px 0px var(--shadow-color);
-  }
-
-  .shadow-hard-red {
-    box-shadow: 4px 4px 0px 0px var(--bauhaus-red);
-  }
-  .shadow-hard-blue {
-    box-shadow: 4px 4px 0px 0px var(--bauhaus-blue);
-  }
-  .shadow-hard-yellow {
-    box-shadow: 4px 4px 0px 0px var(--bauhaus-yellow);
-  }
-
-  /* Dot grid pattern */
-  .pattern-dots {
-    background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1.5px, transparent 1.5px);
-    background-size: 20px 20px;
-  }
-
-  /* Geometric accent shapes */
-  .deco-circle {
-    width: 12px;
-    height: 12px;
-    border-radius: 9999px;
-  }
-  .deco-square {
-    width: 12px;
-    height: 12px;
-  }
-  .deco-triangle {
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 12px solid currentColor;
   }
 }
