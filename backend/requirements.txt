@@ -1,0 +1,31 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+python-multipart==0.0.20
+
+# DB
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+alembic==1.14.0
+
+# Auth
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+
+# LLM
+openai==1.59.3
+tiktoken==0.8.0
+
+# Garmin
+garminconnect==0.3.2
+curl_cffi==0.13.0
+ua-generator==2.0.14
+
+# Worker / scheduling
+APScheduler==3.11.0
+
+# Misc
+httpx==0.28.1
+python-dateutil==2.9.0.post0
+orjson==3.10.12

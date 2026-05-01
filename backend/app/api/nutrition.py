@@ -1,0 +1,101 @@
+"""Nutrition logging endpoints."""
+
+from __future__ import annotations
+
+from datetime import date as Date
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import and_, select
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.security import CurrentUser
+from app.models import NutritionLog
+from app.schemas import NutritionDayTotals, NutritionLogCreate, NutritionLogOut
+from app.services import nutrition as nutrition_service
+
+router = APIRouter(prefix="/nutrition", tags=["nutrition"])
+
+
+@router.post("/log", response_model=NutritionLogOut)
+def log_meal(
+    body: NutritionLogCreate,
+    _user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> NutritionLogOut:
+    try:
+        est = nutrition_service.estimate(body.text)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"LLM nutrition estimation failed: {e}") from e
+
+    entry = NutritionLog(
+        day=body.day or Date.today(),
+        meal=body.meal,
+        raw_text=body.text,
+        kcal=est.kcal,
+        protein_g=est.protein_g,
+        carbs_g=est.carbs_g,
+        fat_g=est.fat_g,
+        fiber_g=est.fiber_g,
+        micros={
+            **est.micros,
+            "items": est.items,
+            "confidence": est.confidence,
+            "notes": est.notes,
+        },
+        estimated_by="llm",
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return NutritionLogOut.model_validate(entry, from_attributes=True)
+
+
+@router.get("/log", response_model=list[NutritionLogOut])
+def list_logs(
+    _user: CurrentUser,
+    days: int = Query(7, ge=1, le=90),
+    db: Session = Depends(get_db),
+) -> list[NutritionLogOut]:
+    end = Date.today()
+    start = end - timedelta(days=days - 1)
+    rows = db.scalars(
+        select(NutritionLog)
+        .where(and_(NutritionLog.day >= start, NutritionLog.day <= end))
+        .order_by(NutritionLog.logged_at.desc())
+    ).all()
+    return [NutritionLogOut.model_validate(r, from_attributes=True) for r in rows]
+
+
+@router.get("/totals/{day}", response_model=NutritionDayTotals)
+def day_totals(
+    day: Date, _user: CurrentUser, db: Session = Depends(get_db)
+) -> NutritionDayTotals:
+    rows = db.scalars(select(NutritionLog).where(NutritionLog.day == day)).all()
+    micros: dict[str, float] = {}
+    for r in rows:
+        if not r.micros:
+            continue
+        for k, v in r.micros.items():
+            if isinstance(v, (int, float)):
+                micros[k] = micros.get(k, 0.0) + float(v)
+    return NutritionDayTotals(
+        day=day,
+        kcal=sum(r.kcal or 0 for r in rows),
+        protein_g=sum(r.protein_g or 0 for r in rows),
+        carbs_g=sum(r.carbs_g or 0 for r in rows),
+        fat_g=sum(r.fat_g or 0 for r in rows),
+        fiber_g=sum(r.fiber_g or 0 for r in rows),
+        micros=micros,
+        entry_count=len(rows),
+    )
+
+
+@router.delete("/log/{entry_id}", status_code=204)
+def delete_log(entry_id: int, _user: CurrentUser, db: Session = Depends(get_db)):
+    entry = db.get(NutritionLog, entry_id)
+    if not entry:
+        raise HTTPException(404, "not found")
+    db.delete(entry)
+    db.commit()
