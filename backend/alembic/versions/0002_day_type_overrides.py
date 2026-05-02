@@ -17,18 +17,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "day_type_overrides",
-        sa.Column("day", sa.Date(), nullable=False),
-        sa.Column("override_type", sa.String(20), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-        ),
-        sa.PrimaryKeyConstraint("day"),
-    )
+    # op.create_table(
+    #     "day_type_overrides",
+    #     sa.Column("day", sa.Date(), nullable=False),
+    #     sa.Column("override_type", sa.String(20), nullable=False),
+    #     sa.Column(
+    #         "created_at",
+    #         sa.DateTime(timezone=True),
+    #         server_default=sa.func.now(),
+    #     ),
+    #     sa.PrimaryKeyConstraint("day"),
+    # )
+    pass
 
 
 def downgrade() -> None:
-    op.drop_table("day_type_overrides")
+    # op.drop_table("day_type_overrides")
+    pass

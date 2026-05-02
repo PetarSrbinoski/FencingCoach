@@ -3,6 +3,8 @@
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+const TOKEN_EVENT = "coachapp:token-change";
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem("token");
@@ -12,6 +14,17 @@ export function setToken(t: string | null) {
   if (typeof window === "undefined") return;
   if (t) window.localStorage.setItem("token", t);
   else window.localStorage.removeItem("token");
+  window.dispatchEvent(new Event(TOKEN_EVENT));
+}
+
+export function onTokenChange(listener: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(TOKEN_EVENT, listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    window.removeEventListener(TOKEN_EVENT, listener);
+    window.removeEventListener("storage", listener);
+  };
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -249,6 +262,30 @@ export type MentalInsight = {
   insight: string;
 };
 
+export type CoachMessage = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
+export type CoachConversation = {
+  id: number;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: CoachMessage[];
+};
+
+export type CoachConversationSummary = {
+  id: number;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_message_preview: string | null;
+};
+
 // ── api ──────────────────────────────────────────────────────────────
 export const api = {
   health: () =>
@@ -274,6 +311,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ message, conversation_id, include_context }),
     }),
+  chatConversations: {
+    list: () => request<CoachConversationSummary[]>("/chat/conversations"),
+    get: (id: number) => request<CoachConversation>(`/chat/conversations/${id}`),
+    delete: (id: number) => request<void>(`/chat/conversations/${id}`, { method: "DELETE" }),
+  },
 
   garmin: {
     login: (email: string, password: string) =>

@@ -9,20 +9,109 @@ always sees current data.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from openai import APITimeoutError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import CurrentUser
 from app.models import CoachConversation, CoachMessage
-from app.schemas import ChatRequest, ChatResponse
+from app.schemas import (
+    ChatRequest,
+    ChatResponse,
+    CoachConversationOut,
+    CoachConversationSummary,
+    CoachMessageOut,
+)
 from app.services.context import build_context
 from app.services.llm import get_llm
 from app.services.prompts import COACH_SYSTEM_PROMPT
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+@router.get("/conversations", response_model=list[CoachConversationSummary])
+def list_conversations(
+    _user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> list[CoachConversationSummary]:
+    message_count = func.count(CoachMessage.id)
+    rows = db.execute(
+        select(
+            CoachConversation.id,
+            CoachConversation.title,
+            CoachConversation.created_at,
+            CoachConversation.updated_at,
+            message_count.label("message_count"),
+        )
+        .outerjoin(CoachMessage, CoachMessage.conversation_id == CoachConversation.id)
+        .group_by(
+            CoachConversation.id,
+            CoachConversation.title,
+            CoachConversation.created_at,
+            CoachConversation.updated_at,
+        )
+        .order_by(CoachConversation.updated_at.desc(), CoachConversation.id.desc())
+    ).all()
+    return [
+        CoachConversationSummary(
+            id=row.id,
+            title=row.title,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            message_count=row.message_count,
+            last_message_preview=row.title,
+        )
+        for row in rows
+    ]
+
+
+@router.get("/conversations/{conversation_id}", response_model=CoachConversationOut)
+def get_conversation(
+    conversation_id: int,
+    _user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> CoachConversationOut:
+    conv = db.get(CoachConversation, conversation_id)
+    if conv is None:
+        raise HTTPException(404, "conversation not found")
+    messages = db.scalars(
+        select(CoachMessage)
+        .where(CoachMessage.conversation_id == conv.id)
+        .order_by(CoachMessage.created_at, CoachMessage.id)
+    ).all()
+    return CoachConversationOut(
+        id=conv.id,
+        title=conv.title,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        messages=[
+            CoachMessageOut(
+                id=message.id,
+                role=message.role,
+                content=message.content,
+                created_at=message.created_at,
+            )
+            for message in messages
+            if message.role in {"user", "assistant"}
+        ],
+    )
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+def delete_conversation(
+    conversation_id: int,
+    _user: CurrentUser,
+    db: Session = Depends(get_db),
+) -> None:
+    conv = db.get(CoachConversation, conversation_id)
+    if conv is None:
+        raise HTTPException(404, "conversation not found")
+    db.delete(conv)
+    db.commit()
 
 
 @router.post("", response_model=ChatResponse)
@@ -41,6 +130,10 @@ def chat(
         conv = CoachConversation(title=req.message[:80])
         db.add(conv)
         db.flush()
+
+    if not conv.title:
+        conv.title = req.message[:80]
+    conv.updated_at = datetime.now(timezone.utc)
 
     # Store user turn
     db.add(CoachMessage(conversation_id=conv.id, role="user", content=req.message))

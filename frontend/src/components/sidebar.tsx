@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Home,
@@ -19,8 +19,12 @@ import {
   User,
   Sun,
   Moon,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getToken, onTokenChange } from "@/lib/api";
+
+const loginLinkClass = "inline-flex h-8 w-full items-center justify-center gap-2 border border-foreground px-3 text-xs font-semibold uppercase tracking-wider text-foreground transition-colors duration-150 hover:bg-foreground hover:text-background";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -37,7 +41,17 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    function syncAuth() {
+      setIsLoggedIn(Boolean(getToken()));
+    }
+
+    syncAuth();
+    return onTokenChange(syncAuth);
+  }, []);
 
   function toggleTheme() {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -112,14 +126,22 @@ export function Sidebar() {
           })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-border px-6 py-4">
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150"
-          >
-            <Sun className="h-3.5 w-3.5 dark:hidden" />
-            <Moon className="h-3.5 w-3.5 hidden dark:block" />
-            <span>{theme === "dark" ? "Dark" : "Light"}</span>
-          </button>
+          <div className="space-y-3">
+            {!isLoggedIn && (
+              <Link href="/login" onClick={() => setMobileOpen(false)} className={loginLinkClass}>
+                <LogIn className="h-3.5 w-3.5" />
+                Login
+              </Link>
+            )}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150"
+            >
+              <Sun className="h-3.5 w-3.5 dark:hidden" />
+              <Moon className="h-3.5 w-3.5 hidden dark:block" />
+              <span>{theme === "dark" ? "Dark" : "Light"}</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -175,25 +197,42 @@ export function Sidebar() {
         </nav>
 
         {/* Bottom: theme toggle + collapse */}
-        <div className="border-t border-border p-3 flex items-center justify-between shrink-0">
-          <button
-            className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
-            onClick={toggleTheme}
-            title="Toggle theme"
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </button>
-          <button
-            className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
-            onClick={() => setCollapsed(!collapsed)}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
-            ) : (
-              <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-            )}
-          </button>
+        <div className="border-t border-border p-3 shrink-0 space-y-3">
+          {!isLoggedIn && !collapsed && (
+            <Link href="/login" className={loginLinkClass}>
+              <LogIn className="h-3.5 w-3.5" />
+              Login
+            </Link>
+          )}
+          {!isLoggedIn && collapsed && (
+            <Link
+              href="/login"
+              title="Login"
+              className="mx-auto h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+            >
+              <LogIn className="h-4 w-4" strokeWidth={1.5} />
+            </Link>
+          )}
+          <div className="flex items-center justify-between">
+            <button
+              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+              onClick={toggleTheme}
+              title="Toggle theme"
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </button>
+            <button
+              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+              ) : (
+                <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+              )}
+            </button>
+          </div>
         </div>
       </aside>
     </>

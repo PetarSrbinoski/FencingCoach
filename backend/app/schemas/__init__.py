@@ -1,6 +1,9 @@
 from app.schemas.schemas import (  # noqa: F401
     ActivityOut,
     BriefOut,
+    CoachConversationOut,
+    CoachConversationSummary,
+    CoachMessageOut,
     ChatRequest,
     ChatResponse,
     CompetitionCreate,

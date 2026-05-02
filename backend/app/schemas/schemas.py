@@ -35,6 +35,30 @@ class ChatResponse(BaseModel):
     completion_tokens: int | None = None
 
 
+class CoachMessageOut(BaseModel):
+    id: int
+    role: str = Field(pattern=r"^(user|assistant)$")
+    content: str
+    created_at: datetime
+
+
+class CoachConversationSummary(BaseModel):
+    id: int
+    title: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    message_count: int
+    last_message_preview: str | None = None
+
+
+class CoachConversationOut(BaseModel):
+    id: int
+    title: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    messages: list[CoachMessageOut]
+
+
 # ── Health ────────────────────────────────────────────────────────────
 class HealthResponse(BaseModel):
     status: str
