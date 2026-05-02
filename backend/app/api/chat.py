@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from openai import APITimeoutError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -101,17 +101,24 @@ def get_conversation(
     )
 
 
-@router.delete("/conversations/{conversation_id}", status_code=204)
+@router.delete(
+    "/conversations/{conversation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
 def delete_conversation(
     conversation_id: int,
     _user: CurrentUser,
     db: Session = Depends(get_db),
-) -> None:
+) -> Response:
     conv = db.get(CoachConversation, conversation_id)
     if conv is None:
         raise HTTPException(404, "conversation not found")
     db.delete(conv)
     db.commit()
+
+    # IMPORTANT: return empty response for 204
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("", response_model=ChatResponse)
