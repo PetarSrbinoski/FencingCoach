@@ -5,6 +5,14 @@ import { api, type CoachConversationSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -46,6 +54,7 @@ export default function ChatPage() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,6 +102,7 @@ export default function ChatPage() {
     setMessages([]);
     setInput("");
     setErr(null);
+    setHistoryOpen(false);
   }
 
   async function send() {
@@ -139,8 +149,82 @@ export default function ChatPage() {
     }
   }
 
+  function selectConversation(id: number) {
+    setHistoryOpen(false);
+    void openConversation(id);
+  }
+
+  function renderConversationList() {
+    return (
+      <div className="p-2">
+        {loadingHistory && (
+          <div className="px-2 py-4 text-xs font-mono text-muted-foreground">Loading history...</div>
+        )}
+
+        {!loadingHistory && historyError && (
+          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-3 m-2">
+            <p className="text-xs font-bold text-bauhaus-red">{historyError}</p>
+          </div>
+        )}
+
+        {!loadingHistory && !historyError && conversations.length === 0 && (
+          <div className="px-3 py-6 text-center">
+            <p className="text-sm font-black uppercase tracking-wider">No saved chats</p>
+            <p className="text-[11px] font-mono text-muted-foreground mt-2">Your coach history will appear here.</p>
+          </div>
+        )}
+
+        {!loadingHistory && !historyError && conversations.map((conversation) => {
+          const active = conversation.id === conversationId;
+          return (
+            <div
+              key={conversation.id}
+              className={cn(
+                "group border-2 border-transparent px-3 py-3 transition-colors",
+                active && "border-foreground bg-muted/40 shadow-hard-sm"
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <button
+                  type="button"
+                  onClick={() => selectConversation(conversation.id)}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm font-bold leading-tight uppercase tracking-wide">
+                    {conversationLabel(conversation)}
+                  </p>
+                  <div className="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    <span>{conversation.message_count} msgs</span>
+                    <span>{relativeDate(conversation.updated_at)}</span>
+                  </div>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-8 w-8 shrink-0 inline-flex items-center justify-center border border-transparent text-muted-foreground hover:border-foreground hover:text-foreground"
+                      aria-label="Conversation actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => removeConversation(conversation.id)} className="text-bauhaus-red focus:text-bauhaus-red">
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4 md:space-y-5">
+    <div className="flex min-h-[calc(100svh-8rem)] flex-col gap-4 md:gap-5">
       <div className="border-b-4 border-foreground pb-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -149,90 +233,46 @@ export default function ChatPage() {
               Continue saved conversations or start a fresh one
             </p>
           </div>
-          <Button variant="outline" onClick={startNewConversation} className="px-4">
-            <PencilLine className="h-4 w-4" />
-            New chat
-          </Button>
+          <div className="flex items-center gap-2">
+            <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="px-4 lg:hidden">
+                  <MessageCircle className="h-4 w-4" />
+                  History
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85svh] max-w-[95vw] overflow-hidden p-0 sm:max-w-[560px]">
+                <DialogHeader className="border-b-2 border-foreground px-4 py-4 text-left">
+                  <DialogTitle>Chat history</DialogTitle>
+                  <DialogDescription>Saved coach conversations</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[calc(85svh-5rem)] overflow-y-auto">
+                  {renderConversationList()}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" onClick={startNewConversation} className="px-4">
+              <PencilLine className="h-4 w-4" />
+              New chat
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="border-2 border-foreground shadow-hard bg-card min-h-[220px] lg:h-[calc(100vh-13rem)]">
+      <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="hidden border-2 border-foreground shadow-hard bg-card min-h-[220px] lg:flex lg:flex-col lg:h-[calc(100svh-13rem)]">
           <div className="border-b-2 border-foreground px-4 py-3">
             <p className="text-xs font-black uppercase tracking-widest">Chat history</p>
             <p className="text-[11px] font-mono text-muted-foreground mt-1">Saved coach conversations</p>
           </div>
 
-          <div className="h-[320px] lg:h-[calc(100%-4.5rem)] overflow-y-auto">
-            <div className="p-2">
-              {loadingHistory && (
-                <div className="px-2 py-4 text-xs font-mono text-muted-foreground">Loading history...</div>
-              )}
-
-              {!loadingHistory && historyError && (
-                <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-3 m-2">
-                  <p className="text-xs font-bold text-bauhaus-red">{historyError}</p>
-                </div>
-              )}
-
-              {!loadingHistory && !historyError && conversations.length === 0 && (
-                <div className="px-3 py-6 text-center">
-                  <p className="text-sm font-black uppercase tracking-wider">No saved chats</p>
-                  <p className="text-[11px] font-mono text-muted-foreground mt-2">Your coach history will appear here.</p>
-                </div>
-              )}
-
-              {!loadingHistory && !historyError && conversations.map((conversation) => {
-                const active = conversation.id === conversationId;
-                return (
-                  <div
-                    key={conversation.id}
-                    className={cn(
-                      "group border-2 border-transparent px-3 py-3 transition-colors",
-                      active && "border-foreground bg-muted/40 shadow-hard-sm"
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openConversation(conversation.id)}
-                        className="flex-1 text-left"
-                      >
-                        <p className="text-sm font-bold leading-tight uppercase tracking-wide">
-                          {conversationLabel(conversation)}
-                        </p>
-                        <div className="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                          <span>{conversation.message_count} msgs</span>
-                          <span>{relativeDate(conversation.updated_at)}</span>
-                        </div>
-                      </button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            type="button"
-                            className="h-8 w-8 shrink-0 inline-flex items-center justify-center border border-transparent text-muted-foreground hover:border-foreground hover:text-foreground"
-                            aria-label="Conversation actions"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => removeConversation(conversation.id)} className="text-bauhaus-red focus:text-bauhaus-red">
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {renderConversationList()}
           </div>
         </aside>
 
-        <div className="flex flex-col h-[calc(100vh-13rem)] min-h-[500px] border-2 border-foreground shadow-hard bg-card overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
+        <div className="flex min-h-[calc(100svh-13rem)] flex-col border-2 border-foreground shadow-hard bg-card overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-4 overscroll-contain">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="h-16 w-16 border-2 border-foreground flex items-center justify-center mb-4 shadow-hard-sm">
@@ -295,7 +335,7 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t-2 border-foreground p-3 sm:p-4 bg-muted/30">
+          <div className="border-t-2 border-foreground p-3 sm:p-4 bg-muted/30 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -308,9 +348,9 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Should I skip gym today?"
                 disabled={busy}
-                className="flex-1"
+                className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
               />
-              <Button type="submit" size="icon" disabled={busy || !input.trim()} className="shrink-0 h-10 w-10">
+              <Button type="submit" size="icon" disabled={busy || !input.trim()} className="shrink-0 h-11 w-11 sm:h-10 sm:w-10">
                 <Send className="h-4 w-4" />
               </Button>
             </form>
