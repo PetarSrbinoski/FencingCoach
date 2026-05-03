@@ -1,10 +1,12 @@
-"""Chat endpoint — Phase 2: with RAG context injection.
+"""Chat endpoint — PydanticAI agent with context injection.
 
 Stores user/assistant turns in `coach_conversations` and `coach_messages`.
 On each turn, we (optionally) inject a fresh `system` message containing
 the latest snapshot of Garmin/training/nutrition state via
 `build_context`. The snapshot is rebuilt every request so the coach
 always sees current data.
+
+This endpoint is async (uses `await agent.run()`) for non-blocking LLM calls.
 """
 
 from __future__ import annotations
@@ -12,7 +14,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from openai import APITimeoutError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -26,9 +27,8 @@ from app.schemas import (
     CoachConversationSummary,
     CoachMessageOut,
 )
+from app.agents.coach import run_coach_chat
 from app.services.context import build_context
-from app.services.llm import get_llm
-from app.services.prompts import COACH_SYSTEM_PROMPT
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -122,7 +122,7 @@ def delete_conversation(
 
 
 @router.post("", response_model=ChatResponse)
-def chat(
+async def chat(
     req: ChatRequest,
     _user: CurrentUser,
     db: Session = Depends(get_db),
@@ -152,24 +152,21 @@ def chat(
         .where(CoachMessage.conversation_id == conv.id)
         .order_by(CoachMessage.created_at)
     ).all()
-    history = history[-20:]
+    # Keep last 20 messages, but exclude the latest user message (it will
+    # be sent as the agent's user prompt)
+    history_for_agent = [m for m in history if m.role in ("user", "assistant")]
+    history_for_agent = history_for_agent[-21:-1]  # up to 20, excluding the latest
 
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": COACH_SYSTEM_PROMPT}
-    ]
-    if req.include_context:
-        messages.append({"role": "system", "content": build_context(db)})
-    messages.extend({"role": m.role, "content": m.content} for m in history)
+    context_text = build_context(db) if req.include_context else ""
 
-    # ── call LLM ──────────────────────────────────────────────────────
+    # ── call agent (async) ────────────────────────────────────────────
     try:
-        resp = get_llm().chat(
-            messages,
-            temperature=0.4,
-            max_tokens=1200,
-            reasoning_effort="high",
+        result = await run_coach_chat(
+            user_message=req.message,
+            context_text=context_text,
+            history_messages=history_for_agent if history_for_agent else None,
         )
-    except APITimeoutError as e:
+    except TimeoutError as e:
         raise HTTPException(
             504,
             "The LLM request timed out. This model is running in quality-first mode and can take a while.",
@@ -179,8 +176,7 @@ def chat(
         CoachMessage(
             conversation_id=conv.id,
             role="assistant",
-            content=resp.content,
-            tokens=resp.completion_tokens,
+            content=result.reply,
         )
     )
     db.commit()
@@ -188,8 +184,6 @@ def chat(
 
     return ChatResponse(
         conversation_id=conv.id,
-        reply=resp.content,
-        model=resp.model,
-        prompt_tokens=resp.prompt_tokens,
-        completion_tokens=resp.completion_tokens,
+        reply=result.reply,
+        model=result.model,
     )

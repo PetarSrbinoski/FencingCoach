@@ -14,7 +14,7 @@ from app.core.database import get_db
 from app.core.security import CurrentUser
 from app.models import NutritionLog
 from app.schemas import NutritionDayTotals, NutritionLogCreate, NutritionLogOut
-from app.services import nutrition as nutrition_service
+from app.agents.nutrition import estimate_nutrition
 from app.services import usda as usda_service
 
 log = logging.getLogger(__name__)
@@ -29,9 +29,9 @@ def log_meal(
     db: Session = Depends(get_db),
 ) -> NutritionLogOut:
     try:
-        est = nutrition_service.estimate(body.text)
+        est = estimate_nutrition(body.text, db=db)
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"LLM nutrition estimation failed: {e}") from e
+        raise HTTPException(502, f"Nutrition estimation failed: {e}") from e
 
     # Cross-reference with USDA data to improve estimation
     usda_refs = []
@@ -41,8 +41,8 @@ def log_meal(
         log.debug("USDA cross-reference skipped: %s", e)
 
     micros_data = {
-        **est.micros,
-        "items": est.items,
+        **est.micros.model_dump(),
+        "items": [item.model_dump() for item in est.items],
         "confidence": est.confidence,
         "notes": est.notes,
     }
@@ -61,7 +61,7 @@ def log_meal(
         fat_g=est.fat_g,
         fiber_g=est.fiber_g,
         micros=micros_data,
-        estimated_by="llm+usda" if usda_refs else "llm",
+        estimated_by="agent+usda" if usda_refs else "agent",
     )
     db.add(entry)
     db.commit()

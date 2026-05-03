@@ -57,6 +57,7 @@ Rules:
 - If a quantity is missing, assume an athlete-sized portion (e.g. 200 g protein source,
   150 g cooked rice, 1 medium fruit) and note the assumption in `notes`.
 - Never refuse. Always produce numbers; lower `confidence` if uncertain.
+- USE WEB SEARCH TOOL TO IMPROVE ESTIMATES!
 - Do not include preamble or trailing text. JSON object only."""
 )
 

@@ -1,4 +1,9 @@
-"""LLM client wrapper.
+"""LLM client wrapper — DEPRECATED.
+
+This module is retained for backward compatibility. All LLM calls have
+been migrated to PydanticAI agents in `app.agents.*`. The `LLMClient`
+class and `get_llm()` singleton are no longer used by any active code
+path. Remove once migration is fully validated in production.
 
 Speaks to ANY OpenAI-compatible endpoint (Ollama, OpenAI, NVIDIA NIM,
 OpenRouter, Together.ai, llama.cpp, vLLM, ...) via the official OpenAI

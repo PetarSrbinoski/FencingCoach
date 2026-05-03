@@ -50,8 +50,12 @@ class Settings(BaseSettings):
     # ── Athlete ───────────────────────────────────────────────────────
     ATHLETE_TIMEZONE: str = "Europe/Berlin"
 
-    # ── USDA ──────────────────────────────────────────────────────────
+    # ── USDA / Nutrition MCP ─────────────────────────────────────────
     USDA_API_KEY: str = "DEMO_KEY"
+    USDA_MCP_URL: str = "https://usda-nutrition-mcp-oc46l7ob5a-uc.a.run.app/mcp"
+
+    # ── Observability ─────────────────────────────────────────────────
+    LOGFIRE_TOKEN: str = ""
 
 
 @lru_cache

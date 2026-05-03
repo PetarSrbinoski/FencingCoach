@@ -64,7 +64,7 @@ class HealthResponse(BaseModel):
     status: str
     db: bool
     llm: bool
-    version: str = "0.3.0-phase3"
+    version: str = "0.4.0-agents"
 
 
 # ── Garmin ────────────────────────────────────────────────────────────

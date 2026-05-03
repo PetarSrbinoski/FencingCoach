@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.core.security import CurrentUser
 from app.models import DailyBrief
 from app.schemas import BriefOut
-from app.services.brief import generate_daily_brief
+from app.agents.brief import generate_brief
 
 router = APIRouter(prefix="/brief", tags=["brief"])
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/brief", tags=["brief"])
 @router.post("/today", response_model=BriefOut)
 def generate_today(_user: CurrentUser, db: Session = Depends(get_db)) -> BriefOut:
     try:
-        brief = generate_daily_brief(db)
+        brief = generate_brief(db)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"brief generation failed: {e}") from e
     return BriefOut.model_validate(brief, from_attributes=True)

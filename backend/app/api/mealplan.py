@@ -13,7 +13,8 @@ from app.core.database import get_db
 from app.core.security import CurrentUser
 from app.models import NutritionPlan
 from app.schemas import MealPlanOut, ShoppingList
-from app.services.mealplan import build_shopping_list, generate_day_plan
+from app.agents.mealplan import generate_meal_plan
+from app.services.mealplan import build_shopping_list
 
 router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 @router.post("/today", response_model=MealPlanOut)
 def generate_today(_user: CurrentUser, db: Session = Depends(get_db)) -> MealPlanOut:
     try:
-        plan = generate_day_plan(db, Date.today())
+        plan = generate_meal_plan(db, Date.today())
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"meal plan generation failed: {e}") from e
     return MealPlanOut(
@@ -48,7 +49,7 @@ def generate_week(
     for i in range(7):
         d = start + timedelta(days=i)
         try:
-            plan = generate_day_plan(db, d)
+            plan = generate_meal_plan(db, d)
         except Exception as e:  # noqa: BLE001
             raise HTTPException(502, f"week generation failed at {d}: {e}") from e
         out.append(
@@ -67,7 +68,7 @@ def generate(
     day: Date, _user: CurrentUser, db: Session = Depends(get_db)
 ) -> MealPlanOut:
     try:
-        plan = generate_day_plan(db, day)
+        plan = generate_meal_plan(db, day)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"meal plan generation failed: {e}") from e
     return MealPlanOut(

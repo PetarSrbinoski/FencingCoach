@@ -1,0 +1,10 @@
+[project]
+name = "coachapp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.119.0",
+    "pydantic-ai[duckduckgo]>=1.89.0",
+]

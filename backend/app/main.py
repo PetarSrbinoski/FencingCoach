@@ -33,7 +33,18 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s"
 )
 
-app = FastAPI(title="FencingCoach AI", version="0.3.0-phase3")
+# ── Logfire instrumentation (optional) ────────────────────────────────
+if settings.LOGFIRE_TOKEN:
+    try:
+        import logfire
+
+        logfire.configure(token=settings.LOGFIRE_TOKEN)
+        logfire.instrument_pydantic_ai()
+        logging.getLogger(__name__).info("Logfire instrumentation enabled")
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger(__name__).warning("Logfire setup failed: %s", e)
+
+app = FastAPI(title="FencingCoach AI", version="0.4.0-agents")
 
 app.add_middleware(
     CORSMiddleware,
