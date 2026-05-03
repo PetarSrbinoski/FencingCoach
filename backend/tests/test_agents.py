@@ -7,6 +7,7 @@ These tests verify agent setup without making actual LLM calls
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 
 # Override DATABASE_URL before any app imports
 os.environ.setdefault("DATABASE_URL", "sqlite://")
@@ -20,6 +21,7 @@ from app.agents.nutrition import (
     NutritionEstimateOutput,
     NutritionMicros,
     estimate_nutrition,
+    nutrition_fallback_agent,
     nutrition_agent,
 )
 from app.agents.mealplan import MealPlanOutput, mealplan_agent
@@ -91,6 +93,38 @@ class TestNutritionAgent:
     def test_estimate_nutrition_whitespace_raises(self):
         with pytest.raises(ValueError, match="empty food description"):
             estimate_nutrition("   ")
+
+    def test_estimate_nutrition_retries_without_usda(self, monkeypatch):
+        calls: list[str] = []
+
+        def fail_primary(text, deps):
+            calls.append(f"primary:{text}")
+            raise RuntimeError("503 Service Unavailable")
+
+        fallback_output = NutritionEstimateOutput(
+            kcal=640,
+            protein_g=42,
+            carbs_g=55,
+            fat_g=24,
+            fiber_g=9,
+            confidence="medium",
+            notes="Used web research while USDA MCP was unavailable.",
+        )
+
+        def succeed_fallback(text, deps):
+            calls.append(f"fallback:{text}")
+            return SimpleNamespace(output=fallback_output)
+
+        monkeypatch.setattr(nutrition_agent, "run_sync", fail_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", succeed_fallback)
+
+        result = estimate_nutrition("chicken burrito bowl")
+
+        assert result == fallback_output
+        assert calls == [
+            "primary:chicken burrito bowl",
+            "fallback:chicken burrito bowl",
+        ]
 
 
 # ── mealplan agent ────────────────────────────────────────────────────

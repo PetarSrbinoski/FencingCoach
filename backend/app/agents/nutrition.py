@@ -54,6 +54,13 @@ class NutritionEstimateOutput(BaseModel):
     notes: str = Field("", description="Assumptions or notes about the estimate")
 
 
+def _clean_output(result: NutritionEstimateOutput) -> NutritionEstimateOutput:
+    """Strip reasoning tags from user-visible text fields."""
+    if result.notes:
+        result.notes = strip_think_tags(result.notes)
+    return result
+
+
 # ── Agent definition ──────────────────────────────────────────────────
 NUTRITION_INSTRUCTIONS = """\
 You are a precise sports-nutrition macro estimator for an elite épée fencer.
@@ -77,12 +84,36 @@ Rules:
 - Break compound meals into individual items with estimated weights."""
 
 
-def _build_nutrition_toolsets() -> list:
-    """Build toolsets list: USDA MCP + WebSearch."""
+NUTRITION_FALLBACK_INSTRUCTIONS = """\
+You are a precise sports-nutrition macro estimator for an elite épée fencer.
+
+The USDA lookup service is unavailable for this request.
+
+Given a free-text food description, estimate its nutritional content.
+
+Strategy:
+1. Use web search to find nutritional information from reliable sources such as
+   USDA pages, major nutrition databases, or reputable food brands/restaurants.
+2. Prefer sources that match the described preparation or serving size.
+3. Combine the data into a single estimate.
+
+Rules:
+- Round kcal to nearest 5, macros to 0.5g, micros to 1 unit.
+- If a quantity is missing, assume an athlete-sized portion (e.g. 200g
+  protein source, 150g cooked rice, 1 medium fruit) and note the
+  assumption in notes.
+- Never refuse. Always produce numbers; lower confidence if uncertain.
+- Break compound meals into individual items with estimated weights.
+- Mention in notes that the estimate used web research because USDA MCP was
+  unavailable."""
+
+
+def _build_nutrition_toolsets(include_usda: bool = True) -> list[Any]:
+    """Build toolsets list for the nutrition agent."""
     toolsets = []
 
     # USDA Nutrition MCP server
-    if settings.USDA_MCP_URL:
+    if include_usda and settings.USDA_MCP_URL:
         mcp_server = MCPServerStreamableHTTP(
             url=settings.USDA_MCP_URL,
             timeout=15,
@@ -93,17 +124,28 @@ def _build_nutrition_toolsets() -> list:
     return toolsets
 
 
-nutrition_agent = Agent(
-    get_model(),
-    output_type=NutritionEstimateOutput,
-    instructions=NUTRITION_INSTRUCTIONS,
-    deps_type=CoachDeps,
-    toolsets=_build_nutrition_toolsets(),
-    capabilities=[WebSearch()],
-    model_settings={
-        "temperature": 0.1,
-        "max_tokens": settings.LLM_MAX_TOKENS,
-    },
+def _build_nutrition_agent(
+    include_usda: bool = True,
+    instructions: str = NUTRITION_INSTRUCTIONS,
+) -> Agent[CoachDeps, NutritionEstimateOutput]:
+    return Agent(
+        get_model(),
+        output_type=NutritionEstimateOutput,
+        instructions=instructions,
+        deps_type=CoachDeps,
+        toolsets=_build_nutrition_toolsets(include_usda=include_usda),
+        capabilities=[WebSearch()],
+        model_settings={
+            "temperature": 0.1,
+            "max_tokens": settings.LLM_MAX_TOKENS,
+        },
+    )
+
+
+nutrition_agent = _build_nutrition_agent()
+nutrition_fallback_agent = _build_nutrition_agent(
+    include_usda=False,
+    instructions=NUTRITION_FALLBACK_INSTRUCTIONS,
 )
 
 
@@ -112,9 +154,7 @@ async def _strip_think(
     ctx: RunContext[CoachDeps], result: NutritionEstimateOutput
 ) -> NutritionEstimateOutput:
     """Post-process: strip any <think> artifacts from text fields."""
-    if result.notes:
-        result.notes = strip_think_tags(result.notes)
-    return result
+    return _clean_output(result)
 
 
 # ── Public API (sync wrapper) ─────────────────────────────────────────
@@ -139,9 +179,27 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
 
     try:
         result = nutrition_agent.run_sync(text.strip(), deps=deps)
-        return result.output
+        return _clean_output(result.output)
     except Exception as e:
-        log.error("Nutrition agent failed: %s", e)
+        if settings.USDA_MCP_URL:
+            log.warning(
+                "Nutrition agent failed with USDA tools, retrying without USDA: %s",
+                e,
+            )
+            try:
+                fallback_result = nutrition_fallback_agent.run_sync(
+                    text.strip(), deps=deps
+                )
+                return _clean_output(fallback_result.output)
+            except Exception as fallback_error:
+                log.error(
+                    "Nutrition agent failed after USDA-free retry: %s",
+                    fallback_error,
+                )
+                e = fallback_error
+        else:
+            log.error("Nutrition agent failed: %s", e)
+
         # Return a minimal fallback, same as old code
         return NutritionEstimateOutput(
             kcal=0,
