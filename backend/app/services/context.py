@@ -37,6 +37,7 @@ from app.models import (
     NutritionPlan,
     TrainingPlan,
 )
+from app.services.activity_types import display_label
 from app.services.mental import mental_context_section
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
@@ -131,7 +132,7 @@ def _activities_section(db: Session, today: date, days: int = 7) -> str:
         hr = f"{a.avg_hr}/{a.max_hr}bpm" if a.avg_hr else "—"
         load = f"load {a.training_load:.0f}" if a.training_load else ""
         lines.append(
-            f"  - {a.start_time.strftime('%a %H:%M')} {a.activity_type or 'activity'} "
+            f"  - {a.start_time.strftime('%a %H:%M')} {display_label(a.activity_type)} "
             f"{dur} HR {hr} {load}".rstrip()
         )
     return "\n".join(lines)

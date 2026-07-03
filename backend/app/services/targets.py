@@ -28,6 +28,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models import Activity, AthleteProfile, Competition, DayTypeOverride
+from app.services.activity_types import is_fencing, is_strength
 from app.services.periodization import Phase, compute_phase
 
 DEFAULT_WEIGHT_KG = 89.0
@@ -148,16 +149,12 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
         return default, "auto"
 
     types = {(a.activity_type or "").lower() for a in rows}
-    has_strength = any(
-        t and ("strength" in t or "weight" in t or "training" in t) for t in types
-    )
-    has_cardio = any(
-        t and ("running" in t or "cardio" in t or "fencing" in t) for t in types
-    )
+    has_strength = any(is_strength(t) for t in types)
+    has_fencing = any(is_fencing(t) for t in types)
 
     if default in ("fencing", "rest") and has_strength:
         return ("double" if default == "fencing" else "gym"), "auto"
-    if default == "gym" and has_cardio:
+    if default == "gym" and has_fencing:
         return "double", "auto"
     return default, "auto"
 
