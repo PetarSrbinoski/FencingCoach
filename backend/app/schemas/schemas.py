@@ -27,6 +27,13 @@ class ChatResponse(BaseModel):
     model: str
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    # Transparency: the exact context snapshot injected into the coach's
+    # prompt for this turn ("what the coach saw"), and any sentences the
+    # heuristic grounding check flagged as citing a number not present in
+    # that snapshot (see services.grounding). Empty/None when
+    # include_context was False.
+    context_snapshot: str | None = None
+    ungrounded_claims: list[str] = Field(default_factory=list)
 
 
 class CoachMessageOut(BaseModel):
