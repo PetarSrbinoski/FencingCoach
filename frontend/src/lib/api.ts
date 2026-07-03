@@ -200,6 +200,30 @@ export type ExerciseProgress = {
   plateau: { plateau: boolean; detail?: string; [k: string]: unknown };
 };
 
+export type FencingSession = {
+  activity_id: number;
+  day: string;
+  duration_min: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  avg_hr_zone: string | null;
+  max_hr_zone: string | null;
+  training_load: number | null;
+  calories: number | null;
+};
+
+export type FencingAnalysis = {
+  window_days: number;
+  session_count: number;
+  max_hr_estimate: number | null;
+  max_hr_source: string;
+  sessions: FencingSession[];
+  avg_duration_min: number | null;
+  avg_training_load: number | null;
+  weekly_session_counts: Record<string, number>;
+  training_load_trend: "increasing" | "decreasing" | "stable" | "insufficient_data";
+};
+
 export type Competition = {
   id: number;
   name: string;
@@ -522,6 +546,11 @@ export const api = {
       request<ExerciseProgress>(
         `/training/progress/${encodeURIComponent(exercise)}?days=${days}`
       ),
+  },
+
+  fencing: {
+    analysis: (windowDays = 90) =>
+      request<FencingAnalysis>(`/fencing/analysis?window_days=${windowDays}`),
   },
 
   competitions: {

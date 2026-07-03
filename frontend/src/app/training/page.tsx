@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput } from "@/lib/api";
-import { BandPill } from "@/components/ui";
+import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput, FencingAnalysis } from "@/lib/api";
+import { BandPill, Card, StatRow } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -48,6 +48,143 @@ const ENTRY_TYPE_LABELS: Record<string, string> = {
   pre_comp: "Pre-comp",
   reflection: "Reflection",
 };
+
+// ── Fencing Session Analysis ─────────────────────────────────────────
+const TREND_LABELS: Record<FencingAnalysis["training_load_trend"], string> = {
+  increasing: "Load trending up",
+  decreasing: "Load trending down",
+  stable: "Load stable",
+  insufficient_data: "Not enough sessions yet",
+};
+
+function FencingAnalysisSection() {
+  const [analysis, setAnalysis] = useState<FencingAnalysis | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.fencing
+      .analysis(90)
+      .then(setAnalysis)
+      .catch((e: any) => setErr(e?.message ?? String(e)));
+  }, []);
+
+  const TrendIcon =
+    analysis?.training_load_trend === "increasing"
+      ? TrendingUp
+      : analysis?.training_load_trend === "decreasing"
+        ? TrendingDown
+        : Minus;
+
+  return (
+    <section className="border-t border-border pt-12">
+      <div className="flex items-center gap-2 mb-6">
+        <Swords className="h-5 w-5 text-accent" />
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Fencing sessions</h2>
+      </div>
+
+      {err && <p className="text-sm text-accent">{err}</p>}
+
+      {!analysis && !err ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : analysis ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                Sessions ({analysis.window_days}d)
+              </span>
+              <span className="text-2xl font-mono font-medium">{analysis.session_count}</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                Avg duration
+              </span>
+              <span className="text-2xl font-mono font-medium">
+                {analysis.avg_duration_min != null ? `${analysis.avg_duration_min.toFixed(0)}m` : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                Avg load
+              </span>
+              <span className="text-2xl font-mono font-medium">
+                {analysis.avg_training_load != null ? analysis.avg_training_load.toFixed(0) : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                Trend
+              </span>
+              <span className="flex items-center gap-1.5 text-sm font-medium">
+                <TrendIcon className="h-4 w-4" />
+                {TREND_LABELS[analysis.training_load_trend]}
+              </span>
+            </div>
+          </div>
+
+          {analysis.max_hr_estimate && (
+            <p className="text-xs text-muted-foreground font-mono">
+              HR zones estimated from max HR ≈ {analysis.max_hr_estimate.toFixed(0)} bpm ({analysis.max_hr_source}).
+              Zones characterize each session&rsquo;s avg/max HR — not time-in-zone (Garmin doesn&rsquo;t
+              give us per-minute detail for these activities).
+            </p>
+          )}
+
+          {analysis.sessions.length > 0 && (
+            <Card title="Recent sessions">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[10px] uppercase tracking-widest text-muted-foreground">
+                      <th className="font-medium pb-2">Day</th>
+                      <th className="font-medium pb-2">Duration</th>
+                      <th className="font-medium pb-2">Avg HR</th>
+                      <th className="font-medium pb-2">Max HR</th>
+                      <th className="font-medium pb-2">Load</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysis.sessions
+                      .slice()
+                      .reverse()
+                      .slice(0, 10)
+                      .map((s) => (
+                        <tr key={s.activity_id} className="border-t border-border">
+                          <td className="py-2 font-mono text-xs">{s.day}</td>
+                          <td className="py-2 font-mono text-xs">
+                            {s.duration_min != null ? `${s.duration_min.toFixed(0)}m` : "—"}
+                          </td>
+                          <td className="py-2 font-mono text-xs">
+                            {s.avg_hr ?? "—"}
+                            {s.avg_hr_zone ? ` (${s.avg_hr_zone})` : ""}
+                          </td>
+                          <td className="py-2 font-mono text-xs">
+                            {s.max_hr ?? "—"}
+                            {s.max_hr_zone ? ` (${s.max_hr_zone})` : ""}
+                          </td>
+                          <td className="py-2 font-mono text-xs">{s.training_load ?? "—"}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+
+          {analysis.session_count === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No fencing sessions found in the last {analysis.window_days} days.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 // ── Mental Training Section ──────────────────────────────────────────
 function MentalTrainingSection() {
@@ -535,6 +672,9 @@ export default function TrainingPage() {
           })}
         </div>
       )}
+
+      {/* ── Fencing Session Analysis ───────────────────────────────── */}
+      <FencingAnalysisSection />
 
       {/* ── Mental Training ────────────────────────────────────────── */}
       <MentalTrainingSection />
