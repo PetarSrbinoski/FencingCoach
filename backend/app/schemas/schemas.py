@@ -117,6 +117,31 @@ class ActivityOut(BaseModel):
     training_load: float | None
 
 
+# ── Fencing session analysis ───────────────────────────────────────────
+class FencingSessionOut(BaseModel):
+    activity_id: int
+    day: Date
+    duration_min: float | None
+    avg_hr: int | None
+    max_hr: int | None
+    avg_hr_zone: str | None
+    max_hr_zone: str | None
+    training_load: float | None
+    calories: int | None
+
+
+class FencingAnalysisOut(BaseModel):
+    window_days: int
+    session_count: int
+    max_hr_estimate: float | None
+    max_hr_source: str
+    sessions: list[FencingSessionOut]
+    avg_duration_min: float | None
+    avg_training_load: float | None
+    weekly_session_counts: dict[str, int]
+    training_load_trend: str
+
+
 # ── Nutrition ─────────────────────────────────────────────────────────
 class NutritionEstimateRequest(BaseModel):
     text: str

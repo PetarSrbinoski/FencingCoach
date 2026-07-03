@@ -13,6 +13,8 @@ from app.schemas.schemas import (  # noqa: F401
     DiagnosticsResponse,
     ExerciseProgress,
     ExerciseRxOut,
+    FencingAnalysisOut,
+    FencingSessionOut,
     GarminLoginRequest,
     GarminSyncResult,
     HealthResponse,

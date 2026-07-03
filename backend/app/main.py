@@ -13,6 +13,7 @@ from app.api import (
     chat,
     competitions,
     diagnostics,
+    fencing,
     garmin,
     health,
     mealplan,
@@ -73,6 +74,7 @@ app.include_router(mental.router)
 app.include_router(usda.router)
 app.include_router(summaries.router)
 app.include_router(diagnostics.router)
+app.include_router(fencing.router)
 
 
 @app.get("/")
