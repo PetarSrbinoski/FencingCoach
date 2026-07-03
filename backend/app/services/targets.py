@@ -43,6 +43,8 @@ from app.models import (
 )
 from app.services.activity_types import is_fencing, is_strength
 from app.services.periodization import Phase, compute_phase
+from app.services.schedule import VALID_DAY_TYPES as _VALID_DAY_TYPES
+from app.services.schedule import day_type_for_weekday
 
 DEFAULT_WEIGHT_KG = 89.0
 DEFAULT_BODY_COMP = "lean"
@@ -158,7 +160,7 @@ def _athlete_goal(db: Session) -> str:
     return DEFAULT_BODY_COMP
 
 
-VALID_DAY_TYPES = {"rest", "gym", "fencing", "double", "competition"}
+VALID_DAY_TYPES = _VALID_DAY_TYPES  # re-exported for backward compat (app.api.targets)
 
 
 def detect_day_type(db: Session, day: date) -> tuple[str, str]:
@@ -175,17 +177,8 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     if comp is not None:
         return "competition", "auto"
 
-    # Default pattern: Mon=0..Sun=6
-    weekday = day.weekday()
-    default = {
-        0: "fencing",  # Mon
-        1: "gym",  # Tue
-        2: "fencing",  # Wed
-        3: "gym",  # Thu
-        4: "fencing",  # Fri
-        5: "fencing",  # Sat
-        6: "rest",  # Sun
-    }[weekday]
+    # Default pattern from the single-source weekly schedule (Mon=0..Sun=6)
+    default = day_type_for_weekday(day.weekday())
 
     # Look at logged activities for this day to upgrade if needed.
     start = datetime.combine(day, time.min, tzinfo=timezone.utc)

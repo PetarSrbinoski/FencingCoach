@@ -48,6 +48,11 @@ class Settings(BaseSettings):
 
     # ── Athlete ───────────────────────────────────────────────────────
     ATHLETE_TIMEZONE: str = "Europe/Berlin"
+    # Default weekly training schedule, Monday first — the single source
+    # of truth consumed by day-type detection and gym-session templating
+    # (see app.services.schedule). Comma-separated day-types, one of:
+    # rest, gym, fencing, double, competition.
+    WEEKLY_SCHEDULE: str = "fencing,gym,fencing,gym,fencing,fencing,rest"
 
     # ── USDA / Nutrition MCP ─────────────────────────────────────────
     USDA_API_KEY: str = "DEMO_KEY"

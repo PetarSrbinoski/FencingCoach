@@ -29,6 +29,7 @@ from app.core.clock import athlete_today
 from app.models import WorkoutLog
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
+from app.services.schedule import weekly_schedule
 
 
 # ── templates ─────────────────────────────────────────────────────────
@@ -253,13 +254,22 @@ def detect_plateau(db: Session, exercise: str, weeks: int = 4) -> dict[str, Any]
 
 
 # ── session builder ───────────────────────────────────────────────────
+# Gym-day weekdays come from the shared weekly schedule (single source of
+# truth — app.services.schedule); the two exercise templates alternate
+# across those gym days in weekday order (cycling if there are ever more
+# than two configured gym days per week).
+_GYM_TEMPLATES: list[tuple[str, list[dict[str, Any]]]] = [
+    ("strength_unilateral", TUE_TEMPLATE),
+    ("power_explosive", THU_TEMPLATE),
+]
+
+
 def _template_for(day: date) -> tuple[str, list[dict[str, Any]]] | None:
-    weekday = day.weekday()  # Mon=0
-    if weekday == 1:
-        return ("strength_unilateral", TUE_TEMPLATE)
-    if weekday == 3:
-        return ("power_explosive", THU_TEMPLATE)
-    return None
+    gym_weekdays = sorted(wd for wd, t in weekly_schedule().items() if t == "gym")
+    if day.weekday() not in gym_weekdays:
+        return None
+    idx = gym_weekdays.index(day.weekday()) % len(_GYM_TEMPLATES)
+    return _GYM_TEMPLATES[idx]
 
 
 def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
@@ -276,7 +286,7 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
             "session": None,
             "phase": phase.to_dict(),
             "readiness": {"score": readiness.score, "band": readiness.band},
-            "reason": "Not a gym day per default schedule (Tue/Thu).",
+            "reason": "Not a gym day per the configured weekly schedule.",
         }
 
     session_name, items = tpl
