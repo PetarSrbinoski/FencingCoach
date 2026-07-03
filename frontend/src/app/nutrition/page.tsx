@@ -5,6 +5,7 @@ import {
   api,
   MealPlan,
   NutritionDayTotals,
+  NutritionEstimate,
   NutritionLog,
   ShoppingList,
   Targets,
@@ -28,6 +29,8 @@ import {
   ChefHat,
   CalendarClock,
   Trash2,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 
 const MEALS = ["breakfast", "lunch", "dinner", "snack", "pre", "post"];
@@ -48,6 +51,18 @@ export default function NutritionPage() {
   const [err, setErr] = useState<string | null>(null);
   const [dayTypeOverride, setDayTypeOverride] = useState<string>("auto");
   const [loading, setLoading] = useState(true);
+
+  // Confirm-before-save: /nutrition/estimate never persists. The athlete
+  // reviews/edits the macros here, then /nutrition/log saves them.
+  const [estimate, setEstimate] = useState<NutritionEstimate | null>(null);
+  const [draft, setDraft] = useState({
+    kcal: "",
+    protein_g: "",
+    carbs_g: "",
+    fat_g: "",
+    fiber_g: "",
+  });
+  const [confirming, setConfirming] = useState(false);
 
   function refresh() {
     Promise.all([
@@ -80,18 +95,56 @@ export default function NutritionPage() {
     }
   }
 
-  async function submit() {
+  async function requestEstimate() {
     if (!text.trim() || busy) return;
     setBusy(true);
     setErr(null);
     try {
-      await api.nutrition.log(text.trim(), meal || undefined);
-      setText("");
-      refresh();
+      const est = await api.nutrition.estimate(text.trim());
+      setEstimate(est);
+      setDraft({
+        kcal: String(est.kcal),
+        protein_g: String(est.protein_g),
+        carbs_g: String(est.carbs_g),
+        fat_g: String(est.fat_g),
+        fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
+      });
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  function discardEstimate() {
+    setEstimate(null);
+  }
+
+  async function confirmLog() {
+    if (!estimate || confirming) return;
+    setConfirming(true);
+    setErr(null);
+    try {
+      await api.nutrition.log({
+        raw_text: text.trim(),
+        meal: meal || undefined,
+        kcal: Number(draft.kcal),
+        protein_g: Number(draft.protein_g),
+        carbs_g: Number(draft.carbs_g),
+        fat_g: Number(draft.fat_g),
+        fiber_g: draft.fiber_g ? Number(draft.fiber_g) : undefined,
+        micros: estimate.micros,
+        items: estimate.items,
+        confidence: estimate.confidence,
+        notes: estimate.notes,
+      });
+      setText("");
+      setEstimate(null);
+      refresh();
+    } catch (e: any) {
+      setErr(e?.message ?? String(e));
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -206,7 +259,8 @@ export default function NutritionPage() {
         <p className="text-xs text-muted-foreground mb-3 font-mono">
           Describe what you ate. The coach LLM will estimate macros, key micros,
           and a confidence level. Quantities help — &ldquo;200g chicken with 1
-          cup of rice&rdquo; beats &ldquo;chicken with rice&rdquo;.
+          cup of rice&rdquo; beats &ldquo;chicken with rice&rdquo;. Nothing is
+          saved until you confirm the numbers below.
         </p>
         <div className="flex flex-col sm:flex-row gap-2.5">
           <Select value={meal} onValueChange={setMeal}>
@@ -226,18 +280,83 @@ export default function NutritionPage() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); requestEstimate(); }
             }}
             placeholder="200g chicken breast, 150g cooked rice, broccoli, olive oil"
             className="flex-1"
+            disabled={!!estimate}
           />
-          <Button onClick={submit} disabled={busy}>
-            {busy ? "ESTIMATING..." : "LOG"}
+          <Button onClick={requestEstimate} disabled={busy || !!estimate}>
+            {busy ? "ESTIMATING..." : "ESTIMATE"}
           </Button>
         </div>
         {err && (
           <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
             <p className="text-bauhaus-red text-sm font-bold">{err}</p>
+          </div>
+        )}
+
+        {/* Review/edit before saving */}
+        {estimate && (
+          <div className="mt-4 border-2 border-foreground/20 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Review estimate
+              </span>
+              <Badge
+                variant={estimate.confidence === "low" ? "destructive" : "outline"}
+                className="text-[10px] uppercase tracking-wider"
+              >
+                {estimate.confidence} confidence
+              </Badge>
+            </div>
+
+            {estimate.confidence === "low" && (
+              <div className="flex items-start gap-2 border-2 border-amber-500/40 bg-amber-500/5 px-3 py-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
+                <p className="text-xs text-amber-400">
+                  Low-confidence estimate — double-check these numbers before logging.
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              {(
+                [
+                  ["kcal", "Kcal"],
+                  ["protein_g", "Protein g"],
+                  ["carbs_g", "Carbs g"],
+                  ["fat_g", "Fat g"],
+                  ["fiber_g", "Fiber g"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key}>
+                  <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                    {label}
+                  </span>
+                  <Input
+                    value={draft[key]}
+                    onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                    inputMode="decimal"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {estimate.notes && (
+              <p className="text-xs text-muted-foreground font-mono">{estimate.notes}</p>
+            )}
+
+            <div className="flex gap-2">
+              <Button onClick={confirmLog} disabled={confirming} size="sm">
+                {confirming ? "SAVING..." : "CONFIRM & LOG"}
+              </Button>
+              <Button onClick={discardEstimate} disabled={confirming} size="sm" variant="ghost">
+                <X className="h-3.5 w-3.5 mr-1" />
+                DISCARD
+              </Button>
+            </div>
           </div>
         )}
       </Card>

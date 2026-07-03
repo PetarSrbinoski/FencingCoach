@@ -66,6 +66,36 @@ export type NutritionLog = {
   logged_at: string;
 };
 
+export type NutritionEstimateItem = { name: string; qty_g: number };
+
+export type NutritionEstimate = {
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g: number | null;
+  micros: Record<string, number>;
+  items: NutritionEstimateItem[];
+  confidence: "low" | "medium" | "high" | string;
+  notes: string;
+};
+
+export type NutritionLogInput = {
+  raw_text: string;
+  meal?: string;
+  day?: string;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  fiber_g?: number | null;
+  micros?: Record<string, unknown>;
+  items?: NutritionEstimateItem[];
+  confidence?: string;
+  notes?: string;
+  estimated_by?: string;
+};
+
 export type NutritionDayTotals = {
   day: string;
   kcal: number;
@@ -343,10 +373,15 @@ export const api = {
   },
 
   nutrition: {
-    log: (text: string, meal?: string, day?: string) =>
+    estimate: (text: string) =>
+      request<NutritionEstimate>("/nutrition/estimate", {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      }),
+    log: (entry: NutritionLogInput) =>
       request<NutritionLog>("/nutrition/log", {
         method: "POST",
-        body: JSON.stringify({ text, meal, day }),
+        body: JSON.stringify(entry),
       }),
     list: (days = 7) => request<NutritionLog[]>(`/nutrition/log?days=${days}`),
     totals: (day: string) => request<NutritionDayTotals>(`/nutrition/totals/${day}`),

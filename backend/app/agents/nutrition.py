@@ -161,16 +161,16 @@ async def _strip_think(
 def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     """Estimate nutrition for free-text food description.
 
-    Drop-in replacement for the old `nutrition.estimate()` function.
-    Returns a `NutritionEstimateOutput` Pydantic model (richer than the
-    old dataclass but compatible — callers access .kcal, .protein_g, etc.)
-
     Args:
         text: Free-text food description.
         db: Optional SQLAlchemy session (for future use in tools).
 
     Raises:
         ValueError: If text is empty.
+        RuntimeError: If estimation fails (USDA + fallback agent both
+            failed, or no USDA is configured and the single attempt
+            failed). Callers must surface this loudly — never silently
+            persist a zeroed-out estimate.
     """
     if not text.strip():
         raise ValueError("empty food description")
@@ -196,16 +196,8 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
                     "Nutrition agent failed after USDA-free retry: %s",
                     fallback_error,
                 )
-                e = fallback_error
-        else:
-            log.error("Nutrition agent failed: %s", e)
-
-        # Return a minimal fallback, same as old code
-        return NutritionEstimateOutput(
-            kcal=0,
-            protein_g=0,
-            carbs_g=0,
-            fat_g=0,
-            confidence="low",
-            notes=f"agent-failed: {e}",
-        )
+                raise RuntimeError(
+                    f"nutrition estimation failed: {fallback_error}"
+                ) from fallback_error
+        log.error("Nutrition agent failed: %s", e)
+        raise RuntimeError(f"nutrition estimation failed: {e}") from e

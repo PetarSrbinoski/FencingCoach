@@ -111,10 +111,50 @@ class ActivityOut(BaseModel):
 
 
 # ── Nutrition ─────────────────────────────────────────────────────────
-class NutritionLogCreate(BaseModel):
+class NutritionEstimateRequest(BaseModel):
     text: str
+
+
+class NutritionEstimateItemOut(BaseModel):
+    name: str
+    qty_g: float
+
+
+class NutritionEstimateOut(BaseModel):
+    """Result of `POST /nutrition/estimate` — not persisted. Confirm/edit,
+    then send to `POST /nutrition/log` to save."""
+
+    kcal: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    fiber_g: float | None = None
+    micros: dict[str, float] = Field(default_factory=dict)
+    items: list[NutritionEstimateItemOut] = Field(default_factory=list)
+    confidence: str  # "low" | "medium" | "high"
+    notes: str = ""
+
+
+class NutritionLogCreate(BaseModel):
+    """Persist a (possibly user-reviewed/edited) nutrition estimate.
+
+    Does not call the LLM — call `POST /nutrition/estimate` first and let
+    the athlete confirm/edit the numbers before logging.
+    """
+
+    raw_text: str
     meal: str | None = None
     day: Date | None = None
+    kcal: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    fiber_g: float | None = None
+    micros: dict[str, Any] | None = None
+    items: list[NutritionEstimateItemOut] | None = None
+    confidence: str | None = None
+    notes: str | None = None
+    estimated_by: str = "agent"
 
 
 class NutritionLogOut(BaseModel):

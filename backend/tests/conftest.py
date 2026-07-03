@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import JSON, BigInteger, Integer, create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.models import (
@@ -35,8 +36,16 @@ def db():
     """Create a fresh in-memory DB session for each test.
 
     Maps PostgreSQL JSONB columns to JSON for SQLite compatibility.
+    Uses `StaticPool` + `check_same_thread=False` so the same in-memory DB
+    is reachable from FastAPI TestClient's worker thread too (API-level
+    tests that exercise real endpoints via dependency-override `get_db`).
     """
-    engine = create_engine("sqlite://", echo=False)
+    engine = create_engine(
+        "sqlite://",
+        echo=False,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
 
     # Enable foreign keys for SQLite
     @event.listens_for(engine, "connect")

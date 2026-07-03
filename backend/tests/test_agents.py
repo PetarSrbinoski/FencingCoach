@@ -126,6 +126,33 @@ class TestNutritionAgent:
             "fallback:chicken burrito bowl",
         ]
 
+    def test_estimate_nutrition_raises_when_both_agents_fail(self, monkeypatch):
+        """Hard-fail loudly — never silently persist a fabricated zero estimate."""
+
+        def fail(text, deps):
+            raise RuntimeError("upstream LLM timeout")
+
+        monkeypatch.setattr(nutrition_agent, "run_sync", fail)
+        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", fail)
+
+        with pytest.raises(RuntimeError, match="nutrition estimation failed"):
+            estimate_nutrition("chicken burrito bowl")
+
+    def test_estimate_nutrition_raises_when_no_usda_configured(self, monkeypatch):
+        """Without USDA configured there's no fallback agent to retry with —
+        a primary failure must still raise, not return zeros."""
+        monkeypatch.setattr(
+            "app.agents.nutrition.settings.USDA_MCP_URL", "", raising=False
+        )
+
+        def fail(text, deps):
+            raise RuntimeError("network error")
+
+        monkeypatch.setattr(nutrition_agent, "run_sync", fail)
+
+        with pytest.raises(RuntimeError, match="nutrition estimation failed"):
+            estimate_nutrition("chicken burrito bowl")
+
 
 # ── mealplan agent ────────────────────────────────────────────────────
 class TestMealPlanAgent:
