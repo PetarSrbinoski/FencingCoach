@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models import GarminMetric
 from app.schemas import GarminLoginRequest, GarminSyncResult
@@ -59,7 +60,7 @@ def sync_recent(
 
 @router.post("/sync/full", response_model=GarminSyncResult)
 def sync_full(
-    days: int = 30,
+    days: int = settings.GARMIN_FULL_SYNC_DAYS,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
     started = datetime.now(timezone.utc)

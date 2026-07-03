@@ -4,7 +4,7 @@ Run as: `python -m app.workers.garmin_sync`
 
 Schedules:
 - Every GARMIN_RECENT_SYNC_MINUTES → recent sync (last 2 days)
-- Daily at GARMIN_FULL_SYNC_HOUR    → full sync (last 30 days)
+- Daily at GARMIN_FULL_SYNC_HOUR    → full sync (last GARMIN_FULL_SYNC_DAYS days)
 
 Gracefully no-ops if Garmin credentials aren't set yet or if auth fails.
 Implements exponential backoff on auth failures to avoid Garmin rate-limits.
@@ -102,7 +102,7 @@ def _run_full() -> None:
     log.info("Full Garmin sync starting…")
     db = SessionLocal()
     try:
-        result = GarminService().sync_full(db, days=30)
+        result = GarminService().sync_full(db, days=settings.GARMIN_FULL_SYNC_DAYS)
         _record_success()
         log.info("Full sync done: %s", result)
     except Exception as e:  # noqa: BLE001

@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     GARMIN_PASSWORD: str = ""
     GARMIN_RECENT_SYNC_MINUTES: int = 15
     GARMIN_FULL_SYNC_HOUR: int = 3
+    # Single source of truth for how many days the *nightly* full sync
+    # backfills. The manual "sync all history" action in the UI passes an
+    # explicit, larger value (365) since that's a deliberate one-time deep
+    # backfill, not the recurring maintenance sync.
+    GARMIN_FULL_SYNC_DAYS: int = 30
     GARMIN_TOKEN_DIR: str = "/app/garmin_tokens"
 
     # ── Athlete ───────────────────────────────────────────────────────

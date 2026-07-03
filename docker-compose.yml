@@ -61,27 +61,5 @@ services:
       - HOSTNAME=0.0.0.0
       - PORT=3000
 
-  # ── Local LLM (DISABLED — using NVIDIA NIM cloud API) ────────────────
-  # Uncomment this service and change LLM_BASE_URL=http://llm:11434/v1
-  # in .env to switch back to a local Ollama model.
-  # First run: `docker compose exec llm ollama pull qwen3:8b`
-  #
-  # llm:
-  #   image: ollama/ollama:latest
-  #   restart: unless-stopped
-  #   ports:
-  #     - "11434:11434"
-  #   volumes:
-  #     - ollama:/root/.ollama
-  #   # GPU access — uncomment if NVIDIA Container Toolkit is installed
-  #   # deploy:
-  #   #   resources:
-  #   #     reservations:
-  #   #       devices:
-  #   #         - driver: nvidia
-  #   #           count: all
-  #   #           capabilities: [gpu]
-
 volumes:
   pgdata:
-  # ollama:

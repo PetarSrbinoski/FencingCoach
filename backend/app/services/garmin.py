@@ -321,7 +321,9 @@ class GarminService:
         activities_added = self.persist_activities(db, self.fetch_recent_activities(20))
         return {"days_synced": days_synced, "activities_added": activities_added}
 
-    def sync_full(self, db: Session, days: int = 30) -> dict[str, Any]:
+    def sync_full(
+        self, db: Session, days: int = settings.GARMIN_FULL_SYNC_DAYS
+    ) -> dict[str, Any]:
         today = athlete_today()
         days_synced = 0
         for i in range(days):

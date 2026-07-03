@@ -293,6 +293,9 @@ export const api = {
         `/garmin/sync/recent?days=${days}`,
         { method: "POST" }
       ),
+    // Default (30) matches the backend's nightly maintenance full-sync
+    // window (GARMIN_FULL_SYNC_DAYS). Callers doing a one-time deep
+    // historical backfill should pass an explicit larger value (e.g. 365).
     syncFull: (days = 30) =>
       request<{ ok: boolean; fetched: Record<string, unknown>; error?: string }>(
         `/garmin/sync/full?days=${days}`,
