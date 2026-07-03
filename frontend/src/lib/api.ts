@@ -182,6 +182,23 @@ export type Competition = {
 };
 export type CompetitionInput = Omit<Competition, "id" | "result">;
 
+export type MetricDiagnostic = {
+  kind: string;
+  last_ok_day: string | null;
+  last_ok_value: number | null;
+  last_fetched_at: string | null;
+  coverage_days: number;
+  window_days: number;
+  days_since_ok: number | null;
+  stale: boolean;
+};
+
+export type Diagnostics = {
+  generated_at: string;
+  window_days: number;
+  metrics: MetricDiagnostic[];
+};
+
 export type Profile = {
   id: number;
   name: string | null;
@@ -303,6 +320,11 @@ export const api = {
       ),
     status: () =>
       request<{ last_fetch: string | null; metric_rows: number }>("/garmin/status"),
+  },
+
+  diagnostics: {
+    get: (windowDays = 30) =>
+      request<Diagnostics>(`/diagnostics?window_days=${windowDays}`),
   },
 
   readiness: {

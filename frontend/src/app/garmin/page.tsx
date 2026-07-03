@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { DataCoveragePanel } from "@/components/data-coverage-panel";
 
 export default function GarminPage() {
   const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number } | null>(null);
@@ -186,6 +187,11 @@ export default function GarminPage() {
           </span>
         </div>
       )}
+
+      {/* ── Data coverage ──────────────────────────────────────────── */}
+      <section className="border-t border-border pt-12">
+        <DataCoveragePanel />
+      </section>
     </div>
   );
 }
