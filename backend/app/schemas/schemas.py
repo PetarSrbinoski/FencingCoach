@@ -362,3 +362,21 @@ class DataSummaryOut(BaseModel):
     period_end: Date
     summary: dict[str, Any]
     generated_at: datetime
+
+
+# ── Diagnostics ───────────────────────────────────────────────────────
+class MetricDiagnosticOut(BaseModel):
+    kind: str
+    last_ok_day: Date | None
+    last_ok_value: float | None
+    last_fetched_at: datetime | None
+    coverage_days: int
+    window_days: int
+    days_since_ok: int | None
+    stale: bool
+
+
+class DiagnosticsResponse(BaseModel):
+    generated_at: datetime
+    window_days: int
+    metrics: list[MetricDiagnosticOut]

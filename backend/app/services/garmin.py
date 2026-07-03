@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import Activity, GarminMetric
+from app.services.garmin_extract import ExtractedMetric, extract_all
 
 log = logging.getLogger(__name__)
 
@@ -115,161 +116,45 @@ class GarminService:
     # ── persistence ───────────────────────────────────────────────────
     @staticmethod
     def _upsert_metric(
-        db: Session, kind: str, day: date, value: float | None, payload: Any
+        db: Session, kind: str, day: date, metric: ExtractedMetric
     ) -> None:
         stmt = pg_insert(GarminMetric).values(
-            kind=kind, day=day, value=value, payload=payload
+            kind=kind,
+            day=day,
+            value=metric.value,
+            payload=metric.payload,
+            status=metric.status,
+            detail=metric.detail,
         )
         stmt = stmt.on_conflict_do_update(
             constraint="uq_garmin_metric_kind_day",
-            set_={"value": stmt.excluded.value, "payload": stmt.excluded.payload},
+            set_={
+                "value": stmt.excluded.value,
+                "payload": stmt.excluded.payload,
+                "status": stmt.excluded.status,
+                "detail": stmt.excluded.detail,
+            },
         )
         db.execute(stmt)
 
     @classmethod
     def persist_day(cls, db: Session, day: date, raw: dict[str, Any]) -> None:
-        """Extract scalar values + store full payload for each metric kind."""
+        """Extract + validate every metric kind, and persist the outcome.
 
-        def get(d: Any, *keys: str, default=None):
-            cur = d
-            for k in keys:
-                if not isinstance(cur, dict) or k not in cur:
-                    return default
-                cur = cur[k]
-            return cur
-
-        sleep = raw.get("sleep") or {}
-        hrv = raw.get("hrv") or {}
-        bb = raw.get("body_battery") or []
-        stress = raw.get("stress") or {}
-        stats = raw.get("stats") or {}
-        readiness = raw.get("training_readiness") or {}
-        if isinstance(readiness, list) and readiness:
-            readiness = readiness[-1]  # most recent reading
-
-        # ── Sleep: duration + sleep score ─────────────────────────────
-        sleep_seconds = get(sleep, "dailySleepDTO", "sleepTimeSeconds")
-        cls._upsert_metric(
-            db,
-            "sleep",
-            day,
-            value=(sleep_seconds / 3600.0)
-            if isinstance(sleep_seconds, (int, float))
-            else None,
-            payload=sleep,
-        )
-        sleep_score = get(sleep, "dailySleepDTO", "sleepScores", "overall", "value")
-        cls._upsert_metric(
-            db,
-            "sleep_score",
-            day,
-            value=float(sleep_score) if isinstance(sleep_score, (int, float)) else None,
-            payload=None,
-        )
-
-        # ── HRV: lastNightAvg primary, weeklyAvg fallback + separate weekly metric
-        hrv_avg = get(hrv, "hrvSummary", "lastNightAvg") or get(
-            hrv, "hrvSummary", "weeklyAvg"
-        )
-        cls._upsert_metric(db, "hrv", day, value=hrv_avg, payload=hrv)
-        hrv_weekly = get(hrv, "hrvSummary", "weeklyAvg")
-        cls._upsert_metric(
-            db,
-            "hrv_weekly",
-            day,
-            value=float(hrv_weekly) if isinstance(hrv_weekly, (int, float)) else None,
-            payload=None,
-        )
-
-        # ── Body Battery: most recent value from stats, fallback to last array entry
-        bb_value = None
-        if isinstance(stats, dict):
-            bb_value = stats.get("bodyBatteryMostRecentValue")
-        if bb_value is None and isinstance(bb, list) and bb:
-            try:
-                # fallback: last entry of bodyBatteryValuesArray
-                for entry in reversed(bb):
-                    arr = (
-                        entry.get("bodyBatteryValuesArray")
-                        if isinstance(entry, dict)
-                        else None
-                    )
-                    if arr:
-                        # find last valid entry
-                        for v in reversed(arr):
-                            if isinstance(v, list) and len(v) >= 2 and v[1] is not None:
-                                bb_value = v[1]
-                                break
-                    if bb_value is not None:
-                        break
-            except Exception:  # noqa: BLE001
-                bb_value = None
-        cls._upsert_metric(
-            db,
-            "body_battery",
-            day,
-            value=float(bb_value) if isinstance(bb_value, (int, float)) else None,
-            payload=bb,
-        )
-
-        cls._upsert_metric(
-            db,
-            "stress_daily",
-            day,
-            value=stress.get("avgStressLevel") if isinstance(stress, dict) else None,
-            payload=stress,
-        )
-        cls._upsert_metric(
-            db,
-            "resting_hr",
-            day,
-            value=stats.get("restingHeartRate") if isinstance(stats, dict) else None,
-            payload=raw.get("rhr"),
-        )
-        cls._upsert_metric(
-            db,
-            "steps",
-            day,
-            value=float(stats.get("totalSteps") or 0)
-            if isinstance(stats, dict)
-            else None,
-            payload=raw.get("steps"),
-        )
-        cls._upsert_metric(
-            db,
-            "calories",
-            day,
-            value=float(stats.get("totalKilocalories") or 0)
-            if isinstance(stats, dict)
-            else None,
-            payload=stats,
-        )
-        cls._upsert_metric(
-            db,
-            "training_readiness",
-            day,
-            value=readiness.get("score") if isinstance(readiness, dict) else None,
-            payload=readiness,
-        )
-        cls._upsert_metric(
-            db, "training_status", day, value=None, payload=raw.get("training_status")
-        )
-        cls._upsert_metric(
-            db,
-            "vo2max",
-            day,
-            value=get(raw.get("max_metrics") or [{}], 0, "generic", "vo2MaxValue")
-            if isinstance(raw.get("max_metrics"), list)
-            else None,
-            payload=raw.get("max_metrics"),
-        )
-        cls._upsert_metric(
-            db,
-            "intensity_minutes",
-            day,
-            value=None,
-            payload=raw.get("intensity_minutes"),
-        )
+        Every kind gets a row regardless of outcome (ok/missing/implausible)
+        so extraction coverage is always queryable — see `services.diagnostics`.
+        """
+        extracted = extract_all(raw)
+        for kind, metric in extracted.items():
+            if metric.status != "ok":
+                log.warning(
+                    "garmin_extract %s status=%s day=%s detail=%s",
+                    kind,
+                    metric.status,
+                    day.isoformat(),
+                    metric.detail,
+                )
+            cls._upsert_metric(db, kind, day, metric)
         db.commit()
 
     @classmethod

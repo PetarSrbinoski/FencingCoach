@@ -85,6 +85,14 @@ class GarminMetric(Base):
     day: Mapped[date] = mapped_column(Date, nullable=False)
     value: Mapped[float | None] = mapped_column(Float)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Extraction outcome, always recorded (even on failure) so coverage/
+    # diagnostics can distinguish "never synced", "synced but Garmin had
+    # nothing", and "synced but value was implausible and rejected".
+    #   ok          — value extracted and passed plausibility checks
+    #   missing     — no value found at any known key-path
+    #   implausible — a value was found but rejected as out-of-range
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ok")
+    detail: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
