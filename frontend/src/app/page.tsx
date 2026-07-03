@@ -15,6 +15,7 @@ import { Sparkline, Gauge } from "@/components/charts";
 import { Card, BandPill, StatRow } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StaleDataBanner } from "@/components/data-coverage-panel";
 import {
   Heart,
   Moon,
@@ -116,6 +117,8 @@ export default function Home() {
           <p className="text-accent text-sm">{err}</p>
         </div>
       )}
+
+      <StaleDataBanner />
 
       {/* ── Readiness gauge section ───────────────────────────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-12 lg:gap-16">

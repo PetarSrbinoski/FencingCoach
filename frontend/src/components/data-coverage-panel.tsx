@@ -122,3 +122,27 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
     </Card>
   );
 }
+
+/** Slim, dashboard-friendly variant: renders nothing when all metrics are
+ * healthy, otherwise a compact warning list. */
+export function StaleDataBanner({ windowDays = 30 }: { windowDays?: number }) {
+  const [data, setData] = useState<Diagnostics | null>(null);
+
+  useEffect(() => {
+    api.diagnostics.get(windowDays).then(setData).catch(() => {});
+  }, [windowDays]);
+
+  const stale = data?.metrics.filter((m) => m.stale) ?? [];
+  if (stale.length === 0) return null;
+
+  return (
+    <div className="border border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-1.5">
+      {stale.map((m) => (
+        <p key={m.kind} className="flex items-center gap-2 text-xs text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          {staleMessage(m)}
+        </p>
+      ))}
+    </div>
+  );
+}
