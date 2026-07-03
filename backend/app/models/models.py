@@ -342,7 +342,19 @@ class USDAFood(Base):
     """Cached USDA FoodData Central item for nutrition cross-reference."""
 
     __tablename__ = "usda_foods"
-    __table_args__ = (Index("ix_usda_foods_description_trgm", "description_lower"),)
+    # Real GIN trigram index (requires `pg_trgm` extension, created in the
+    # baseline migration) — matches the `.contains()` substring search used
+    # by `services/usda.search_foods`. Previously this was a plain btree
+    # index that couldn't accelerate `LIKE '%term%'` queries despite its
+    # "_trgm" name.
+    __table_args__ = (
+        Index(
+            "ix_usda_foods_description_trgm",
+            "description_lower",
+            postgresql_using="gin",
+            postgresql_ops={"description_lower": "gin_trgm_ops"},
+        ),
+    )
 
     fdc_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
