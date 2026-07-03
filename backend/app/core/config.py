@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     LLM_MAX_TOKENS: int = 16384
     LLM_TEMPERATURE: float = 0.6
     LLM_CONTEXT_TOKENS: int = 131072
+    # Request timeout (seconds) and automatic retry count for the
+    # underlying HTTP client shared by every PydanticAI agent. Reasoning
+    # models can legitimately take a while, but requests must not hang
+    # indefinitely on a stalled connection.
+    LLM_TIMEOUT_SECONDS: float = 120.0
+    LLM_MAX_RETRIES: int = 2
 
     # ── Garmin ────────────────────────────────────────────────────────
     GARMIN_EMAIL: str = ""

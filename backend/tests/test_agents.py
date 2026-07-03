@@ -16,7 +16,7 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
 
-from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.deps import CoachDeps, ThinkTagStreamFilter, get_model, strip_think_tags
 from app.agents.nutrition import (
     NutritionEstimateOutput,
     NutritionMicros,
@@ -57,6 +57,45 @@ class TestStripThink:
 
     def test_empty_string(self):
         assert strip_think_tags("") == ""
+
+
+class TestThinkTagStreamFilter:
+    def test_passthrough_when_no_think_tag(self):
+        f = ThinkTagStreamFilter()
+        out = f.feed("Hello world") + f.flush()
+        assert out == "Hello world"
+
+    def test_withholds_content_inside_think_block(self):
+        f = ThinkTagStreamFilter()
+        out = f.feed("<think>secret reasoning</think>Answer: 42") + f.flush()
+        assert out == "Answer: 42"
+
+    def test_handles_think_tag_split_across_chunks(self):
+        f = ThinkTagStreamFilter()
+        out = ""
+        for chunk in ["Hi <thi", "nk>reason", "ing</thi", "nk> there"]:
+            out += f.feed(chunk)
+        out += f.flush()
+        assert out == "Hi  there"
+
+    def test_streams_incrementally_before_think_tag(self):
+        f = ThinkTagStreamFilter()
+        # A safety tail (len("<think>")-worth) is always withheld in case
+        # the next chunk continues a split "<think>" tag; the rest streams
+        # immediately rather than waiting for flush().
+        visible = f.feed("Some visible text ")
+        assert visible == "Some visibl"
+        assert visible + f.flush() == "Some visible text "
+
+    def test_multiple_think_blocks(self):
+        f = ThinkTagStreamFilter()
+        out = f.feed("<think>a</think>Part one. <think>b</think>Part two.") + f.flush()
+        assert out == "Part one. Part two."
+
+    def test_never_closed_think_block_withholds_everything_after(self):
+        f = ThinkTagStreamFilter()
+        out = f.feed("visible <think>never closes") + f.flush()
+        assert out == "visible "
 
 
 # ── nutrition agent ───────────────────────────────────────────────────
