@@ -126,15 +126,23 @@ export default function Home() {
         <div className="flex flex-col items-center lg:items-start gap-4">
           {readiness ? (
             <>
-              <Gauge score={readiness.score} size={160} />
+              {readiness.score !== null ? (
+                <Gauge score={readiness.score} size={160} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-40 w-40 border border-dashed border-border text-center px-4">
+                  <span className="text-xs text-muted-foreground uppercase tracking-widest">
+                    No Garmin reading
+                  </span>
+                </div>
+              )}
               <BandPill band={readiness.band} />
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-2 w-full">
-                {Object.entries(readiness.components).map(([k, c]) => (
-                  <div key={k} className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground text-[10px] uppercase tracking-widest">
+              <div className="grid grid-cols-1 gap-y-2 mt-2 w-full">
+                {Object.entries(readiness.advisories).map(([k, a]) => (
+                  <div key={k} className="text-xs">
+                    <span className="text-muted-foreground text-[10px] uppercase tracking-widest block">
                       {k.replace(/_/g, " ")}
                     </span>
-                    <span className="font-mono text-xs font-medium">{Math.round(c.score)}</span>
+                    <span className="text-foreground/80">{a.detail}</span>
                   </div>
                 ))}
               </div>

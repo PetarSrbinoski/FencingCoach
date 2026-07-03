@@ -174,8 +174,8 @@ PHASE_INTENSITY_MOD = {  # multiplies pct1rm
     "recovery": 0.80,
 }
 
-READINESS_VOLUME_MOD = {"red": 0.5, "amber": 0.85, "green": 1.0}
-READINESS_INTENSITY_MOD = {"red": 0.85, "amber": 0.95, "green": 1.0}
+READINESS_VOLUME_MOD = {"red": 0.5, "amber": 0.85, "green": 1.0, "unknown": 1.0}
+READINESS_INTENSITY_MOD = {"red": 0.85, "amber": 0.95, "green": 1.0, "unknown": 1.0}
 
 
 # ── 1RM tools ─────────────────────────────────────────────────────────
@@ -319,10 +319,13 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
             )
         )
 
+    readiness_score_text = (
+        f"{readiness.score:.0f}" if readiness.score is not None else "n/a"
+    )
     rationale = (
         f"Phase={phase.name} (vol×{PHASE_VOLUME_MOD[phase.name]:.2f}, "
         f"int×{PHASE_INTENSITY_MOD[phase.name]:.2f}); "
-        f"readiness={readiness.band} {readiness.score:.0f} "
+        f"readiness={readiness.band} {readiness_score_text} "
         f"(vol×{READINESS_VOLUME_MOD[readiness.band]:.2f}, int×{READINESS_INTENSITY_MOD[readiness.band]:.2f})."
     )
 

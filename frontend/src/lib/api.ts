@@ -23,12 +23,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 // ── shared types ─────────────────────────────────────────────────────
-export type ReadinessComponent = { score: number; weight: number; detail: string };
+export type ReadinessAdvisory = { detail: string; value: number | null };
 export type Readiness = {
   day: string;
-  score: number;
-  band: "red" | "amber" | "green";
-  components: Record<string, ReadinessComponent>;
+  score: number | null; // null when Garmin has no training_readiness reading
+  band: "red" | "amber" | "green" | "unknown";
+  source: "garmin" | "neutral";
+  advisories: Record<string, ReadinessAdvisory>;
   inputs: Record<string, number | null>;
 };
 

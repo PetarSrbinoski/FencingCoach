@@ -78,9 +78,10 @@ class GarminSyncResult(BaseModel):
 # ── Readiness ─────────────────────────────────────────────────────────
 class ReadinessResponse(BaseModel):
     day: str
-    score: float
+    score: float | None
     band: str
-    components: dict[str, dict[str, Any]]
+    source: str
+    advisories: dict[str, dict[str, Any]]
     inputs: dict[str, Any]
 
 

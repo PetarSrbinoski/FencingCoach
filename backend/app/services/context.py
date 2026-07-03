@@ -61,12 +61,13 @@ except Exception:  # noqa: BLE001
 # ── section builders ──────────────────────────────────────────────────
 def _readiness_section(db: Session, today: date) -> str:
     r = compute_readiness(db, today)
+    score_text = f"{r.score:.0f}/100" if r.score is not None else "no Garmin reading"
     lines = [
         f"## Readiness — {r.day.isoformat()}",
-        f"Score: {r.score:.0f}/100 ({r.band})",
+        f"Score: {score_text} ({r.band}, source={r.source})",
     ]
-    for k, c in r.components.items():
-        lines.append(f"  - {k}: {c.score:.0f} (w {c.weight:.2f}) — {c.detail}")
+    for k, a in r.advisories.items():
+        lines.append(f"  - {k}: {a.detail}")
     inputs = ", ".join(
         f"{k}={v:.1f}" if isinstance(v, (int, float)) else f"{k}={v}"
         for k, v in r.inputs.items()
