@@ -320,10 +320,71 @@ export const api = {
       model: string;
       prompt_tokens?: number;
       completion_tokens?: number;
+      context_snapshot: string | null;
+      ungrounded_claims: string[];
     }>("/chat", {
       method: "POST",
       body: JSON.stringify({ message, conversation_id, include_context }),
     }),
+  /** SSE variant of `api.chat`. Invokes callbacks as frames arrive instead
+   * of resolving once with the full reply. */
+  chatStream: async (
+    message: string,
+    conversation_id: number | undefined,
+    include_context: boolean,
+    handlers: {
+      onStart?: (conversationId: number) => void;
+      onDelta?: (delta: string) => void;
+      onDone?: (frame: {
+        conversation_id: number;
+        reply: string;
+        model: string;
+        context_snapshot: string | null;
+        ungrounded_claims: string[];
+      }) => void;
+      onError?: (message: string) => void;
+    }
+  ): Promise<void> => {
+    const res = await fetch(`${BASE}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, conversation_id, include_context }),
+    });
+    if (!res.ok || !res.body) {
+      let detail = res.statusText;
+      try {
+        const data = await res.json();
+        detail = data.detail || JSON.stringify(data);
+      } catch {}
+      throw new Error(`${res.status}: ${detail}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buffer.indexOf("\n\n")) !== -1) {
+        const rawFrame = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        const line = rawFrame.split("\n").find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const parsed = JSON.parse(line.slice("data: ".length));
+        if ("error" in parsed) {
+          handlers.onError?.(parsed.error);
+        } else if (parsed.done) {
+          handlers.onDone?.(parsed);
+        } else if ("delta" in parsed) {
+          handlers.onDelta?.(parsed.delta);
+        } else if ("conversation_id" in parsed) {
+          handlers.onStart?.(parsed.conversation_id);
+        }
+      }
+    }
+  },
   chatConversations: {
     list: () => request<CoachConversationSummary[]>("/chat/conversations"),
     get: (id: number) => request<CoachConversation>(`/chat/conversations/${id}`),

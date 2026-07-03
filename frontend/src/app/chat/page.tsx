@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertTriangle,
+  ChevronDown,
   MessageCircle,
   MoreHorizontal,
   PencilLine,
@@ -29,7 +31,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = {
+  role: "user" | "assistant";
+  content: string;
+  contextSnapshot?: string | null;
+  ungroundedClaims?: string[];
+};
 
 function conversationLabel(conversation: CoachConversationSummary) {
   return conversation.title?.trim() || conversation.last_message_preview?.trim() || "Untitled chat";
@@ -109,19 +116,53 @@ export default function ChatPage() {
     if (!input.trim() || busy) return;
 
     const content = input.trim();
-    const userMsg: Msg = { role: "user", content };
-    setMessages((current) => [...current, userMsg]);
+    setMessages((current) => [
+      ...current,
+      { role: "user", content },
+      { role: "assistant", content: "" },
+    ]);
     setInput("");
     setBusy(true);
     setErr(null);
 
+    let finalConversationId: number | undefined = conversationId;
+
     try {
-      const res = await api.chat(content, conversationId);
-      setConversationId(res.conversation_id);
-      setMessages((current) => [...current, { role: "assistant", content: res.reply }]);
-      await loadConversations(res.conversation_id);
+      await api.chatStream(content, conversationId, true, {
+        onStart: (convId) => {
+          finalConversationId = convId;
+          setConversationId(convId);
+        },
+        onDelta: (delta) => {
+          setMessages((current) => {
+            const next = [...current];
+            const last = next[next.length - 1];
+            next[next.length - 1] = { ...last, content: last.content + delta };
+            return next;
+          });
+        },
+        onDone: (frame) => {
+          finalConversationId = frame.conversation_id;
+          setConversationId(frame.conversation_id);
+          setMessages((current) => {
+            const next = [...current];
+            next[next.length - 1] = {
+              role: "assistant",
+              content: frame.reply,
+              contextSnapshot: frame.context_snapshot,
+              ungroundedClaims: frame.ungrounded_claims,
+            };
+            return next;
+          });
+        },
+        onError: (message) => {
+          setErr(message);
+          setMessages((current) => current.slice(0, -1));
+        },
+      });
+      if (finalConversationId) await loadConversations(finalConversationId);
     } catch (e: any) {
-      setMessages((current) => current.slice(0, -1));
+      setMessages((current) => current.slice(0, -2));
       setInput(content);
       setErr(e?.message ?? "Chat failed");
     } finally {
@@ -287,29 +328,60 @@ export default function ChatPage() {
 
             {messages.map((m, i) => {
               const isUser = m.role === "user";
+              if (!isUser && m.content === "" && i === messages.length - 1 && busy) {
+                // The typing-dots indicator below covers this case.
+                return null;
+              }
               return (
-                <div key={`${m.role}-${i}-${m.content.slice(0, 24)}`} className={cn("flex items-end gap-2.5", isUser && "flex-row-reverse")}>
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground",
-                      isUser ? "bg-bauhaus-blue text-white" : "bg-bauhaus-yellow text-foreground"
-                    )}
-                  >
-                    {isUser ? <User className="h-4 w-4" /> : <Sword className="h-4 w-4" />}
+                <div key={`${m.role}-${i}-${m.content.slice(0, 24)}`} className={cn("flex flex-col gap-1.5", isUser ? "items-end" : "items-start")}>
+                  <div className={cn("flex items-end gap-2.5", isUser && "flex-row-reverse")}>
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground",
+                        isUser ? "bg-bauhaus-blue text-white" : "bg-bauhaus-yellow text-foreground"
+                      )}
+                    >
+                      {isUser ? <User className="h-4 w-4" /> : <Sword className="h-4 w-4" />}
+                    </div>
+                    <div
+                      className={cn(
+                        "max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed whitespace-pre-wrap border-2 border-foreground",
+                        isUser ? "bg-bauhaus-blue text-white shadow-hard-sm" : "bg-card shadow-hard-sm"
+                      )}
+                    >
+                      {m.content}
+                    </div>
                   </div>
-                  <div
-                    className={cn(
-                      "max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed whitespace-pre-wrap border-2 border-foreground",
-                      isUser ? "bg-bauhaus-blue text-white shadow-hard-sm" : "bg-card shadow-hard-sm"
-                    )}
-                  >
-                    {m.content}
-                  </div>
+
+                  {!isUser && (m.ungroundedClaims?.length || m.contextSnapshot) && (
+                    <div className="max-w-[85%] sm:max-w-[75%] ml-[42px] space-y-1.5">
+                      {m.ungroundedClaims && m.ungroundedClaims.length > 0 && (
+                        <div className="flex items-start gap-1.5 border border-amber-500/40 bg-amber-500/5 px-2.5 py-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
+                          <p className="text-[11px] text-amber-400 leading-snug">
+                            Double-check: this reply cites a number that doesn&rsquo;t
+                            appear in your recent data — {m.ungroundedClaims[0]}
+                          </p>
+                        </div>
+                      )}
+                      {m.contextSnapshot && (
+                        <details className="group">
+                          <summary className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground cursor-pointer select-none">
+                            <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                            What the coach saw
+                          </summary>
+                          <pre className="mt-1.5 whitespace-pre-wrap text-[10px] font-mono text-muted-foreground bg-muted/40 border border-border p-2.5 max-h-64 overflow-auto">
+                            {m.contextSnapshot}
+                          </pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
 
-            {busy && (
+            {busy && !messages[messages.length - 1]?.content && (
               <div className="flex items-end gap-2.5">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-bauhaus-yellow text-foreground">
                   <Sword className="h-4 w-4" />
