@@ -1,10 +1,16 @@
 """Periodized nutrition target engine.
 
 Computes daily kcal + macro + micro targets from:
-  - athlete weight (default 80 kg if profile not set)
+  - athlete weight (default 89 kg if profile not set)
   - day type (rest / gym / fencing / double / competition)
   - phase (general / build / peak / taper / comp_week / recovery)
   - body-comp goal (lean / maintain / gain) — slight kcal dial
+
+Maintenance calories are the rolling average of Garmin-measured total daily
+expenditure (kind="calories", `status="ok"` only) when enough recent days
+are available; otherwise falls back to a 38 kcal/kg formula estimate.
+Measured expenditure is preferred because it reflects the athlete's actual
+activity level rather than a population-average multiplier.
 
 Carbs are the periodized lever. Protein stays in 2.0-2.4 g/kg. Fat fills
 the energy gap with a 1 g/kg floor.
@@ -28,12 +34,25 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
-from app.models import Activity, AthleteProfile, Competition, DayTypeOverride
+from app.models import (
+    Activity,
+    AthleteProfile,
+    Competition,
+    DayTypeOverride,
+    GarminMetric,
+)
 from app.services.activity_types import is_fencing, is_strength
 from app.services.periodization import Phase, compute_phase
 
 DEFAULT_WEIGHT_KG = 89.0
 DEFAULT_BODY_COMP = "lean"
+
+# Rolling window + minimum data requirement for trusting Garmin-measured
+# expenditure over the formula fallback. "Today" is excluded since it's
+# usually incomplete mid-day.
+GARMIN_MAINTENANCE_WINDOW_DAYS = 14
+MIN_GARMIN_DAYS_FOR_MAINTENANCE = 5
+FORMULA_KCAL_PER_KG = 38.0  # active-fencer estimate, used only as fallback
 
 # Carbs g/kg by day type — base values, then phase-adjusted
 CARB_BY_DAYTYPE = {
@@ -96,6 +115,36 @@ class NutritionTargets:
 def _athlete_weight(db: Session) -> float:
     p = db.scalar(select(AthleteProfile).limit(1))
     return float(p.weight_kg) if p and p.weight_kg else DEFAULT_WEIGHT_KG
+
+
+def _maintenance_kcal(db: Session, day: date, weight: float) -> tuple[float, str]:
+    """Rolling-average Garmin-measured expenditure, formula-only fallback.
+
+    Returns (maintenance_kcal, source_detail).
+    """
+    start = day - timedelta(days=GARMIN_MAINTENANCE_WINDOW_DAYS)
+    end = day - timedelta(days=1)  # exclude today — usually incomplete
+    rows = db.execute(
+        select(GarminMetric.value).where(
+            and_(
+                GarminMetric.kind == "calories",
+                GarminMetric.status == "ok",
+                GarminMetric.day >= start,
+                GarminMetric.day <= end,
+                GarminMetric.value.is_not(None),
+            )
+        )
+    ).all()
+    values = [float(r[0]) for r in rows]
+    if len(values) >= MIN_GARMIN_DAYS_FOR_MAINTENANCE:
+        avg = sum(values) / len(values)
+        return avg, f"garmin {len(values)}d rolling avg ({avg:.0f} kcal)"
+    formula = weight * FORMULA_KCAL_PER_KG
+    return (
+        formula,
+        f"formula {FORMULA_KCAL_PER_KG:.0f} kcal/kg "
+        f"(only {len(values)}/{MIN_GARMIN_DAYS_FOR_MAINTENANCE} Garmin days available)",
+    )
 
 
 def _athlete_goal(db: Session) -> str:
@@ -187,8 +236,7 @@ def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
 
     # Energy
     kcal_macros = protein_g * 4 + carbs_g * 4 + fat_g * 9
-    # Target maintenance ≈ 38 kcal/kg for an active fencer; adjust by goal.
-    maintenance = weight * 38.0
+    maintenance, maintenance_source = _maintenance_kcal(db, day, weight)
     target_kcal = maintenance * GOAL_KCAL_MOD.get(goal, 1.0)
 
     # If macro-derived kcal < target, raise fat to fill; if > target, leave it (lean preference)
@@ -200,7 +248,7 @@ def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
     notes = (
         f"day={day_type}, phase={phase.name}, "
         f"P {protein_per_kg:.1f} g/kg, C {carb_per_kg:.1f} g/kg (base {base_c} × {PHASE_CARB_MOD.get(phase.name, 1.0)}), "
-        f"goal={goal}"
+        f"goal={goal}, maintenance={maintenance_source}"
     )
 
     return NutritionTargets(
