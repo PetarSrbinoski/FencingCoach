@@ -195,7 +195,9 @@ class GarminService:
         return added
 
     # ── orchestration ─────────────────────────────────────────────────
-    def sync_recent(self, db: Session, days: int = 2) -> dict[str, Any]:
+    def sync_recent(
+        self, db: Session, days: int = settings.GARMIN_RECENT_SYNC_DAYS
+    ) -> dict[str, Any]:
         today = athlete_today()
         days_synced = 0
         for i in range(days):

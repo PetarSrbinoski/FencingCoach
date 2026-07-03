@@ -35,12 +35,3 @@ def list_summaries(
     """Retrieve stored summaries."""
     rows = summarization.get_summaries(db, domain=domain, period=period, limit=limit)
     return [DataSummaryOut.model_validate(r, from_attributes=True) for r in rows]
-
-
-@router.post("/purge")
-def purge_old_data(
-    db: Session = Depends(get_db),
-) -> dict:
-    """Delete detailed records older than 6 months that have been summarized."""
-    deleted = summarization.purge_old_detailed_data(db)
-    return {"deleted": deleted}

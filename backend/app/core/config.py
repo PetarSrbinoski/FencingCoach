@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     GARMIN_EMAIL: str = ""
     GARMIN_PASSWORD: str = ""
     GARMIN_RECENT_SYNC_MINUTES: int = 15
+    # Single source of truth for how many days the recurring "recent" sync
+    # (run every GARMIN_RECENT_SYNC_MINUTES) backfills each time.
+    GARMIN_RECENT_SYNC_DAYS: int = 2
     GARMIN_FULL_SYNC_HOUR: int = 3
     # Single source of truth for how many days the *nightly* full sync
     # backfills. The manual "sync all history" action in the UI passes an
@@ -51,6 +54,12 @@ class Settings(BaseSettings):
     # backfill, not the recurring maintenance sync.
     GARMIN_FULL_SYNC_DAYS: int = 30
     GARMIN_TOKEN_DIR: str = "/app/garmin_tokens"
+
+    # Hour (athlete-local time, per ATHLETE_TIMEZONE) the auto morning
+    # brief is generated, so it's ready by the time the athlete checks the
+    # dashboard. Runs after the recurring Garmin recent-sync has had a
+    # chance to pull overnight metrics.
+    MORNING_BRIEF_HOUR: int = 7
 
     # ── Athlete ───────────────────────────────────────────────────────
     ATHLETE_TIMEZONE: str = "Europe/Berlin"

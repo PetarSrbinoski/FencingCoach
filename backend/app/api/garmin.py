@@ -36,7 +36,7 @@ def login(req: GarminLoginRequest) -> dict[str, str]:
 
 @router.post("/sync/recent", response_model=GarminSyncResult)
 def sync_recent(
-    days: int = 2,
+    days: int = settings.GARMIN_RECENT_SYNC_DAYS,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
     started = datetime.now(timezone.utc)
