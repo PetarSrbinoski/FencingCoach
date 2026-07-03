@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import WorkoutLog
 from app.schemas import (
@@ -53,7 +54,7 @@ def session_week(
     If `start` is not provided, defaults to the Monday of the current week.
     """
     if start is None:
-        today = Date.today()
+        today = athlete_today()
         start = today - timedelta(days=today.weekday())  # Monday
     return [
         TrainingSessionOut(**build_session(db, start + timedelta(days=i)))
@@ -78,7 +79,7 @@ def log_set(
     body: WorkoutLogCreate, db: Session = Depends(get_db)
 ) -> WorkoutLogOut:
     entry = WorkoutLog(
-        day=body.day or Date.today(),
+        day=body.day or athlete_today(),
         exercise=body.exercise.strip(),
         set_number=body.set_number,
         reps=body.reps,
@@ -98,7 +99,7 @@ def list_log(
     exercise: str | None = None,
     db: Session = Depends(get_db),
 ) -> list[WorkoutLogOut]:
-    end = Date.today()
+    end = athlete_today()
     start = end - timedelta(days=days - 1)
     stmt = select(WorkoutLog).where(
         and_(WorkoutLog.day >= start, WorkoutLog.day <= end)
@@ -125,7 +126,7 @@ def progress(
     days: int = Query(180, ge=14, le=730),
     db: Session = Depends(get_db),
 ) -> ExerciseProgress:
-    end = Date.today()
+    end = athlete_today()
     start = end - timedelta(days=days)
     rows = db.scalars(
         select(WorkoutLog)

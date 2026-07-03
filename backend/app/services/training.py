@@ -25,6 +25,7 @@ from typing import Any
 from sqlalchemy import and_, desc, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import WorkoutLog
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
@@ -187,7 +188,7 @@ def epley_1rm(weight_kg: float, reps: int) -> float | None:
 def best_recent_1rm(
     db: Session, exercise: str, lookback_days: int = 60
 ) -> float | None:
-    since = date.today() - timedelta(days=lookback_days)
+    since = athlete_today() - timedelta(days=lookback_days)
     rows = db.scalars(
         select(WorkoutLog).where(
             and_(
@@ -209,7 +210,7 @@ def best_recent_1rm(
 def detect_plateau(db: Session, exercise: str, weeks: int = 4) -> dict[str, Any]:
     """Compare best estimated 1RM in the most recent `weeks` window vs
     the prior `weeks` window. <2% improvement → plateau."""
-    today = date.today()
+    today = athlete_today()
     cur_start = today - timedelta(weeks=weeks)
     prev_start = today - timedelta(weeks=2 * weeks)
 
@@ -263,7 +264,7 @@ def _template_for(day: date) -> tuple[str, list[dict[str, Any]]] | None:
 
 def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
     """Return today's gym session, or `{"session": None, ...}` on non-gym days."""
-    day = day or date.today()
+    day = day or athlete_today()
     tpl = _template_for(day)
     phase = compute_phase(db, day)
     readiness = compute_readiness(db, day)

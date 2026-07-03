@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import (
     Activity,
     CoachMessage,
@@ -292,7 +293,7 @@ def generate_weekly_summaries(
 
     Returns the number of summaries created/updated.
     """
-    today = date.today()
+    today = athlete_today()
     cutoff = cutoff or (today - timedelta(days=RETENTION_DAYS))
     domains = domains or list(DOMAIN_SUMMARIZERS.keys())
 
@@ -347,7 +348,7 @@ def generate_monthly_summaries(
 
     Monthly summaries aggregate the weekly summaries for a given month.
     """
-    today = date.today()
+    today = athlete_today()
     cutoff = cutoff or (today - timedelta(days=RETENTION_DAYS))
     domains = domains or list(DOMAIN_SUMMARIZERS.keys())
 
@@ -524,7 +525,7 @@ def purge_old_detailed_data(
     Only deletes data where a corresponding weekly summary exists.
     Returns counts of deleted rows per domain.
     """
-    today = date.today()
+    today = athlete_today()
     cutoff = cutoff or (today - timedelta(days=RETENTION_DAYS))
     deleted: dict[str, int] = {}
 

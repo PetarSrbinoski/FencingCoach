@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import MentalEntry
 
 log = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ def compute_insight(
     use_llm: bool = True,
 ) -> dict[str, Any]:
     """Compute mental training insight over the last `period_days`."""
-    today = date.today()
+    today = athlete_today()
     start = today - timedelta(days=period_days - 1)
 
     entries = db.scalars(

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import NutritionPlan
 from app.schemas import MealPlanOut, ShoppingList
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 @router.post("/today", response_model=MealPlanOut)
 def generate_today(db: Session = Depends(get_db)) -> MealPlanOut:
     try:
-        plan = generate_meal_plan(db, Date.today())
+        plan = generate_meal_plan(db, athlete_today())
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"meal plan generation failed: {e}") from e
     return MealPlanOut(
@@ -42,7 +43,7 @@ def generate_week(
     db: Session = Depends(get_db),
 ) -> list[MealPlanOut]:
     """Generate (or refresh) plans for `start` through `start+6`."""
-    start = start or Date.today()
+    start = start or athlete_today()
     out: list[MealPlanOut] = []
     for i in range(7):
         d = start + timedelta(days=i)
@@ -101,7 +102,7 @@ def shopping_week(
     start: Date | None = Query(None),
     db: Session = Depends(get_db),
 ) -> ShoppingList:
-    start = start or Date.today()
+    start = start or athlete_today()
     return ShoppingList(**build_shopping_list(db, start, start + timedelta(days=6)))
 
 

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import Competition
 from app.schemas import CompetitionCreate, CompetitionOut
@@ -36,7 +37,7 @@ def list_competitions(
 ) -> list[CompetitionOut]:
     stmt = select(Competition)
     if upcoming_only:
-        stmt = stmt.where(Competition.event_date >= Date.today())
+        stmt = stmt.where(Competition.event_date >= athlete_today())
     rows = db.scalars(stmt.order_by(Competition.event_date)).all()
     return [_to_out(r) for r in rows]
 

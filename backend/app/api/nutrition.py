@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import NutritionLog
 from app.schemas import NutritionDayTotals, NutritionLogCreate, NutritionLogOut
@@ -50,7 +51,7 @@ def log_meal(
         ]
 
     entry = NutritionLog(
-        day=body.day or Date.today(),
+        day=body.day or athlete_today(),
         meal=body.meal,
         raw_text=body.text,
         kcal=est.kcal,
@@ -72,7 +73,7 @@ def list_logs(
     days: int = Query(7, ge=1, le=90),
     db: Session = Depends(get_db),
 ) -> list[NutritionLogOut]:
-    end = Date.today()
+    end = athlete_today()
     start = end - timedelta(days=days - 1)
     rows = db.scalars(
         select(NutritionLog)

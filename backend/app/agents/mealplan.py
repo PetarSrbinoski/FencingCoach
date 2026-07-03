@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
 from app.core.config import settings
 from app.models import NutritionPlan
@@ -121,7 +122,7 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
 
     Drop-in replacement for `services/mealplan.generate_day_plan()`.
     """
-    day = day or date.today()
+    day = day or athlete_today()
     targets: NutritionTargets = compute_targets(db, day)
 
     user_msg = (

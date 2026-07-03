@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import MentalEntry
 from app.schemas import MentalEntryCreate, MentalEntryOut, MentalInsightOut
@@ -23,7 +24,7 @@ def create_entry(
     db: Session = Depends(get_db),
 ) -> MentalEntryOut:
     entry = MentalEntry(
-        day=body.day or Date.today(),
+        day=body.day or athlete_today(),
         entry_type=body.entry_type,
         mood_score=body.mood_score,
         energy_score=body.energy_score,
@@ -44,7 +45,7 @@ def list_entries(
     entry_type: str | None = None,
     db: Session = Depends(get_db),
 ) -> list[MentalEntryOut]:
-    end = Date.today()
+    end = athlete_today()
     start = end - timedelta(days=days - 1)
     stmt = select(MentalEntry).where(
         and_(MentalEntry.day >= start, MentalEntry.day <= end)

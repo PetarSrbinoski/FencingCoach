@@ -17,6 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
 from app.core.config import settings
 from app.models import DailyBrief
@@ -61,7 +62,7 @@ def generate_brief(db: Session, day: date | None = None) -> DailyBrief:
 
     Drop-in replacement for `services/brief.generate_daily_brief()`.
     """
-    day = day or date.today()
+    day = day or athlete_today()
     readiness = compute_readiness(db, day)
     context = build_context(db, day)
 

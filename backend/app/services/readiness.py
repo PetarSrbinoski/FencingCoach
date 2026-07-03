@@ -25,6 +25,7 @@ from typing import Any
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import Activity, GarminMetric
 
 
@@ -247,7 +248,7 @@ def _score_rest(db: Session, day: date) -> Component:
 
 # ── public api ────────────────────────────────────────────────────────
 def compute_readiness(db: Session, day: date | None = None) -> Readiness:
-    day = day or date.today()
+    day = day or athlete_today()
     components = {
         "hrv": _score_hrv(db, day),
         "sleep": _score_sleep(db, day),

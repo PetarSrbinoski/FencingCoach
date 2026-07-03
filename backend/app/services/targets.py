@@ -27,6 +27,7 @@ from typing import Any
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import Activity, AthleteProfile, Competition, DayTypeOverride
 from app.services.activity_types import is_fencing, is_strength
 from app.services.periodization import Phase, compute_phase
@@ -161,7 +162,7 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
 
 # ── public api ────────────────────────────────────────────────────────
 def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
-    day = day or date.today()
+    day = day or athlete_today()
     weight = _athlete_weight(db)
     goal = _athlete_goal(db)
     phase: Phase = compute_phase(db, day)

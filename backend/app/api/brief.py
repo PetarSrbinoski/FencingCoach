@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import DailyBrief
 from app.schemas import BriefOut
@@ -27,7 +28,7 @@ def generate_today(db: Session = Depends(get_db)) -> BriefOut:
 
 @router.get("/today", response_model=BriefOut | None)
 def get_today(db: Session = Depends(get_db)) -> BriefOut | None:
-    brief = db.scalar(select(DailyBrief).where(DailyBrief.day == Date.today()))
+    brief = db.scalar(select(DailyBrief).where(DailyBrief.day == athlete_today()))
     if not brief:
         return None
     return BriefOut.model_validate(brief, from_attributes=True)

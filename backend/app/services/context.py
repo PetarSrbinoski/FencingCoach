@@ -26,6 +26,7 @@ from typing import Any
 from sqlalchemy import and_, desc, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import (
     Activity,
@@ -348,7 +349,7 @@ def build_context(
 ) -> str:
     """Build the context block. Sections are added in priority order
     until the token budget is consumed."""
-    today = today or date.today()
+    today = today or athlete_today()
     budget = token_budget or max(2048, settings.LLM_CONTEXT_TOKENS // 4)
 
     sections_in_order = [

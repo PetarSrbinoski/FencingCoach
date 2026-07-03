@@ -31,6 +31,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.models import Competition
 
 PHASES = ("general", "build", "peak", "taper", "comp_week", "recovery")
@@ -80,7 +81,7 @@ def _last_event(db: Session, today: date, lookback_days: int = 7) -> Competition
 
 
 def compute_phase(db: Session, day: date | None = None) -> Phase:
-    day = day or date.today()
+    day = day or athlete_today()
 
     # Post-competition recovery has priority over the next-event lookup
     last = _last_event(db, day, lookback_days=3)

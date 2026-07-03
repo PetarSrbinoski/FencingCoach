@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import GarminMetric
 from app.schemas import MetricPoint, MetricSeries
@@ -38,7 +39,7 @@ def series(
 ) -> MetricSeries:
     if kind not in ALLOWED_KINDS:
         return MetricSeries(kind=kind, points=[])
-    end = Date.today()
+    end = athlete_today()
     start = end - timedelta(days=days - 1)
     rows = db.execute(
         select(GarminMetric.day, GarminMetric.value)

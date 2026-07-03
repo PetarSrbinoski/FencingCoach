@@ -11,7 +11,6 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from garminconnect import (
     Garmin,
@@ -23,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
+from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import Activity, GarminMetric
 
@@ -311,8 +311,7 @@ class GarminService:
 
     # ── orchestration ─────────────────────────────────────────────────
     def sync_recent(self, db: Session, days: int = 2) -> dict[str, Any]:
-        tz = ZoneInfo(settings.ATHLETE_TIMEZONE)
-        today = datetime.now(tz).date()
+        today = athlete_today()
         days_synced = 0
         for i in range(days):
             d = today - timedelta(days=i)
@@ -323,8 +322,7 @@ class GarminService:
         return {"days_synced": days_synced, "activities_added": activities_added}
 
     def sync_full(self, db: Session, days: int = 30) -> dict[str, Any]:
-        tz = ZoneInfo(settings.ATHLETE_TIMEZONE)
-        today = datetime.now(tz).date()
+        today = athlete_today()
         days_synced = 0
         for i in range(days):
             d = today - timedelta(days=i)
