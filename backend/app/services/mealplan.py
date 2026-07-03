@@ -49,10 +49,9 @@ def build_shopping_list(
             missing_days.append(cur.isoformat())
         cur += timedelta(days=1)
 
-    items = sorted(
-        [{"name": k, "qty_g": round(v, 0)} for k, v in totals.items()],
-        key=lambda x: -x["qty_g"],
-    )
+    items = [
+        {"name": k, "qty_g": round(v, 0)} for k, v in sorted(totals.items(), key=lambda kv: -kv[1])
+    ]
     return {
         "start": start.isoformat(),
         "end": end.isoformat(),

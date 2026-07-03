@@ -16,7 +16,7 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -40,8 +40,8 @@ def _is_backed_off() -> bool:
     global _backoff_until
     if _backoff_until is None:
         return False
-    if datetime.now(timezone.utc) < _backoff_until:
-        remaining = (_backoff_until - datetime.now(timezone.utc)).seconds // 60
+    if datetime.now(UTC) < _backoff_until:
+        remaining = (_backoff_until - datetime.now(UTC)).seconds // 60
         log.info(
             "Garmin auth backoff active — skipping sync (retry in ~%d min).",
             remaining,
@@ -56,7 +56,7 @@ def _record_auth_failure() -> None:
     _consecutive_failures += 1
     # Exponential backoff: 5, 15, 30, 60, 60 min...
     minutes = min(60, 5 * (2 ** (_consecutive_failures - 1)))
-    _backoff_until = datetime.now(timezone.utc) + __import__("datetime").timedelta(
+    _backoff_until = datetime.now(UTC) + __import__("datetime").timedelta(
         minutes=minutes
     )
     log.warning(

@@ -20,13 +20,14 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.agents.coach import run_coach_chat, stream_coach_chat
 from app.core.database import get_db
 from app.models import CoachConversation, CoachMessage
 from app.schemas import (
@@ -36,7 +37,6 @@ from app.schemas import (
     CoachConversationSummary,
     CoachMessageOut,
 )
-from app.agents.coach import run_coach_chat, stream_coach_chat
 from app.services.context import build_context
 
 log = logging.getLogger(__name__)
@@ -143,7 +143,7 @@ def _get_or_create_conversation(db: Session, req: ChatRequest) -> CoachConversat
 
     if not conv.title:
         conv.title = req.message[:80]
-    conv.updated_at = datetime.now(timezone.utc)
+    conv.updated_at = datetime.now(UTC)
     return conv
 
 

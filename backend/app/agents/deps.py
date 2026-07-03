@@ -14,9 +14,9 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
+from pydantic_ai import InlineDefsJsonSchemaTransformer
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile
-from pydantic_ai import InlineDefsJsonSchemaTransformer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings

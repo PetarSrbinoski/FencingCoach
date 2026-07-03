@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agents.brief import generate_brief
 from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import DailyBrief
 from app.schemas import BriefOut
-from app.agents.brief import generate_brief
 
 router = APIRouter(prefix="/brief", tags=["brief"])
 

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.agents.nutrition import NutritionEstimateOutput, NutritionMicros
 from app.core.database import get_db
 from app.main import app
 from app.models import NutritionLog
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

@@ -9,11 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agents.mealplan import generate_meal_plan
 from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import NutritionPlan
 from app.schemas import MealPlanOut, ShoppingList
-from app.agents.mealplan import generate_meal_plan
 from app.services.mealplan import build_shopping_list
 
 router = APIRouter(prefix="/mealplan", tags=["mealplan"])

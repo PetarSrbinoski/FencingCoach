@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from app.services.schedule import (
     VALID_DAY_TYPES,
     _parse_schedule,

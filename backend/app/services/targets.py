@@ -27,7 +27,7 @@ unscheduled gym session).
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -181,7 +181,7 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     default = day_type_for_weekday(day.weekday())
 
     # Look at logged activities for this day to upgrade if needed.
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+    start = datetime.combine(day, time.min, tzinfo=UTC)
     end = start + timedelta(days=1)
     rows = db.scalars(
         select(Activity).where(

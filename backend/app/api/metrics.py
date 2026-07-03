@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date as Date
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query

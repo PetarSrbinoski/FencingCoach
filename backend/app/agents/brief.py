@@ -17,8 +17,8 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.core.clock import athlete_today
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import DailyBrief
 from app.services.context import build_context

@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Dev/CI tooling only — not needed in the runtime docker image.
+ruff==0.15.20
+mypy==2.1.0

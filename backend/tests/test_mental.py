@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
-from app.models import MentalEntry
 from app.services.mental import _avg, _trend, compute_insight, mental_context_section
 
 

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.models import DataSummary, MentalEntry, NutritionLog, WorkoutLog
+from app.models import DataSummary, WorkoutLog
 from app.services.summarization import (
     _aggregate_weekly_to_monthly,
     _summarize_mental_week,
     _summarize_nutrition_week,
     _summarize_training_week,
-    generate_monthly_summaries,
     generate_weekly_summaries,
     get_summaries,
     purge_old_detailed_data,

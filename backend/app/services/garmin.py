@@ -8,15 +8,13 @@ don't re-login every sync, fetch a daily set of metrics, and upsert into
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
-    GarminConnectConnectionError,
-    GarminConnectTooManyRequestsError,
 )
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -115,9 +113,7 @@ class GarminService:
 
     # ── persistence ───────────────────────────────────────────────────
     @staticmethod
-    def _upsert_metric(
-        db: Session, kind: str, day: date, metric: ExtractedMetric
-    ) -> None:
+    def _upsert_metric(db: Session, kind: str, day: date, metric: ExtractedMetric) -> None:
         stmt = pg_insert(GarminMetric).values(
             kind=kind,
             day=day,
@@ -164,16 +160,19 @@ class GarminService:
             gid = str(it.get("activityId"))
             if not gid:
                 continue
-            existing = db.scalar(
-                select(Activity).where(Activity.garmin_activity_id == gid)
-            )
+            existing = db.scalar(select(Activity).where(Activity.garmin_activity_id == gid))
             if existing:
                 continue
             start_str = it.get("startTimeGMT") or it.get("startTimeLocal")
             try:
-                start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                if not start_str:
+                    raise ValueError("missing start time")
+                start_dt = datetime.fromisoformat(str(start_str).replace("Z", "+00:00"))
             except Exception:  # noqa: BLE001
-                start_dt = datetime.now(timezone.utc)
+                start_dt = datetime.now(UTC)
+            calories_raw = it.get("calories")
+            avg_hr_raw = it.get("averageHR")
+            max_hr_raw = it.get("maxHR")
             db.add(
                 Activity(
                     garmin_activity_id=gid,
@@ -183,9 +182,9 @@ class GarminService:
                     start_time=start_dt,
                     duration_s=int(it.get("duration") or 0) or None,
                     distance_m=it.get("distance"),
-                    calories=int(it.get("calories")) if it.get("calories") else None,
-                    avg_hr=int(it.get("averageHR")) if it.get("averageHR") else None,
-                    max_hr=int(it.get("maxHR")) if it.get("maxHR") else None,
+                    calories=int(calories_raw) if calories_raw else None,
+                    avg_hr=int(avg_hr_raw) if avg_hr_raw else None,
+                    max_hr=int(max_hr_raw) if max_hr_raw else None,
                     training_load=it.get("activityTrainingLoad"),
                     raw=it,
                 )
@@ -208,9 +207,7 @@ class GarminService:
         activities_added = self.persist_activities(db, self.fetch_recent_activities(20))
         return {"days_synced": days_synced, "activities_added": activities_added}
 
-    def sync_full(
-        self, db: Session, days: int = settings.GARMIN_FULL_SYNC_DAYS
-    ) -> dict[str, Any]:
+    def sync_full(self, db: Session, days: int = settings.GARMIN_FULL_SYNC_DAYS) -> dict[str, Any]:
         today = athlete_today()
         days_synced = 0
         for i in range(days):
@@ -218,9 +215,7 @@ class GarminService:
             raw = self.fetch_day(d)
             self.persist_day(db, d, raw)
             days_synced += 1
-        activities_added = self.persist_activities(
-            db, self.fetch_recent_activities(100)
-        )
+        activities_added = self.persist_activities(db, self.fetch_recent_activities(100))
         return {"days_synced": days_synced, "activities_added": activities_added}
 
 

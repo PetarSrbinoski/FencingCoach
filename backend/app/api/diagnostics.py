@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -21,7 +21,7 @@ def diagnostics(
 ) -> DiagnosticsResponse:
     metrics = compute_diagnostics(db, window_days=window_days)
     return DiagnosticsResponse(
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         window_days=window_days,
         metrics=[
             MetricDiagnosticOut(

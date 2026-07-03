@@ -76,7 +76,7 @@ def compute_insight(
     avg_confidence = _avg([e.confidence_score for e in entries])
 
     # Compute trend from combined average of all scores per entry
-    combined = []
+    combined: list[float | None] = []
     for e in entries:
         scores = [
             s

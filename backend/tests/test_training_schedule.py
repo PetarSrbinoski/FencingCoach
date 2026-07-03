@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from app.services.training import _template_for, TUE_TEMPLATE, THU_TEMPLATE
+from app.services.training import THU_TEMPLATE, TUE_TEMPLATE, _template_for
 
 
 def test_default_schedule_tue_is_unilateral_thu_is_power():

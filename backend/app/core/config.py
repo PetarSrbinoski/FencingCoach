@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,7 +14,7 @@ class Settings(BaseSettings):
     # ── DB ────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+psycopg://coach:changeme_dev_only@db:5432/coachapp"
 
-    BACKEND_CORS_ORIGINS: List[str] = Field(
+    BACKEND_CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000"]
     )
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -39,21 +39,21 @@ def sync_recent(
     days: int = settings.GARMIN_RECENT_SYNC_DAYS,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     try:
         result = get_garmin().sync_recent(db, days=days)
         return GarminSyncResult(
             ok=True,
             fetched=result,
             started_at=started,
-            finished_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(UTC),
         )
     except Exception as e:  # noqa: BLE001
         return GarminSyncResult(
             ok=False,
             fetched={},
             started_at=started,
-            finished_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(UTC),
             error=str(e),
         )
 
@@ -63,21 +63,21 @@ def sync_full(
     days: int = settings.GARMIN_FULL_SYNC_DAYS,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
-    started = datetime.now(timezone.utc)
+    started = datetime.now(UTC)
     try:
         result = get_garmin().sync_full(db, days=days)
         return GarminSyncResult(
             ok=True,
             fetched=result,
             started_at=started,
-            finished_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(UTC),
         )
     except Exception as e:  # noqa: BLE001
         return GarminSyncResult(
             ok=False,
             fetched={},
             started_at=started,
-            finished_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(UTC),
             error=str(e),
         )
 

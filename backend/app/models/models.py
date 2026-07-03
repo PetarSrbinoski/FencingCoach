@@ -10,7 +10,6 @@ from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
-    JSON,
     BigInteger,
     Boolean,
     Date,
@@ -236,7 +235,7 @@ class CoachConversation(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    messages: Mapped[list["CoachMessage"]] = relationship(
+    messages: Mapped[list[CoachMessage]] = relationship(
         back_populates="conversation",
         cascade="all, delete-orphan",
         order_by="CoachMessage.created_at",

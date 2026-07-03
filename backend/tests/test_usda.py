@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.services.usda import (
     _extract_nutrients,
     _strip_quantity,
@@ -13,7 +15,7 @@ from app.services.usda import (
 
 class TestExtractNutrients:
     def test_known_nutrients(self):
-        raw = [
+        raw: list[dict[str, Any]] = [
             {"nutrientId": 1008, "value": 165},
             {"nutrientId": 1003, "value": 31},
             {"nutrientId": 1005, "value": 0},
@@ -97,7 +99,5 @@ class TestCrossReferenceMeal:
         assert isinstance(matches, list)
 
     def test_compound_meal(self, db, seed_usda_foods):
-        matches = cross_reference_meal(
-            db, "200g chicken breast, 1 cup rice and broccoli"
-        )
+        matches = cross_reference_meal(db, "200g chicken breast, 1 cup rice and broccoli")
         assert len(matches) >= 1

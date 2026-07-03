@@ -14,10 +14,10 @@ context building (services/context.py), and fencing-session analysis.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class ActivityCategory(str, Enum):
+class ActivityCategory(StrEnum):
     FENCING = "fencing"
     STRENGTH = "strength"
     CARDIO = "cardio"

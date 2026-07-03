@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 
 import pytest
-from fastapi.testclient import TestClient
-
 from app.core.database import get_db
 from app.main import app
 from app.models import CoachConversation, CoachMessage
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

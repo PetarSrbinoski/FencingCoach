@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from app.models import Activity, AthleteProfile, GarminMetric
 from app.services.targets import (
@@ -37,7 +37,7 @@ def test_gym_day_upgraded_to_double_by_logged_mma_activity(db):
     db.add(
         Activity(
             activity_type="mma",
-            start_time=datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc),
+            start_time=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
             source="garmin",
         )
     )
@@ -52,7 +52,7 @@ def test_fencing_day_upgraded_to_double_by_strength_activity(db):
     db.add(
         Activity(
             activity_type="strength_training",
-            start_time=datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc),
+            start_time=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
             source="garmin",
         )
     )
@@ -67,7 +67,7 @@ def test_unrelated_activity_type_does_not_change_day_type(db):
     db.add(
         Activity(
             activity_type="walking",
-            start_time=datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc),
+            start_time=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
             source="garmin",
         )
     )

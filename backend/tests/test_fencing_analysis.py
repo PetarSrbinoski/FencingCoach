@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from app.models import Activity, AthleteProfile
 from app.services.fencing_analysis import (
@@ -15,12 +15,10 @@ from app.services.fencing_analysis import (
 TODAY = date(2026, 7, 3)
 
 
-def _fencing_activity(
-    db, day: date, avg_hr=None, max_hr=None, duration_s=None, load=None
-):
+def _fencing_activity(db, day: date, avg_hr=None, max_hr=None, duration_s=None, load=None):
     a = Activity(
         activity_type="mma",  # Garmin logs fencing as MMA
-        start_time=datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc),
+        start_time=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
         source="garmin",
         avg_hr=avg_hr,
         max_hr=max_hr,
@@ -34,7 +32,7 @@ def _fencing_activity(
 def _non_fencing_activity(db, day: date):
     a = Activity(
         activity_type="strength_training",
-        start_time=datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc),
+        start_time=datetime.combine(day, datetime.min.time(), tzinfo=UTC),
         source="garmin",
     )
     db.add(a)
@@ -70,17 +68,17 @@ def test_trend_insufficient_data_below_minimum():
 
 
 def test_trend_increasing():
-    loads = [50, 50, 50, 90, 90, 90]
+    loads = [50.0, 50.0, 50.0, 90.0, 90.0, 90.0]
     assert _trend(loads) == "increasing"
 
 
 def test_trend_decreasing():
-    loads = [90, 90, 90, 50, 50, 50]
+    loads = [90.0, 90.0, 90.0, 50.0, 50.0, 50.0]
     assert _trend(loads) == "decreasing"
 
 
 def test_trend_stable():
-    loads = [80, 82, 79, 81, 80, 78]
+    loads = [80.0, 82.0, 79.0, 81.0, 80.0, 78.0]
     assert _trend(loads) == "stable"
 
 
@@ -142,9 +140,7 @@ def test_weekly_session_counts_grouped_by_iso_week_start(db):
     _fencing_activity(db, monday + timedelta(days=8), load=100)  # next week
     db.commit()
 
-    result = analyze_fencing_sessions(
-        db, window_days=30, today=monday + timedelta(days=10)
-    )
+    result = analyze_fencing_sessions(db, window_days=30, today=monday + timedelta(days=10))
     assert result.weekly_session_counts[monday.isoformat()] == 2
     assert result.weekly_session_counts[(monday + timedelta(days=7)).isoformat()] == 1
 

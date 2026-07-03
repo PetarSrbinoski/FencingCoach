@@ -20,8 +20,7 @@ chat history + response. We use tiktoken for an approximate token count
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, desc, select
 from sqlalchemy.orm import Session
@@ -43,7 +42,7 @@ from app.services.mental import mental_context_section
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
 from app.services.targets import compute_targets
-from app.services.training import TUE_TEMPLATE, THU_TEMPLATE, detect_plateau
+from app.services.training import THU_TEMPLATE, TUE_TEMPLATE, detect_plateau
 
 try:
     import tiktoken
@@ -116,10 +115,10 @@ def _metrics_section(db: Session, today: date, days: int = 7) -> str:
 
 def _activities_section(db: Session, today: date, days: int = 7) -> str:
     start = datetime.combine(
-        today - timedelta(days=days - 1), datetime.min.time(), tzinfo=timezone.utc
+        today - timedelta(days=days - 1), datetime.min.time(), tzinfo=UTC
     )
     end = datetime.combine(
-        today + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+        today + timedelta(days=1), datetime.min.time(), tzinfo=UTC
     )
     acts = db.scalars(
         select(Activity)
@@ -370,7 +369,7 @@ def build_context(
     ]
 
     header = (
-        f"# CONTEXT SNAPSHOT — generated {datetime.now(timezone.utc).isoformat(timespec='seconds')}\n"
+        f"# CONTEXT SNAPSHOT — generated {datetime.now(UTC).isoformat(timespec='seconds')}\n"
         "(Use this data to ground recommendations. If a section is empty, say so.)\n"
     )
     out: list[str] = [header]

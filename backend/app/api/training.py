@@ -31,16 +31,12 @@ router = APIRouter(prefix="/training", tags=["training"])
 
 # ── session ───────────────────────────────────────────────────────────
 @router.get("/today", response_model=TrainingSessionOut)
-def session_today(
-    db: Session = Depends(get_db)
-) -> TrainingSessionOut:
+def session_today(db: Session = Depends(get_db)) -> TrainingSessionOut:
     return TrainingSessionOut(**build_session(db))
 
 
 @router.get("/session/{day}", response_model=TrainingSessionOut)
-def session_for_day(
-    day: Date, db: Session = Depends(get_db)
-) -> TrainingSessionOut:
+def session_for_day(day: Date, db: Session = Depends(get_db)) -> TrainingSessionOut:
     return TrainingSessionOut(**build_session(db, day))
 
 
@@ -56,10 +52,7 @@ def session_week(
     if start is None:
         today = athlete_today()
         start = today - timedelta(days=today.weekday())  # Monday
-    return [
-        TrainingSessionOut(**build_session(db, start + timedelta(days=i)))
-        for i in range(7)
-    ]
+    return [TrainingSessionOut(**build_session(db, start + timedelta(days=i))) for i in range(7)]
 
 
 @router.get("/exercises", response_model=list[str])
@@ -75,9 +68,7 @@ def exercises() -> list[str]:
 
 # ── workout logging ───────────────────────────────────────────────────
 @router.post("/log", response_model=WorkoutLogOut)
-def log_set(
-    body: WorkoutLogCreate, db: Session = Depends(get_db)
-) -> WorkoutLogOut:
+def log_set(body: WorkoutLogCreate, db: Session = Depends(get_db)) -> WorkoutLogOut:
     entry = WorkoutLog(
         day=body.day or athlete_today(),
         exercise=body.exercise.strip(),
@@ -101,9 +92,7 @@ def list_log(
 ) -> list[WorkoutLogOut]:
     end = athlete_today()
     start = end - timedelta(days=days - 1)
-    stmt = select(WorkoutLog).where(
-        and_(WorkoutLog.day >= start, WorkoutLog.day <= end)
-    )
+    stmt = select(WorkoutLog).where(and_(WorkoutLog.day >= start, WorkoutLog.day <= end))
     if exercise:
         stmt = stmt.where(WorkoutLog.exercise == exercise)
     rows = db.scalars(stmt.order_by(WorkoutLog.day.desc(), WorkoutLog.set_number)).all()
@@ -144,6 +133,8 @@ def progress(
     # Best estimated 1RM per day
     best_by_day: dict[Date, dict] = {}
     for r in rows:
+        if r.weight_kg is None or r.reps is None:
+            continue
         est = epley_1rm(float(r.weight_kg), int(r.reps))
         if est is None:
             continue

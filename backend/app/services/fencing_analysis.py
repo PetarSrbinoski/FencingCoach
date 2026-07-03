@@ -16,7 +16,7 @@ this module honestly characterizes each session by which HR zone its
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -120,10 +120,10 @@ def analyze_fencing_sessions(
     start = datetime.combine(
         today - timedelta(days=window_days - 1),
         datetime.min.time(),
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
     end = datetime.combine(
-        today + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
+        today + timedelta(days=1), datetime.min.time(), tzinfo=UTC
     )
 
     rows = db.scalars(

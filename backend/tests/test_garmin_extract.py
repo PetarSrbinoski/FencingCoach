@@ -12,12 +12,10 @@ from app.services.garmin_extract import (
     extract_body_battery,
     extract_calories,
     extract_hrv,
-    extract_hrv_weekly,
     extract_intensity_minutes,
     extract_resting_hr,
     extract_sleep,
     extract_sleep_score,
-    extract_steps,
     extract_stress_daily,
     extract_training_readiness,
     extract_training_status,
@@ -35,9 +33,7 @@ def _full_raw() -> dict:
             }
         },
         "hrv": {"hrvSummary": {"lastNightAvg": 65, "weeklyAvg": 60}},
-        "body_battery": [
-            {"bodyBatteryValuesArray": [[1000, 40], [2000, 55], [3000, None]]}
-        ],
+        "body_battery": [{"bodyBatteryValuesArray": [[1000, 40], [2000, 55], [3000, None]]}],
         "stress": {"avgStressLevel": 28},
         "stats": {
             "bodyBatteryMostRecentValue": 72,
@@ -77,7 +73,7 @@ def test_extract_all_happy_path():
 
 # ── missing fields ───────────────────────────────────────────────────────
 def test_missing_fields_reported_as_missing_not_crash():
-    raw = {}
+    raw: dict = {}
     results = extract_all(raw)
     for kind, metric in results.items():
         assert metric.status == "missing", f"{kind} should be missing"
@@ -150,7 +146,7 @@ def test_hrv_zero_is_rejected_as_implausible():
     m = extract_hrv(raw)
     assert m.status == "implausible"
     assert m.value is None
-    assert "outside plausible range" in m.detail
+    assert m.detail is not None and "outside plausible range" in m.detail
 
 
 def test_sleep_over_16_hours_is_rejected():

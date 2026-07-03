@@ -10,7 +10,7 @@ Domains: training, nutrition, garmin, mental, chat
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, delete, func, select
@@ -69,7 +69,7 @@ def _upsert_summary(
     if existing:
         existing.summary = summary
         existing.period_end = period_end
-        existing.generated_at = datetime.now(timezone.utc)
+        existing.generated_at = datetime.now(UTC)
     else:
         existing = DataSummary(
             domain=domain,
@@ -93,9 +93,7 @@ def _summarize_training_week(db: Session, start: date, end: date) -> dict[str, A
 
     exercises: dict[str, dict[str, Any]] = {}
     for r in rows:
-        ex = exercises.setdefault(
-            r.exercise, {"sets": 0, "max_weight": 0, "max_reps": 0}
-        )
+        ex = exercises.setdefault(r.exercise, {"sets": 0, "max_weight": 0, "max_reps": 0})
         ex["sets"] += 1
         if r.weight_kg and r.weight_kg > ex["max_weight"]:
             ex["max_weight"] = r.weight_kg
@@ -113,9 +111,7 @@ def _summarize_training_week(db: Session, start: date, end: date) -> dict[str, A
 def _summarize_nutrition_week(db: Session, start: date, end: date) -> dict[str, Any]:
     """Summarize nutrition logs for a week."""
     rows = db.scalars(
-        select(NutritionLog).where(
-            and_(NutritionLog.day >= start, NutritionLog.day <= end)
-        )
+        select(NutritionLog).where(and_(NutritionLog.day >= start, NutritionLog.day <= end))
     ).all()
     if not rows:
         return {"entries": 0, "note": "no nutrition data"}
@@ -130,9 +126,7 @@ def _summarize_nutrition_week(db: Session, start: date, end: date) -> dict[str, 
         "entries": len(rows),
         "days_logged": days_logged,
         "avg_daily_kcal": round(total_kcal / days_logged, 0) if days_logged else 0,
-        "avg_daily_protein_g": round(total_protein / days_logged, 1)
-        if days_logged
-        else 0,
+        "avg_daily_protein_g": round(total_protein / days_logged, 1) if days_logged else 0,
         "avg_daily_carbs_g": round(total_carbs / days_logged, 1) if days_logged else 0,
         "avg_daily_fat_g": round(total_fat / days_logged, 1) if days_logged else 0,
         "total_kcal": round(total_kcal, 0),
@@ -161,12 +155,9 @@ def _summarize_garmin_week(db: Session, start: date, end: date) -> dict[str, Any
     activities = db.scalars(
         select(Activity).where(
             and_(
+                Activity.start_time >= datetime.combine(start, datetime.min.time(), tzinfo=UTC),
                 Activity.start_time
-                >= datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc),
-                Activity.start_time
-                < datetime.combine(
-                    end + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
-                ),
+                < datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=UTC),
             )
         )
     ).all()
@@ -192,9 +183,7 @@ def _summarize_garmin_week(db: Session, start: date, end: date) -> dict[str, Any
 def _summarize_mental_week(db: Session, start: date, end: date) -> dict[str, Any]:
     """Summarize mental training entries for a week."""
     entries = db.scalars(
-        select(MentalEntry).where(
-            and_(MentalEntry.day >= start, MentalEntry.day <= end)
-        )
+        select(MentalEntry).where(and_(MentalEntry.day >= start, MentalEntry.day <= end))
     ).all()
     if not entries:
         return {"entries": 0, "note": "no mental entries"}
@@ -202,17 +191,13 @@ def _summarize_mental_week(db: Session, start: date, end: date) -> dict[str, Any
     moods = [e.mood_score for e in entries if e.mood_score is not None]
     energies = [e.energy_score for e in entries if e.energy_score is not None]
     focuses = [e.focus_score for e in entries if e.focus_score is not None]
-    confidences = [
-        e.confidence_score for e in entries if e.confidence_score is not None
-    ]
+    confidences = [e.confidence_score for e in entries if e.confidence_score is not None]
 
     by_type: dict[str, int] = {}
     for e in entries:
         by_type[e.entry_type] = by_type.get(e.entry_type, 0) + 1
 
-    reflections = [
-        e.content[:200] for e in entries if e.content and e.entry_type == "reflection"
-    ]
+    reflections = [e.content[:200] for e in entries if e.content and e.entry_type == "reflection"]
 
     return {
         "entries": len(entries),
@@ -220,19 +205,15 @@ def _summarize_mental_week(db: Session, start: date, end: date) -> dict[str, Any
         "avg_mood": round(sum(moods) / len(moods), 1) if moods else None,
         "avg_energy": round(sum(energies) / len(energies), 1) if energies else None,
         "avg_focus": round(sum(focuses) / len(focuses), 1) if focuses else None,
-        "avg_confidence": round(sum(confidences) / len(confidences), 1)
-        if confidences
-        else None,
+        "avg_confidence": round(sum(confidences) / len(confidences), 1) if confidences else None,
         "reflection_snippets": reflections[:3],
     }
 
 
 def _summarize_chat_week(db: Session, start: date, end: date) -> dict[str, Any]:
     """Summarize coach chat activity for a week."""
-    start_dt = datetime.combine(start, datetime.min.time(), tzinfo=timezone.utc)
-    end_dt = datetime.combine(
-        end + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc
-    )
+    start_dt = datetime.combine(start, datetime.min.time(), tzinfo=UTC)
+    end_dt = datetime.combine(end + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
 
     msgs = db.scalars(
         select(CoachMessage).where(
@@ -385,9 +366,7 @@ def generate_monthly_summaries(
                 )
             )
             if not existing and len(week_summaries) >= 2:
-                monthly = _aggregate_weekly_to_monthly(
-                    [w.summary for w in week_summaries], domain
-                )
+                monthly = _aggregate_weekly_to_monthly([w.summary for w in week_summaries], domain)
                 _upsert_summary(db, domain, "month", ms, me, monthly)
                 count += 1
 
@@ -423,9 +402,7 @@ def _aggregate_weekly_to_monthly(
 
     elif domain == "nutrition":
         avg_kcals = [
-            w.get("avg_daily_kcal", 0)
-            for w in weekly_summaries
-            if w.get("avg_daily_kcal")
+            w.get("avg_daily_kcal", 0) for w in weekly_summaries if w.get("avg_daily_kcal")
         ]
         avg_proteins = [
             w.get("avg_daily_protein_g", 0)
@@ -434,9 +411,7 @@ def _aggregate_weekly_to_monthly(
         ]
         return {
             "weeks": len(weekly_summaries),
-            "avg_daily_kcal": round(sum(avg_kcals) / len(avg_kcals), 0)
-            if avg_kcals
-            else 0,
+            "avg_daily_kcal": round(sum(avg_kcals) / len(avg_kcals), 0) if avg_kcals else 0,
             "avg_daily_protein_g": round(sum(avg_proteins) / len(avg_proteins), 1)
             if avg_proteins
             else 0,
@@ -454,9 +429,7 @@ def _aggregate_weekly_to_monthly(
             acts = w.get("activities", {})
             total_activities += acts.get("count", 0)
             total_duration += acts.get("total_duration_min", 0)
-        metric_avgs = {
-            k: round(sum(v) / len(v), 1) for k, v in all_metrics.items() if v
-        }
+        metric_avgs = {k: round(sum(v) / len(v), 1) for k, v in all_metrics.items() if v}
         return {
             "weeks": len(weekly_summaries),
             "metric_averages": metric_avgs,
@@ -465,21 +438,17 @@ def _aggregate_weekly_to_monthly(
         }
 
     elif domain == "mental":
-        moods = [
-            w.get("avg_mood") for w in weekly_summaries if w.get("avg_mood") is not None
+        moods: list[float] = [
+            float(w["avg_mood"]) for w in weekly_summaries if w.get("avg_mood") is not None
         ]
-        energies = [
-            w.get("avg_energy")
-            for w in weekly_summaries
-            if w.get("avg_energy") is not None
+        energies: list[float] = [
+            float(w["avg_energy"]) for w in weekly_summaries if w.get("avg_energy") is not None
         ]
-        focuses = [
-            w.get("avg_focus")
-            for w in weekly_summaries
-            if w.get("avg_focus") is not None
+        focuses: list[float] = [
+            float(w["avg_focus"]) for w in weekly_summaries if w.get("avg_focus") is not None
         ]
-        confidences = [
-            w.get("avg_confidence")
+        confidences: list[float] = [
+            float(w["avg_confidence"])
             for w in weekly_summaries
             if w.get("avg_confidence") is not None
         ]
@@ -573,6 +542,4 @@ def get_summaries(
         stmt = stmt.where(DataSummary.domain == domain)
     if period:
         stmt = stmt.where(DataSummary.period == period)
-    return list(
-        db.scalars(stmt.order_by(DataSummary.period_start.desc()).limit(limit)).all()
-    )
+    return list(db.scalars(stmt.order_by(DataSummary.period_start.desc()).limit(limit)).all())

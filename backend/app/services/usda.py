@@ -11,7 +11,7 @@ import re
 from typing import Any
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -209,7 +209,7 @@ def match_food(
     # Score by how closely the description matches
     name_lower = food_name.lower().strip()
     best = None
-    best_score = -1
+    best_score = -1.0
 
     for r in results:
         desc = r.description_lower

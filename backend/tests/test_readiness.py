@@ -6,10 +6,9 @@ from __future__ import annotations
 from datetime import date
 
 from app.models import GarminMetric
-from app.services.readiness import band_for_score, compute_readiness
 from app.services.context import _readiness_section
+from app.services.readiness import band_for_score, compute_readiness
 from app.services.training import build_session
-
 
 DAY = date(2026, 6, 15)
 

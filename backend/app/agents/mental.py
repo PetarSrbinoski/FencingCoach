@@ -9,12 +9,11 @@ Replaces `services/mental._generate_llm_insight()` with a PydanticAI agent:
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections.abc import Sequence
 
 from pydantic_ai import Agent, RunContext
 
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
-from app.core.config import settings
 from app.models import MentalEntry
 
 log = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────
 def generate_mental_insight(
-    entries: list[MentalEntry],
+    entries: Sequence[MentalEntry],
     avg_mood: float | None,
     avg_energy: float | None,
     avg_focus: float | None,

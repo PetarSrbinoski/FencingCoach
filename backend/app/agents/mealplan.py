@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
@@ -20,8 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.core.clock import athlete_today
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import NutritionPlan
 from app.services.targets import NutritionTargets, compute_targets
@@ -105,9 +104,7 @@ mealplan_agent = Agent(
 
 
 @mealplan_agent.output_validator
-async def _strip_think(
-    ctx: RunContext[CoachDeps], result: MealPlanOutput
-) -> MealPlanOutput:
+async def _strip_think(ctx: RunContext[CoachDeps], result: MealPlanOutput) -> MealPlanOutput:
     if result.rationale:
         result.rationale = strip_think_tags(result.rationale)
     for meal in result.meals:
@@ -173,4 +170,8 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
     )
     db.execute(stmt)
     db.commit()
-    return db.scalar(select(NutritionPlan).where(NutritionPlan.day == day))
+    plan = db.scalar(select(NutritionPlan).where(NutritionPlan.day == day))
+    if plan is None:
+        # Should be unreachable — we just upserted this row.
+        raise RuntimeError(f"NutritionPlan for {day} vanished immediately after upsert")
+    return plan

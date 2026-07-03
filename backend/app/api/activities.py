@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -20,7 +20,7 @@ def recent(
     days: int = Query(14, ge=1, le=180),
     db: Session = Depends(get_db),
 ) -> list[ActivityOut]:
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(UTC) - timedelta(days=days)
     acts = db.scalars(
         select(Activity)
         .where(Activity.start_time >= since)

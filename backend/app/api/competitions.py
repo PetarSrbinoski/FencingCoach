@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date as Date
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session

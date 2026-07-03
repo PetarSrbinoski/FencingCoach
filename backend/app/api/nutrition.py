@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.agents.nutrition import estimate_nutrition
 from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import NutritionLog
@@ -22,7 +23,6 @@ from app.schemas import (
     NutritionLogCreate,
     NutritionLogOut,
 )
-from app.agents.nutrition import estimate_nutrition
 from app.services import usda as usda_service
 
 log = logging.getLogger(__name__)

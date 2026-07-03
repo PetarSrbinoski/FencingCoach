@@ -13,22 +13,17 @@ from datetime import date, timedelta
 os.environ["DATABASE_URL"] = "sqlite://"
 
 import pytest
-from sqlalchemy import JSON, BigInteger, Integer, create_engine, event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.core.database import Base
 from app.models import (
-    Activity,
-    CoachMessage,
-    DataSummary,
-    GarminMetric,
     MentalEntry,
     NutritionLog,
     USDAFood,
     WorkoutLog,
 )
+from sqlalchemy import JSON, BigInteger, Integer, create_engine, event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 @pytest.fixture

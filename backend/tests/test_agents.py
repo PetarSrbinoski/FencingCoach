@@ -14,27 +14,25 @@ from types import SimpleNamespace
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 import pytest
-from pydantic_ai import Agent
-from pydantic_ai.models.test import TestModel
-
-from app.agents.deps import CoachDeps, ThinkTagStreamFilter, get_model, strip_think_tags
+from app.agents.brief import brief_agent
+from app.agents.coach import (
+    ChatResult,
+    _db_messages_to_history,
+    coach_agent,
+    run_coach_chat,
+    stream_coach_chat,
+)
+from app.agents.deps import CoachDeps, ThinkTagStreamFilter, strip_think_tags
+from app.agents.mealplan import MealPlanOutput, mealplan_agent
+from app.agents.mental import mental_agent
 from app.agents.nutrition import (
     NutritionEstimateOutput,
     NutritionMicros,
     estimate_nutrition,
-    nutrition_fallback_agent,
     nutrition_agent,
+    nutrition_fallback_agent,
 )
-from app.agents.mealplan import MealPlanOutput, mealplan_agent
-from app.agents.brief import brief_agent
-from app.agents.mental import mental_agent, generate_mental_insight
-from app.agents.coach import (
-    coach_agent,
-    _db_messages_to_history,
-    ChatResult,
-    run_coach_chat,
-    stream_coach_chat,
-)
+from pydantic_ai import Agent
 
 
 # ── deps / model ──────────────────────────────────────────────────────

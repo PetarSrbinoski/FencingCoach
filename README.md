@@ -40,8 +40,19 @@ Then open:
 - Frontend: `http://localhost:3000`
 - API docs: `http://localhost:8000/docs`
 
+## Development
+
+Backend tests, linting, and type checks (from the repo root, with `uv` or any Python 3.12 env with `backend/requirements.txt` + `ruff`/`mypy` installed):
+
+```bash
+pytest
+ruff check backend/app backend/tests
+mypy backend/app backend/tests
+```
+
 ## Notes
 
-- Set `APP_PASSWORD`, `GARMIN_EMAIL`, and `GARMIN_PASSWORD` in `.env`
+- Single-user app with no authentication — only expose it over Tailscale, never LAN/public internet
+- Set `GARMIN_EMAIL` and `GARMIN_PASSWORD` in `.env`
 - If you use a remote model, set `LLM_BASE_URL` and `LLM_API_KEY`
 - If you use Ollama, pull a model and set `LLM_MODEL` to match

@@ -17,12 +17,11 @@ notes). The frontend presents these and accepts logging back into
 
 from __future__ import annotations
 
-import math
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
@@ -186,9 +185,7 @@ def epley_1rm(weight_kg: float, reps: int) -> float | None:
     return weight_kg * (1 + reps / 30.0)
 
 
-def best_recent_1rm(
-    db: Session, exercise: str, lookback_days: int = 60
-) -> float | None:
+def best_recent_1rm(db: Session, exercise: str, lookback_days: int = 60) -> float | None:
     since = athlete_today() - timedelta(days=lookback_days)
     rows = db.scalars(
         select(WorkoutLog).where(
@@ -202,6 +199,8 @@ def best_recent_1rm(
     ).all()
     best: float | None = None
     for r in rows:
+        if r.weight_kg is None or r.reps is None:
+            continue
         est = epley_1rm(float(r.weight_kg), int(r.reps))
         if est is not None and (best is None or est > best):
             best = est
@@ -229,6 +228,8 @@ def detect_plateau(db: Session, exercise: str, weeks: int = 4) -> dict[str, Any]
         ).all()
         best = None
         for r in rows:
+            if r.weight_kg is None or r.reps is None:
+                continue
             est = epley_1rm(float(r.weight_kg), int(r.reps))
             if est and (best is None or est > best):
                 best = est
@@ -309,13 +310,9 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
             best = best_recent_1rm(db, item["exercise"])
             if best is not None:
                 load_kg = round(best * item["pct1rm"] * int_mod / 2.5) * 2.5
-                notes_bits.append(
-                    f"≈ {item['pct1rm'] * int_mod:.0%} of est 1RM {best:.0f} kg"
-                )
+                notes_bits.append(f"≈ {item['pct1rm'] * int_mod:.0%} of est 1RM {best:.0f} kg")
             else:
-                notes_bits.append(
-                    "No 1RM history — start moderate, leave 2-3 reps in reserve."
-                )
+                notes_bits.append("No 1RM history — start moderate, leave 2-3 reps in reserve.")
 
         rx_list.append(
             ExerciseRx(
@@ -329,9 +326,7 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
             )
         )
 
-    readiness_score_text = (
-        f"{readiness.score:.0f}" if readiness.score is not None else "n/a"
-    )
+    readiness_score_text = f"{readiness.score:.0f}" if readiness.score is not None else "n/a"
     rationale = (
         f"Phase={phase.name} (vol×{PHASE_VOLUME_MOD[phase.name]:.2f}, "
         f"int×{PHASE_INTENSITY_MOD[phase.name]:.2f}); "
