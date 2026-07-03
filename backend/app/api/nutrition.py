@@ -11,7 +11,6 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import NutritionLog
 from app.schemas import NutritionDayTotals, NutritionLogCreate, NutritionLogOut
 from app.agents.nutrition import estimate_nutrition
@@ -25,7 +24,6 @@ router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 @router.post("/log", response_model=NutritionLogOut)
 def log_meal(
     body: NutritionLogCreate,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> NutritionLogOut:
     try:
@@ -71,7 +69,6 @@ def log_meal(
 
 @router.get("/log", response_model=list[NutritionLogOut])
 def list_logs(
-    _user: CurrentUser,
     days: int = Query(7, ge=1, le=90),
     db: Session = Depends(get_db),
 ) -> list[NutritionLogOut]:
@@ -87,7 +84,7 @@ def list_logs(
 
 @router.get("/totals/{day}", response_model=NutritionDayTotals)
 def day_totals(
-    day: Date, _user: CurrentUser, db: Session = Depends(get_db)
+    day: Date, db: Session = Depends(get_db)
 ) -> NutritionDayTotals:
     rows = db.scalars(select(NutritionLog).where(NutritionLog.day == day)).all()
     micros: dict[str, float] = {}
@@ -110,7 +107,7 @@ def day_totals(
 
 
 @router.delete("/log/{entry_id}", status_code=204)
-def delete_log(entry_id: int, _user: CurrentUser, db: Session = Depends(get_db)):
+def delete_log(entry_id: int, db: Session = Depends(get_db)):
     entry = db.get(NutritionLog, entry_id)
     if not entry:
         raise HTTPException(404, "not found")

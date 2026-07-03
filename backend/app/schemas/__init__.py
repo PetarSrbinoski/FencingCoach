@@ -30,7 +30,6 @@ from app.schemas.schemas import (  # noqa: F401
     ReadinessResponse,
     ShoppingList,
     TargetsOut,
-    Token,
     TrainingSessionOut,
     USDAFoodOut,
     USDAImportResult,

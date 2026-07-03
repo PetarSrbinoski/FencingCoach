@@ -1,39 +1,13 @@
 // Tiny typed API client for the FastAPI backend.
-// Token is stored in localStorage (single-user, self-hosted).
+// No auth — single-user app, reachable only via Tailscale.
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-const TOKEN_EVENT = "coachapp:token-change";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("token");
-}
-
-export function setToken(t: string | null) {
-  if (typeof window === "undefined") return;
-  if (t) window.localStorage.setItem("token", t);
-  else window.localStorage.removeItem("token");
-  window.dispatchEvent(new Event(TOKEN_EVENT));
-}
-
-export function onTokenChange(listener: () => void) {
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener(TOKEN_EVENT, listener);
-  window.addEventListener("storage", listener);
-  return () => {
-    window.removeEventListener(TOKEN_EVENT, listener);
-    window.removeEventListener("storage", listener);
-  };
-}
-
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
@@ -290,15 +264,6 @@ export type CoachConversationSummary = {
 export const api = {
   health: () =>
     request<{ status: string; db: boolean; llm: boolean; version: string }>("/health"),
-
-  login: async (username: string, password: string) => {
-    const body = new URLSearchParams({ username, password });
-    const res = await fetch(`${BASE}/auth/token`, { method: "POST", body });
-    if (!res.ok) throw new Error("Login failed");
-    const data = (await res.json()) as { access_token: string };
-    setToken(data.access_token);
-    return data;
-  },
 
   chat: (message: string, conversation_id?: number, include_context = true) =>
     request<{

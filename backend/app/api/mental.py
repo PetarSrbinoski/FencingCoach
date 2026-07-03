@@ -10,7 +10,6 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import MentalEntry
 from app.schemas import MentalEntryCreate, MentalEntryOut, MentalInsightOut
 from app.services import mental as mental_service
@@ -21,7 +20,6 @@ router = APIRouter(prefix="/mental", tags=["mental"])
 @router.post("/entry", response_model=MentalEntryOut)
 def create_entry(
     body: MentalEntryCreate,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> MentalEntryOut:
     entry = MentalEntry(
@@ -42,7 +40,6 @@ def create_entry(
 
 @router.get("/entries", response_model=list[MentalEntryOut])
 def list_entries(
-    _user: CurrentUser,
     days: int = Query(14, ge=1, le=90),
     entry_type: str | None = None,
     db: Session = Depends(get_db),
@@ -60,7 +57,6 @@ def list_entries(
 
 @router.get("/insight", response_model=MentalInsightOut)
 def get_insight(
-    _user: CurrentUser,
     days: int = Query(14, ge=3, le=90),
     db: Session = Depends(get_db),
 ) -> MentalInsightOut:
@@ -69,7 +65,7 @@ def get_insight(
 
 
 @router.delete("/entry/{entry_id}", status_code=204)
-def delete_entry(entry_id: int, _user: CurrentUser, db: Session = Depends(get_db)):
+def delete_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.get(MentalEntry, entry_id)
     if not entry:
         raise HTTPException(404, "not found")

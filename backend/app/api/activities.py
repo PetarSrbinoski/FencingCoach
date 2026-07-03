@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import Activity
 from app.schemas import ActivityOut
 
@@ -18,7 +17,6 @@ router = APIRouter(prefix="/activities", tags=["activities"])
 
 @router.get("/recent", response_model=list[ActivityOut])
 def recent(
-    _user: CurrentUser,
     days: int = Query(14, ge=1, le=180),
     db: Session = Depends(get_db),
 ) -> list[ActivityOut]:

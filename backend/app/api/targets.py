@@ -10,7 +10,6 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import DayTypeOverride
 from app.schemas import DayTypeOverrideRequest, TargetsOut
 from app.services.targets import VALID_DAY_TYPES, compute_targets
@@ -19,12 +18,12 @@ router = APIRouter(prefix="/targets", tags=["targets"])
 
 
 @router.get("/today", response_model=TargetsOut)
-def today(_user: CurrentUser, db: Session = Depends(get_db)) -> TargetsOut:
+def today(db: Session = Depends(get_db)) -> TargetsOut:
     return TargetsOut(**compute_targets(db).to_dict())
 
 
 @router.get("/{day}", response_model=TargetsOut)
-def for_day(day: Date, _user: CurrentUser, db: Session = Depends(get_db)) -> TargetsOut:
+def for_day(day: Date, db: Session = Depends(get_db)) -> TargetsOut:
     return TargetsOut(**compute_targets(db, day).to_dict())
 
 
@@ -32,7 +31,6 @@ def for_day(day: Date, _user: CurrentUser, db: Session = Depends(get_db)) -> Tar
 def set_day_type_override(
     day: Date,
     body: DayTypeOverrideRequest,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> dict:
     if body.day_type not in VALID_DAY_TYPES:
@@ -53,7 +51,6 @@ def set_day_type_override(
 @router.delete("/day-type/{day}")
 def clear_day_type_override(
     day: Date,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> dict:
     db.execute(delete(DayTypeOverride).where(DayTypeOverride.day == day))

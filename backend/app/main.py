@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     activities,
-    auth,
     brief,
     chat,
     competitions,
@@ -55,7 +54,6 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(garmin.router)
 app.include_router(readiness.router)

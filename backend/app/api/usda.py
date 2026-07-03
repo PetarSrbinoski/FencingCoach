@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.schemas import USDAFoodOut, USDAImportResult, USDASearchResult
 from app.services import usda as usda_service
 
@@ -15,7 +14,6 @@ router = APIRouter(prefix="/usda", tags=["usda"])
 
 @router.post("/import", response_model=USDAImportResult)
 def import_foods(
-    _user: CurrentUser,
     max_pages: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ) -> USDAImportResult:
@@ -27,7 +25,6 @@ def import_foods(
 @router.get("/search", response_model=USDASearchResult)
 def search_foods(
     q: str,
-    _user: CurrentUser,
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
 ) -> USDASearchResult:
@@ -43,7 +40,6 @@ def search_foods(
 @router.get("/match")
 def match_meal(
     text: str,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> list[dict]:
     """Cross-reference a meal description against USDA data."""

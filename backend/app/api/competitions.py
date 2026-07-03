@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import Competition
 from app.schemas import CompetitionCreate, CompetitionOut
 
@@ -32,7 +31,6 @@ def _to_out(c: Competition) -> CompetitionOut:
 
 @router.get("", response_model=list[CompetitionOut])
 def list_competitions(
-    _user: CurrentUser,
     upcoming_only: bool = False,
     db: Session = Depends(get_db),
 ) -> list[CompetitionOut]:
@@ -45,7 +43,7 @@ def list_competitions(
 
 @router.post("", response_model=CompetitionOut, status_code=201)
 def create_competition(
-    body: CompetitionCreate, _user: CurrentUser, db: Session = Depends(get_db)
+    body: CompetitionCreate, db: Session = Depends(get_db)
 ) -> CompetitionOut:
     c = Competition(**body.model_dump())
     db.add(c)
@@ -56,7 +54,7 @@ def create_competition(
 
 @router.get("/{comp_id}", response_model=CompetitionOut)
 def get_competition(
-    comp_id: int, _user: CurrentUser, db: Session = Depends(get_db)
+    comp_id: int, db: Session = Depends(get_db)
 ) -> CompetitionOut:
     c = db.get(Competition, comp_id)
     if not c:
@@ -68,7 +66,6 @@ def get_competition(
 def update_competition(
     comp_id: int,
     body: CompetitionCreate,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> CompetitionOut:
     c = db.get(Competition, comp_id)
@@ -85,7 +82,6 @@ def update_competition(
 def set_result(
     comp_id: int,
     result: dict,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> CompetitionOut:
     c = db.get(Competition, comp_id)
@@ -98,7 +94,7 @@ def set_result(
 
 
 @router.delete("/{comp_id}", status_code=204)
-def delete_competition(comp_id: int, _user: CurrentUser, db: Session = Depends(get_db)):
+def delete_competition(comp_id: int, db: Session = Depends(get_db)):
     c = db.get(Competition, comp_id)
     if not c:
         raise HTTPException(404, "not found")

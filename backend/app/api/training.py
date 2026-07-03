@@ -10,7 +10,6 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import WorkoutLog
 from app.schemas import (
     ExerciseProgress,
@@ -32,21 +31,20 @@ router = APIRouter(prefix="/training", tags=["training"])
 # ── session ───────────────────────────────────────────────────────────
 @router.get("/today", response_model=TrainingSessionOut)
 def session_today(
-    _user: CurrentUser, db: Session = Depends(get_db)
+    db: Session = Depends(get_db)
 ) -> TrainingSessionOut:
     return TrainingSessionOut(**build_session(db))
 
 
 @router.get("/session/{day}", response_model=TrainingSessionOut)
 def session_for_day(
-    day: Date, _user: CurrentUser, db: Session = Depends(get_db)
+    day: Date, db: Session = Depends(get_db)
 ) -> TrainingSessionOut:
     return TrainingSessionOut(**build_session(db, day))
 
 
 @router.get("/week", response_model=list[TrainingSessionOut])
 def session_week(
-    _user: CurrentUser,
     start: Date | None = None,
     db: Session = Depends(get_db),
 ) -> list[TrainingSessionOut]:
@@ -64,7 +62,7 @@ def session_week(
 
 
 @router.get("/exercises", response_model=list[str])
-def exercises(_user: CurrentUser) -> list[str]:
+def exercises() -> list[str]:
     """All exercises the system knows from the default templates."""
     seen: list[str] = []
     for tpl in (TUE_TEMPLATE, THU_TEMPLATE):
@@ -77,7 +75,7 @@ def exercises(_user: CurrentUser) -> list[str]:
 # ── workout logging ───────────────────────────────────────────────────
 @router.post("/log", response_model=WorkoutLogOut)
 def log_set(
-    body: WorkoutLogCreate, _user: CurrentUser, db: Session = Depends(get_db)
+    body: WorkoutLogCreate, db: Session = Depends(get_db)
 ) -> WorkoutLogOut:
     entry = WorkoutLog(
         day=body.day or Date.today(),
@@ -96,7 +94,6 @@ def log_set(
 
 @router.get("/log", response_model=list[WorkoutLogOut])
 def list_log(
-    _user: CurrentUser,
     days: int = Query(14, ge=1, le=365),
     exercise: str | None = None,
     db: Session = Depends(get_db),
@@ -113,7 +110,7 @@ def list_log(
 
 
 @router.delete("/log/{entry_id}", status_code=204)
-def delete_log(entry_id: int, _user: CurrentUser, db: Session = Depends(get_db)):
+def delete_log(entry_id: int, db: Session = Depends(get_db)):
     entry = db.get(WorkoutLog, entry_id)
     if not entry:
         raise HTTPException(404, "not found")
@@ -125,7 +122,6 @@ def delete_log(entry_id: int, _user: CurrentUser, db: Session = Depends(get_db))
 @router.get("/progress/{exercise}", response_model=ExerciseProgress)
 def progress(
     exercise: str,
-    _user: CurrentUser,
     days: int = Query(180, ge=14, le=730),
     db: Session = Depends(get_db),
 ) -> ExerciseProgress:

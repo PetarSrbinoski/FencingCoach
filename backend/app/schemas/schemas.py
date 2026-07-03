@@ -9,12 +9,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-# ── Auth ──────────────────────────────────────────────────────────────
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
 # ── Chat ──────────────────────────────────────────────────────────────
 class ChatMessage(BaseModel):
     role: str = Field(pattern=r"^(system|user|assistant)$")

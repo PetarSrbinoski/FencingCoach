@@ -18,7 +18,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import CoachConversation, CoachMessage
 from app.schemas import (
     ChatRequest,
@@ -35,7 +34,6 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.get("/conversations", response_model=list[CoachConversationSummary])
 def list_conversations(
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> list[CoachConversationSummary]:
     message_count = func.count(CoachMessage.id)
@@ -72,7 +70,6 @@ def list_conversations(
 @router.get("/conversations/{conversation_id}", response_model=CoachConversationOut)
 def get_conversation(
     conversation_id: int,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> CoachConversationOut:
     conv = db.get(CoachConversation, conversation_id)
@@ -108,7 +105,6 @@ def get_conversation(
 )
 def delete_conversation(
     conversation_id: int,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> Response:
     conv = db.get(CoachConversation, conversation_id)
@@ -124,7 +120,6 @@ def delete_conversation(
 @router.post("", response_model=ChatResponse)
 async def chat(
     req: ChatRequest,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> ChatResponse:
     # ── conversation ──────────────────────────────────────────────────

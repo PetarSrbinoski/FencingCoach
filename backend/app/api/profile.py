@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import AthleteProfile
 from app.schemas import ProfileOut, ProfileUpdate
 
@@ -25,7 +24,7 @@ def _get_or_create(db: Session) -> AthleteProfile:
 
 
 @router.get("", response_model=ProfileOut)
-def get_profile(_user: CurrentUser, db: Session = Depends(get_db)) -> ProfileOut:
+def get_profile(db: Session = Depends(get_db)) -> ProfileOut:
     p = _get_or_create(db)
     return ProfileOut(
         id=p.id,
@@ -49,7 +48,6 @@ def get_profile(_user: CurrentUser, db: Session = Depends(get_db)) -> ProfileOut
 @router.put("", response_model=ProfileOut)
 def update_profile(
     body: ProfileUpdate,
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> ProfileOut:
     p = _get_or_create(db)

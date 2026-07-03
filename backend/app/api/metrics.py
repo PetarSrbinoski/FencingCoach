@@ -10,7 +10,6 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import GarminMetric
 from app.schemas import MetricPoint, MetricSeries
 
@@ -34,7 +33,6 @@ ALLOWED_KINDS = {
 @router.get("/{kind}", response_model=MetricSeries)
 def series(
     kind: str,
-    _user: CurrentUser,
     days: int = Query(30, ge=1, le=365),
     db: Session = Depends(get_db),
 ) -> MetricSeries:

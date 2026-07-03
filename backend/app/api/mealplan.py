@@ -10,7 +10,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import NutritionPlan
 from app.schemas import MealPlanOut, ShoppingList
 from app.agents.mealplan import generate_meal_plan
@@ -24,7 +23,7 @@ router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 
 
 @router.post("/today", response_model=MealPlanOut)
-def generate_today(_user: CurrentUser, db: Session = Depends(get_db)) -> MealPlanOut:
+def generate_today(db: Session = Depends(get_db)) -> MealPlanOut:
     try:
         plan = generate_meal_plan(db, Date.today())
     except Exception as e:  # noqa: BLE001
@@ -39,7 +38,6 @@ def generate_today(_user: CurrentUser, db: Session = Depends(get_db)) -> MealPla
 
 @router.post("/week", response_model=list[MealPlanOut])
 def generate_week(
-    _user: CurrentUser,
     start: Date | None = Query(None),
     db: Session = Depends(get_db),
 ) -> list[MealPlanOut]:
@@ -65,7 +63,7 @@ def generate_week(
 
 @router.post("/{day}", response_model=MealPlanOut)
 def generate(
-    day: Date, _user: CurrentUser, db: Session = Depends(get_db)
+    day: Date, db: Session = Depends(get_db)
 ) -> MealPlanOut:
     try:
         plan = generate_meal_plan(db, day)
@@ -81,7 +79,7 @@ def generate(
 
 @router.get("/{day}", response_model=MealPlanOut | None)
 def get_plan(
-    day: Date, _user: CurrentUser, db: Session = Depends(get_db)
+    day: Date, db: Session = Depends(get_db)
 ) -> MealPlanOut | None:
     plan = db.scalar(select(NutritionPlan).where(NutritionPlan.day == day))
     if not plan:
@@ -100,7 +98,6 @@ shopping_router = APIRouter(prefix="/shopping", tags=["shopping"])
 
 @shopping_router.get("/week", response_model=ShoppingList)
 def shopping_week(
-    _user: CurrentUser,
     start: Date | None = Query(None),
     db: Session = Depends(get_db),
 ) -> ShoppingList:
@@ -110,7 +107,6 @@ def shopping_week(
 
 @shopping_router.get("/range", response_model=ShoppingList)
 def shopping_range(
-    _user: CurrentUser,
     start: Date,
     end: Date,
     db: Session = Depends(get_db),

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.schemas import DataSummaryOut
 from app.services import summarization
 
@@ -15,7 +14,6 @@ router = APIRouter(prefix="/summaries", tags=["summaries"])
 
 @router.post("/generate")
 def generate_summaries(
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> dict:
     """Trigger summary generation for all domains."""
@@ -29,7 +27,6 @@ def generate_summaries(
 
 @router.get("/", response_model=list[DataSummaryOut])
 def list_summaries(
-    _user: CurrentUser,
     domain: str | None = None,
     period: str | None = None,
     limit: int = Query(52, ge=1, le=200),
@@ -42,7 +39,6 @@ def list_summaries(
 
 @router.post("/purge")
 def purge_old_data(
-    _user: CurrentUser,
     db: Session = Depends(get_db),
 ) -> dict:
     """Delete detailed records older than 6 months that have been summarized."""

@@ -9,7 +9,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import CurrentUser
 from app.models import GarminMetric
 from app.schemas import GarminLoginRequest, GarminSyncResult
 from app.services.garmin import get_garmin
@@ -18,7 +17,7 @@ router = APIRouter(prefix="/garmin", tags=["garmin"])
 
 
 @router.post("/login")
-def login(req: GarminLoginRequest, _user: CurrentUser) -> dict[str, str]:
+def login(req: GarminLoginRequest) -> dict[str, str]:
     try:
         get_garmin().login(email=req.email, password=req.password)
     except Exception as e:  # noqa: BLE001
@@ -36,7 +35,6 @@ def login(req: GarminLoginRequest, _user: CurrentUser) -> dict[str, str]:
 
 @router.post("/sync/recent", response_model=GarminSyncResult)
 def sync_recent(
-    _user: CurrentUser,
     days: int = 2,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
@@ -61,7 +59,6 @@ def sync_recent(
 
 @router.post("/sync/full", response_model=GarminSyncResult)
 def sync_full(
-    _user: CurrentUser,
     days: int = 30,
     db: Session = Depends(get_db),
 ) -> GarminSyncResult:
@@ -85,7 +82,7 @@ def sync_full(
 
 
 @router.get("/status")
-def status(_user: CurrentUser, db: Session = Depends(get_db)) -> dict[str, object]:
+def status(db: Session = Depends(get_db)) -> dict[str, object]:
     last = db.scalar(select(func.max(GarminMetric.fetched_at)))
     count = db.scalar(select(func.count()).select_from(GarminMetric)) or 0
     return {

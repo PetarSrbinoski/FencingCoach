@@ -2,16 +2,11 @@ fastapi>=0.119.0
 uvicorn[standard]>=0.35.0
 pydantic==2.12.5
 pydantic-settings==2.7.0
-python-multipart==0.0.20
 
 # DB
 SQLAlchemy==2.0.36
 psycopg[binary]==3.2.3
 alembic==1.14.0
-
-# Auth
-passlib[bcrypt]==1.7.4
-python-jose[cryptography]==3.3.0
 
 # LLM — PydanticAI agents
 pydantic-ai>=1.89.0
