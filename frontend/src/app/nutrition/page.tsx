@@ -189,7 +189,7 @@ export default function NutritionPage() {
 
     if (found.length === 0) {
       return (
-        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted p-4 border-2 border-foreground/10 max-h-96 overflow-auto">
+        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted p-4 border border-border max-h-96 overflow-auto">
           {JSON.stringify(plan, null, 2)}
         </pre>
       );
@@ -201,15 +201,15 @@ export default function NutritionPage() {
           const mealData = plan[mealKey] as any;
           const label = mealKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
           return (
-            <div key={mealKey} className="border-2 border-foreground/20 bg-card p-4">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-foreground mb-2">{label}</h4>
+            <div key={mealKey} className="border border-border p-4">
+              <h4 className="text-sm font-semibold text-foreground mb-2">{label}</h4>
               {Array.isArray(mealData?.items ?? mealData) ? (
                 <ul className="space-y-1.5 text-sm text-muted-foreground">
                   {(mealData?.items ?? mealData).map((item: any, i: number) => (
                     <li key={i} className="flex justify-between">
                       <span>{typeof item === "string" ? item : item?.name ?? item?.food ?? JSON.stringify(item)}</span>
                       {item?.amount && (
-                        <span className="text-muted-foreground font-mono text-xs font-bold">
+                        <span className="text-muted-foreground font-mono text-xs">
                           {item.amount}{item.unit ? ` ${item.unit}` : ""}
                         </span>
                       )}
@@ -220,7 +220,7 @@ export default function NutritionPage() {
                 <div className="text-sm text-muted-foreground">
                   {mealData.description && <p>{mealData.description}</p>}
                   {mealData.kcal && (
-                    <p className="text-xs text-muted-foreground mt-1.5 font-mono font-bold">
+                    <p className="text-xs text-muted-foreground mt-1.5 font-mono">
                       ~{mealData.kcal} kcal
                       {mealData.protein_g ? ` · P${mealData.protein_g}` : ""}
                       {mealData.carbs_g ? ` · C${mealData.carbs_g}` : ""}
@@ -235,7 +235,7 @@ export default function NutritionPage() {
           );
         })}
         {plan.totals != null && (
-          <p className="text-xs text-muted-foreground font-mono font-bold mt-2">
+          <p className="text-xs text-muted-foreground font-mono mt-2">
             Plan totals: {JSON.stringify(plan.totals)}
           </p>
         )}
@@ -247,16 +247,30 @@ export default function NutritionPage() {
   const earlierLogs = logs.filter((l) => l.day !== today);
 
   return (
-    <div className="space-y-6 md:space-y-8">
+    <div className="space-y-16 md:space-y-20">
       {/* Header */}
-      <div className="border-b-4 border-foreground pb-4">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Nutrition</h1>
-        <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">Track meals, macros, and meal plans</p>
-      </div>
+      <header className="relative">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+          Fuel &amp; recovery
+        </p>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+          Nutrition
+        </h1>
+        <p className="mt-4 text-sm text-muted-foreground font-mono">
+          Track meals, macros, and meal plans
+        </p>
+        <div className="h-1 w-16 bg-accent mt-6" />
+      </header>
+
+      {err && (
+        <div className="border border-accent/30 bg-accent/5 px-5 py-4">
+          <p className="text-accent text-sm">{err}</p>
+        </div>
+      )}
 
       {/* Log a meal */}
       <Card title="Log a meal" icon={<Utensils className="h-4 w-4" />}>
-        <p className="text-xs text-muted-foreground mb-3 font-mono">
+        <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
           Describe what you ate. The coach LLM will estimate macros, key micros,
           and a confidence level. Quantities help — &ldquo;200g chicken with 1
           cup of rice&rdquo; beats &ldquo;chicken with rice&rdquo;. Nothing is
@@ -264,7 +278,7 @@ export default function NutritionPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-2.5">
           <Select value={meal} onValueChange={setMeal}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="sm:w-[140px]">
               <Utensils className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue placeholder="Meal" />
             </SelectTrigger>
@@ -285,34 +299,29 @@ export default function NutritionPage() {
             placeholder="200g chicken breast, 150g cooked rice, broccoli, olive oil"
             className="flex-1"
             disabled={!!estimate}
+            aria-label="Meal description"
           />
-          <Button onClick={requestEstimate} disabled={busy || !!estimate}>
-            {busy ? "ESTIMATING..." : "ESTIMATE"}
+          <Button onClick={requestEstimate} disabled={busy || !!estimate || !text.trim()}>
+            {busy ? "Estimating…" : "Estimate"}
           </Button>
         </div>
-        {err && (
-          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
-            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
-          </div>
-        )}
 
         {/* Review/edit before saving */}
         {estimate && (
-          <div className="mt-4 border-2 border-foreground/20 p-4 space-y-3">
+          <div className="mt-5 border border-border p-4 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Review estimate
               </span>
               <Badge
                 variant={estimate.confidence === "low" ? "destructive" : "outline"}
-                className="text-[10px] uppercase tracking-wider"
               >
                 {estimate.confidence} confidence
               </Badge>
             </div>
 
             {estimate.confidence === "low" && (
-              <div className="flex items-start gap-2 border-2 border-amber-500/40 bg-amber-500/5 px-3 py-2">
+              <div className="flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2">
                 <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
                 <p className="text-xs text-amber-400">
                   Low-confidence estimate — double-check these numbers before logging.
@@ -320,7 +329,7 @@ export default function NutritionPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {(
                 [
                   ["kcal", "Kcal"],
@@ -330,15 +339,15 @@ export default function NutritionPage() {
                   ["fiber_g", "Fiber g"],
                 ] as const
               ).map(([key, label]) => (
-                <div key={key}>
-                  <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+                <div key={key} className="space-y-1">
+                  <label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block">
                     {label}
-                  </span>
+                  </label>
                   <Input
                     value={draft[key]}
                     onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
                     inputMode="decimal"
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                   />
                 </div>
               ))}
@@ -348,13 +357,13 @@ export default function NutritionPage() {
               <p className="text-xs text-muted-foreground font-mono">{estimate.notes}</p>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <Button onClick={confirmLog} disabled={confirming} size="sm">
-                {confirming ? "SAVING..." : "CONFIRM & LOG"}
+                {confirming ? "Saving…" : "Confirm & log"}
               </Button>
               <Button onClick={discardEstimate} disabled={confirming} size="sm" variant="ghost">
-                <X className="h-3.5 w-3.5 mr-1" />
-                DISCARD
+                <X className="h-3.5 w-3.5" />
+                Discard
               </Button>
             </div>
           </div>
@@ -399,7 +408,7 @@ export default function NutritionPage() {
             </div>
           }
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
             <MacroProgress label="Calories" actual={totals.kcal} target={targets.kcal} unit="kcal" />
             <MacroProgress label="Protein" actual={totals.protein_g} target={targets.protein_g} unit="g" />
             <MacroProgress label="Carbs" actual={totals.carbs_g} target={targets.carbs_g} unit="g" />
@@ -407,13 +416,13 @@ export default function NutritionPage() {
             <MacroProgress label="Fiber" actual={totals.fiber_g} target={targets.fiber_g} unit="g" />
           </div>
           {targets.notes && (
-            <p className="text-xs text-muted-foreground mt-3 font-mono">{targets.notes}</p>
+            <p className="text-xs text-muted-foreground mt-4 font-mono">{targets.notes}</p>
           )}
         </Card>
       ) : null}
 
       {/* Summary + Micros + Today's entries */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <Card title={`Today (${today})`}>
           {loading && !totals ? (
             <div className="space-y-2">
@@ -429,11 +438,11 @@ export default function NutritionPage() {
               <StatRow label="Entries" value={totals.entry_count} />
             </>
           ) : (
-            <div className="flex flex-col items-center py-6 text-center">
-              <div className="h-10 w-10 border-2 border-foreground flex items-center justify-center mb-2 shadow-hard-sm">
-                <Utensils className="h-5 w-5 text-muted-foreground" />
+            <div className="flex flex-col items-center py-8 text-center">
+              <div className="h-10 w-10 border border-dashed border-border flex items-center justify-center mb-2">
+                <Utensils className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
               </div>
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No data yet</p>
+              <p className="text-muted-foreground text-sm font-medium">No data yet</p>
             </div>
           )}
         </Card>
@@ -454,8 +463,8 @@ export default function NutritionPage() {
                 />
               ))
           ) : (
-            <div className="flex flex-col items-center py-6 text-center">
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No data yet</p>
+            <div className="flex flex-col items-center py-8 text-center">
+              <p className="text-muted-foreground text-sm font-medium">No data yet</p>
             </div>
           )}
         </Card>
@@ -472,29 +481,30 @@ export default function NutritionPage() {
               ))}
             </div>
           ) : todayLogs.length === 0 ? (
-            <div className="flex flex-col items-center py-6 text-center">
-              <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">Nothing logged yet</p>
+            <div className="flex flex-col items-center py-8 text-center">
+              <p className="text-muted-foreground text-sm font-medium">Nothing logged yet</p>
+              <p className="text-muted-foreground/60 text-xs mt-1 font-mono">Log a meal above to see it here</p>
             </div>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-3 divide-y divide-border">
               {todayLogs.map((l) => (
-                <li key={l.id} className="text-sm border-b-2 border-foreground/10 pb-3 last:border-0">
+                <li key={l.id} className="text-sm pt-3 first:pt-0">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                    <Badge variant="outline">
                       {l.meal || "\u2014"}
                     </Badge>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-bauhaus-red hover:bg-bauhaus-red/10"
+                      className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-accent/10"
                       onClick={() => remove(l.id)}
                       aria-label="Delete entry"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <div className="text-foreground mt-1 font-medium">{l.raw_text}</div>
-                  <div className="text-muted-foreground text-xs mt-1 font-mono font-bold">
+                  <div className="text-foreground mt-1.5 font-medium">{l.raw_text}</div>
+                  <div className="text-muted-foreground text-xs mt-1 font-mono">
                     {l.kcal?.toFixed(0)} kcal · P{" "}
                     {l.protein_g?.toFixed(0)} / C {l.carbs_g?.toFixed(0)} / F{" "}
                     {l.fat_g?.toFixed(0)}
@@ -512,20 +522,20 @@ export default function NutritionPage() {
         icon={<ChefHat className="h-4 w-4" />}
         action={
           <Button onClick={generatePlan} disabled={planBusy} size="sm" variant={plan ? "outline" : "default"}>
-            <ChefHat className="h-3.5 w-3.5 mr-1.5" />
-            {planBusy ? "GENERATING..." : plan ? "REGENERATE" : "GENERATE"}
+            <ChefHat className="h-3.5 w-3.5" />
+            {planBusy ? "Generating…" : plan ? "Regenerate" : "Generate"}
           </Button>
         }
       >
         {!plan ? (
-          <div className="flex flex-col items-center py-8 text-center">
-            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
-              <ChefHat className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center py-10 text-center">
+            <div className="h-12 w-12 border border-dashed border-border flex items-center justify-center mb-3">
+              <ChefHat className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">
+            <p className="text-muted-foreground text-sm font-medium">
               No plan for today yet
             </p>
-            <p className="text-muted-foreground text-xs mt-1 font-mono">Click Generate to have the coach build one</p>
+            <p className="text-muted-foreground/60 text-xs mt-1 font-mono">Click generate to have the coach build one</p>
           </div>
         ) : (
           renderMealPlan(plan.plan)
@@ -538,20 +548,20 @@ export default function NutritionPage() {
         icon={<ShoppingCart className="h-4 w-4" />}
         action={
           <Button onClick={loadShopping} disabled={shopBusy} size="sm" variant="outline">
-            <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-            {shopBusy ? "LOADING..." : shopping ? "REFRESH" : "LOAD"}
+            <ShoppingCart className="h-3.5 w-3.5" />
+            {shopBusy ? "Loading…" : shopping ? "Refresh" : "Load"}
           </Button>
         }
       >
         {!shopping ? (
-          <div className="flex flex-col items-center py-8 text-center">
-            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
-              <ShoppingCart className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center py-10 text-center">
+            <div className="h-12 w-12 border border-dashed border-border flex items-center justify-center mb-3">
+              <ShoppingCart className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">
+            <p className="text-muted-foreground text-sm font-medium">
               Weekly shopping aggregator
             </p>
-            <p className="text-muted-foreground text-xs mt-1 font-mono">Aggregates ingredients from generated meal plans for the next 7 days</p>
+            <p className="text-muted-foreground/60 text-xs mt-1 font-mono">Aggregates ingredients from generated meal plans for the next 7 days</p>
           </div>
         ) : shopping.item_count === 0 ? (
           <p className="text-muted-foreground text-sm font-mono">
@@ -562,7 +572,7 @@ export default function NutritionPage() {
           </p>
         ) : (
           <>
-            <p className="text-xs text-muted-foreground mb-3 font-mono font-bold">
+            <p className="text-xs text-muted-foreground mb-3 font-mono">
               {shopping.start} → {shopping.end} · {shopping.item_count} items ·
               covered: {shopping.days_covered.length}d
               {shopping.missing_days.length > 0 && (
@@ -571,9 +581,9 @@ export default function NutritionPage() {
             </p>
             <ul className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {shopping.items.map((it, i) => (
-                <li key={i} className="flex justify-between border-b-2 border-foreground/10 py-2">
+                <li key={i} className="flex justify-between border-b border-border py-2">
                   <span className="text-foreground font-medium">{it.name}</span>
-                  <span className="font-mono text-muted-foreground text-xs font-bold">
+                  <span className="font-mono text-muted-foreground text-xs">
                     {it.amount ?? ""} {it.unit ?? ""}
                   </span>
                 </li>
@@ -586,18 +596,18 @@ export default function NutritionPage() {
       {/* Earlier entries */}
       <Card title="Earlier (last 7 days)">
         {earlierLogs.length === 0 ? (
-          <div className="flex flex-col items-center py-6 text-center">
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No earlier entries</p>
+          <div className="flex flex-col items-center py-8 text-center">
+            <p className="text-muted-foreground text-sm font-medium">No earlier entries</p>
           </div>
         ) : (
           <ul className="space-y-1 text-sm">
             {earlierLogs.map((l) => (
-              <li key={l.id} className="flex justify-between text-muted-foreground py-1 border-b border-foreground/5">
+              <li key={l.id} className="flex justify-between text-muted-foreground py-1.5 border-b border-border last:border-0">
                 <span>
-                  <span className="text-muted-foreground mr-2 font-mono text-xs font-bold">{l.day}</span>
+                  <span className="text-muted-foreground mr-2 font-mono text-xs">{l.day}</span>
                   <span className="text-foreground font-medium">{l.raw_text}</span>
                 </span>
-                <span className="font-mono text-muted-foreground text-xs font-bold">
+                <span className="font-mono text-muted-foreground text-xs">
                   {l.kcal?.toFixed(0)} kcal
                 </span>
               </li>

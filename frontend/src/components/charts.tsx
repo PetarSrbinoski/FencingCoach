@@ -37,9 +37,9 @@ function SparklineTooltip({
   const d = payload[0].payload;
   if (d.value == null) return null;
   return (
-    <div className="border-2 border-foreground bg-card px-3 py-2 text-xs shadow-hard-sm">
+    <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
       <p className="text-muted-foreground font-mono text-[11px]">{d.day}</p>
-      <p className="font-bold font-mono mt-0.5">
+      <p className="font-semibold font-mono mt-0.5 text-foreground">
         {d.value.toLocaleString()}
         {unit ? ` ${unit}` : ""}
       </p>
@@ -49,7 +49,7 @@ function SparklineTooltip({
 
 export function Sparkline({
   points,
-  color = "#121212",
+  color = "hsl(var(--foreground))",
   height = 64,
   unit,
 }: SparklineProps) {
@@ -78,7 +78,7 @@ export function Sparkline({
           fill="url(#spark-fill)"
           connectNulls
           dot={false}
-          activeDot={{ r: 4, strokeWidth: 2, stroke: color, fill: "#FFFFFF" }}
+          activeDot={{ r: 4, strokeWidth: 2, stroke: color, fill: "hsl(var(--card))" }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -107,8 +107,8 @@ function BarTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border-2 border-foreground bg-card px-3 py-2 text-xs shadow-hard-sm">
-      <p className="font-bold font-mono">
+    <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
+      <p className="font-semibold font-mono text-foreground">
         {payload[0].value.toLocaleString()}
         {unit ? ` ${unit}` : ""}
       </p>
@@ -118,34 +118,32 @@ function BarTooltip({
 
 export function BarChartComponent({
   values,
-  color = "#121212",
+  color = "hsl(var(--accent))",
   height = 120,
   unit,
 }: BarChartComponentProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={values} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#121212" strokeOpacity={0.1} />
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis
           dataKey="label"
           tickLine={false}
           axisLine={false}
           className="text-xs"
-          tick={{ fontSize: 11, fontWeight: 700 }}
+          tick={{ fontSize: 11, fontWeight: 500, fill: "hsl(var(--muted-foreground))" }}
         />
         <YAxis hide />
         <Tooltip
           content={({ active, payload }) => (
             <BarTooltip active={active} payload={payload as any} unit={unit} />
           )}
-          cursor={{ fill: "#121212", opacity: 0.05 }}
+          cursor={{ fill: "hsl(var(--muted-foreground))", opacity: 0.08 }}
         />
         <Bar
           dataKey="value"
           fill={color}
           radius={0}
-          stroke="#121212"
-          strokeWidth={1}
         />
       </BarChart>
     </ResponsiveContainer>
@@ -170,7 +168,7 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
   const offset = circumference - (clamped / 100) * circumference;
 
   const arcColor =
-    clamped < 40 ? "#D02020" : clamped <= 65 ? "#F0C020" : "#1040C0";
+    clamped < 40 ? "hsl(var(--accent))" : clamped <= 65 ? "#F59E0B" : "#10B981";
 
   return (
     <div className="flex flex-col items-center" style={{ width: size }}>
@@ -184,7 +182,7 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
         <path
           d={`M ${strokeWidth / 2} ${size * 0.55} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size * 0.55}`}
           fill="none"
-          stroke="#E0E0E0"
+          stroke="hsl(var(--muted))"
           strokeWidth={strokeWidth}
           strokeLinecap="butt"
         />
@@ -207,14 +205,14 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
           y={size * 0.42}
           textAnchor="middle"
           dominantBaseline="central"
-          className="fill-foreground"
-          style={{ fontSize: size * 0.32, fontWeight: 900, fontFamily: "Outfit, sans-serif" }}
+          className="fill-foreground font-sans"
+          style={{ fontSize: size * 0.32, fontWeight: 700 }}
         >
           {Math.round(clamped)}
         </text>
       </svg>
 
-      <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-muted-foreground">
+      <span className="text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground">
         {label}
       </span>
     </div>
@@ -246,23 +244,23 @@ export function MacroProgress({
   const barColor =
     color ??
     (pct < 70
-      ? "#F0C020"
+      ? "#F59E0B"
       : pct <= 115
-        ? "#1040C0"
-        : "#D02020");
+        ? "#10B981"
+        : "hsl(var(--accent))");
 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-bold uppercase tracking-wider">{label}</span>
-        <span className="text-muted-foreground font-mono font-bold">
+        <span className="font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="text-foreground font-mono font-medium">
           {actual} / {target} {unit}{" "}
-          <span className="text-muted-foreground/60">({Math.round(pct)}%)</span>
+          <span className="text-muted-foreground">({Math.round(pct)}%)</span>
         </span>
       </div>
-      <div className="h-3 w-full overflow-hidden bg-muted border-2 border-foreground">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full transition-all duration-300 ease-out"
+          className="h-full rounded-full transition-all duration-300 ease-out"
           style={{
             width: `${clampedWidth}%`,
             backgroundColor: barColor,

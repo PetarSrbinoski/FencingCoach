@@ -44,10 +44,6 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        /* Legacy compatibility */
-        "bauhaus-red": "var(--bauhaus-red)",
-        "bauhaus-blue": "var(--bauhaus-blue)",
-        "bauhaus-yellow": "var(--bauhaus-yellow)",
       },
       borderRadius: {
         lg: "0px",

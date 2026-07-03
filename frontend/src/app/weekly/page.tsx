@@ -92,20 +92,18 @@ export default function WeeklyPage() {
   const sparklines: {
     title: string;
     series: MetricSeries | null;
-    color: string;
     icon: React.ReactNode;
     unit?: string;
   }[] = [
-    { title: "HRV", series: hrv, color: "#1040C0", icon: <Heart className="h-4 w-4 text-bauhaus-blue" />, unit: "ms" },
-    { title: "Sleep", series: sleep, color: "#121212", icon: <Moon className="h-4 w-4" />, unit: "hrs" },
-    { title: "Sleep Score", series: sleepScore, color: "#1040C0", icon: <Star className="h-4 w-4 text-bauhaus-blue" /> },
-    { title: "Resting HR", series: rhr, color: "#D02020", icon: <Heart className="h-4 w-4 text-bauhaus-red" />, unit: "bpm" },
-    { title: "Training Readiness", series: readinessSeries, color: "#1040C0", icon: <Target className="h-4 w-4 text-bauhaus-blue" /> },
+    { title: "HRV", series: hrv, icon: <Heart className="h-4 w-4" />, unit: "ms" },
+    { title: "Sleep", series: sleep, icon: <Moon className="h-4 w-4" />, unit: "hrs" },
+    { title: "Sleep Score", series: sleepScore, icon: <Star className="h-4 w-4" /> },
+    { title: "Resting HR", series: rhr, icon: <Heart className="h-4 w-4" />, unit: "bpm" },
+    { title: "Training Readiness", series: readinessSeries, icon: <Target className="h-4 w-4" /> },
     {
       title: "Weekly Summary",
       series: null,
-      color: "#F0C020",
-      icon: <Flame className="h-4 w-4 text-bauhaus-yellow" />,
+      icon: <Flame className="h-4 w-4" />,
     },
   ];
 
@@ -118,22 +116,30 @@ export default function WeeklyPage() {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Page header */}
-      <div className="border-b-4 border-foreground pb-4">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">This Week</h1>
-        <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">28-day trends and weekly performance overview</p>
-      </div>
+    <div className="space-y-16 md:space-y-20">
+      {/* Header */}
+      <header className="relative">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+          28-day trends
+        </p>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+          This Week
+        </h1>
+        <p className="mt-4 text-sm text-muted-foreground font-mono">
+          Training load, recovery, and weekly performance overview
+        </p>
+        <div className="h-1 w-16 bg-accent mt-6" />
+      </header>
 
       {/* ── Bar charts: Training load & Calories ─────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-        <Card title="Training Load" icon={<TrendingUp className="h-4 w-4" />}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card title="Training load" icon={<TrendingUp className="h-4 w-4" />}>
           {loading ? (
             <Skeleton className="h-[120px] w-full" />
           ) : (
             <>
-              <BarChartComponent values={last7Days} color="#1040C0" height={120} unit=" load" />
-              <div className="mt-4 pt-3 border-t-2 border-foreground/10 text-sm space-y-1.5">
+              <BarChartComponent values={last7Days} height={120} unit=" load" />
+              <div className="mt-4 pt-3 border-t border-border text-sm space-y-0">
                 <StatRow label="Total load (7d)" value={totalLoad7.toFixed(0)} />
                 <StatRow label="Sessions (7d)" value={sessions7} />
               </div>
@@ -141,13 +147,13 @@ export default function WeeklyPage() {
           )}
         </Card>
 
-        <Card title="Calories Logged" icon={<Utensils className="h-4 w-4" />}>
+        <Card title="Calories logged" icon={<Utensils className="h-4 w-4" />}>
           {loading ? (
             <Skeleton className="h-[120px] w-full" />
           ) : (
             <>
-              <BarChartComponent values={last7Kcal} color="#D02020" height={120} unit=" kcal" />
-              <div className="mt-4 pt-3 border-t-2 border-foreground/10 text-sm space-y-1.5">
+              <BarChartComponent values={last7Kcal} height={120} unit=" kcal" />
+              <div className="mt-4 pt-3 border-t border-border text-sm space-y-0">
                 <StatRow label="Avg/day" value={`${avgKcal} kcal`} />
               </div>
             </>
@@ -157,20 +163,18 @@ export default function WeeklyPage() {
 
       {/* ── 28-day sparkline grid (2×3) ──────────────────────────────── */}
       <div>
-        <h2 className="text-sm font-bold text-foreground mb-4 uppercase tracking-wider">28-Day Trends</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">28-day trends</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {sparklines.map((s) => (
             <Card key={s.title}>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex items-center justify-center h-7 w-7 border-2 border-foreground">
-                  {s.icon}
-                </div>
-                <span className="text-sm font-bold uppercase tracking-wider">{s.title}</span>
+                <span className="text-muted-foreground">{s.icon}</span>
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.title}</span>
               </div>
               {loading ? (
                 <Skeleton className="h-[70px] w-full" />
               ) : s.title === "Weekly Summary" ? (
-                <div className="text-sm space-y-2 pt-1">
+                <div className="text-sm space-y-0 pt-1">
                   <StatRow label="Sessions (7d)" value={sessions7} />
                   <StatRow label="Total load (7d)" value={totalLoad7.toFixed(0)} />
                   <StatRow label="Avg kcal/day" value={`${avgKcal}`} />
@@ -179,10 +183,10 @@ export default function WeeklyPage() {
                 </div>
               ) : (
                 <>
-                  <Sparkline points={s.series?.points ?? []} color={s.color} height={70} unit={s.unit} />
-                  <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground font-mono">
-                    <span>Latest: <span className="text-foreground font-bold">{latestValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
-                    <span>28d avg: <span className="text-foreground font-bold">{avgValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
+                  <Sparkline points={s.series?.points ?? []} color="hsl(var(--accent))" height={70} unit={s.unit} />
+                  <div className="mt-3 flex items-baseline justify-between text-xs text-muted-foreground font-mono pt-2 border-t border-border">
+                    <span>Latest: <span className="text-foreground font-medium">{latestValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
+                    <span>28d avg: <span className="text-foreground font-medium">{avgValue(s.series)}{s.unit ? ` ${s.unit}` : ""}</span></span>
                   </div>
                 </>
               )}
@@ -192,7 +196,7 @@ export default function WeeklyPage() {
       </div>
 
       {/* ── Activities table ─────────────────────────────────────────── */}
-      <Card title="Activities" icon={<ActivityIcon className="h-4 w-4" />} action={<span className="text-xs text-muted-foreground font-mono font-bold uppercase">Last 28 days</span>}>
+      <Card title="Activities" icon={<ActivityIcon className="h-4 w-4" />} action={<span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Last 28 days</span>}>
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -201,16 +205,16 @@ export default function WeeklyPage() {
           </div>
         ) : activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
-              <ActivityIcon className="h-6 w-6 text-muted-foreground" />
+            <div className="h-12 w-12 border border-dashed border-border flex items-center justify-center mb-3">
+              <ActivityIcon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No activities synced yet</p>
-            <p className="text-muted-foreground text-xs mt-1 font-mono">Connect Garmin to start tracking</p>
+            <p className="text-muted-foreground text-sm font-medium">No activities synced yet</p>
+            <p className="text-muted-foreground/60 text-xs mt-1 font-mono">Connect Garmin to start tracking</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="max-h-[28rem] overflow-y-auto overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>When</TableHead>
                 <TableHead>Type</TableHead>
@@ -237,13 +241,13 @@ export default function WeeklyPage() {
                       {a.activity_type ?? "Unknown"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-bold">
+                  <TableCell className="text-right font-mono text-sm">
                     {a.duration_s ? `${Math.round(a.duration_s / 60)}m` : "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-bold">
+                  <TableCell className="text-right font-mono text-sm">
                     {a.avg_hr ? `${a.avg_hr}/${a.max_hr ?? "—"}` : "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-bold">
+                  <TableCell className="text-right font-mono text-sm">
                     {a.training_load?.toFixed(0) ?? "—"}
                   </TableCell>
                 </TableRow>

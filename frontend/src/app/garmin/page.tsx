@@ -4,14 +4,14 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
+import { useToast } from "@/components/ui/toast";
 
 export default function GarminPage() {
   const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number } | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
-  const [historyMsg, setHistoryMsg] = useState<string | null>(null);
+  const { toast } = useToast();
 
   async function refresh() {
     try {
@@ -27,10 +27,13 @@ export default function GarminPage() {
   async function syncRecent() {
     setBusy(true);
     setErr(null);
-    setMsg(null);
     try {
       const res = await api.garmin.syncRecent(2);
-      setMsg(res.ok ? `Synced: ${JSON.stringify(res.fetched)}` : `Failed: ${res.error}`);
+      if (res.ok) {
+        toast({ title: "Synced last 2 days", description: JSON.stringify(res.fetched), variant: "success" });
+      } else {
+        toast({ title: "Sync failed", description: res.error, variant: "destructive" });
+      }
       await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -42,15 +45,14 @@ export default function GarminPage() {
 
   async function syncFullHistory() {
     setHistoryBusy(true);
-    setHistoryMsg(null);
     setErr(null);
     try {
       const res = await api.garmin.syncFull(365);
-      setHistoryMsg(
-        res.ok
-          ? `Full sync complete: ${JSON.stringify(res.fetched)}`
-          : `Sync failed: ${res.error}`
-      );
+      if (res.ok) {
+        toast({ title: "Full sync complete", description: JSON.stringify(res.fetched), variant: "success" });
+      } else {
+        toast({ title: "Sync failed", description: res.error, variant: "destructive" });
+      }
       await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -79,16 +81,6 @@ export default function GarminPage() {
           <p className="text-accent text-sm">{err}</p>
         </div>
       )}
-      {msg && (
-        <div className="border border-emerald-500/30 bg-emerald-500/5 px-5 py-4">
-          <p className="text-emerald-400 text-sm font-mono">{msg}</p>
-        </div>
-      )}
-      {historyMsg && (
-        <div className="border border-emerald-500/30 bg-emerald-500/5 px-5 py-4">
-          <p className="text-emerald-400 text-sm font-mono">{historyMsg}</p>
-        </div>
-      )}
 
       {/* ── Sync Buttons — typographic hero layout ─────────────────── */}
       <section className="relative">
@@ -102,7 +94,7 @@ export default function GarminPage() {
           <button
             onClick={syncRecent}
             disabled={busy || historyBusy}
-            className="group text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group text-left disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
@@ -126,7 +118,7 @@ export default function GarminPage() {
           <button
             onClick={syncFullHistory}
             disabled={busy || historyBusy}
-            className="group text-left disabled:opacity-50 disabled:cursor-not-allowed md:pt-12"
+            className="group text-left disabled:opacity-50 disabled:cursor-not-allowed md:pt-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">

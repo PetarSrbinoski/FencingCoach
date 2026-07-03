@@ -48,15 +48,17 @@ export function Sidebar() {
       {/* Mobile top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border bg-background px-6 py-4 md:hidden">
         <button
-          className="h-10 w-10 inline-flex items-center justify-center text-foreground"
+          className="h-10 w-10 inline-flex items-center justify-center text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" strokeWidth={1.5} />
         </button>
         <span className="font-semibold uppercase tracking-widest text-xs text-foreground">Coach</span>
         <button
-          className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+          className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           onClick={toggleTheme}
+          aria-label="Toggle color theme"
         >
           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
           <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -81,8 +83,9 @@ export function Sidebar() {
         <div className="flex items-center justify-between px-6 py-5 border-b border-border">
           <span className="font-semibold uppercase tracking-widest text-sm">FencingCoach</span>
           <button
-            className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground"
+            className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             onClick={() => setMobileOpen(false)}
+            aria-label="Close navigation menu"
           >
             <X className="h-4 w-4" strokeWidth={1.5} />
           </button>
@@ -95,8 +98,9 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-3 px-6 py-3.5 text-sm font-medium uppercase tracking-wider transition-colors duration-150",
+                  "relative flex items-center gap-3 px-6 py-3.5 text-sm font-medium uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
                   active
                     ? "text-accent"
                     : "text-muted-foreground hover:text-foreground"
@@ -115,7 +119,8 @@ export function Sidebar() {
           <div className="space-y-3">
             <button
               onClick={toggleTheme}
-              className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150"
+              className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              aria-label="Toggle color theme"
             >
               <Sun className="h-3.5 w-3.5 dark:hidden" />
               <Moon className="h-3.5 w-3.5 hidden dark:block" />
@@ -158,8 +163,9 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex items-center text-xs font-medium uppercase tracking-wider transition-colors duration-150",
+                  "group relative flex items-center text-xs font-medium uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
                   collapsed ? "justify-center px-2 py-3.5" : "gap-3 px-5 py-2.5",
                   active
                     ? "text-accent"
@@ -180,16 +186,18 @@ export function Sidebar() {
         <div className="border-t border-border p-3 shrink-0 space-y-3">
           <div className="flex items-center justify-between">
             <button
-              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={toggleTheme}
               title="Toggle theme"
+              aria-label="Toggle color theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
             <button
-              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150"
+              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={() => setCollapsed(!collapsed)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? (
                 <ChevronRight className="h-4 w-4" strokeWidth={1.5} />

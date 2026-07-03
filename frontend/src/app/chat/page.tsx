@@ -199,19 +199,19 @@ export default function ChatPage() {
     return (
       <div className="p-2">
         {loadingHistory && (
-          <div className="px-2 py-4 text-xs font-mono text-muted-foreground">Loading history...</div>
+          <div className="px-3 py-4 text-xs font-mono text-muted-foreground">Loading history…</div>
         )}
 
         {!loadingHistory && historyError && (
-          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-3 m-2">
-            <p className="text-xs font-bold text-bauhaus-red">{historyError}</p>
+          <div className="border border-accent/30 bg-accent/5 px-3 py-3 m-2">
+            <p className="text-xs text-accent">{historyError}</p>
           </div>
         )}
 
         {!loadingHistory && !historyError && conversations.length === 0 && (
-          <div className="px-3 py-6 text-center">
-            <p className="text-sm font-black uppercase tracking-wider">No saved chats</p>
-            <p className="text-[11px] font-mono text-muted-foreground mt-2">Your coach history will appear here.</p>
+          <div className="px-3 py-8 text-center">
+            <p className="text-sm font-medium text-foreground">No saved chats</p>
+            <p className="text-[11px] text-muted-foreground mt-2">Your coach history will appear here.</p>
           </div>
         )}
 
@@ -221,21 +221,22 @@ export default function ChatPage() {
             <div
               key={conversation.id}
               className={cn(
-                "group border-2 border-transparent px-3 py-3 transition-colors",
-                active && "border-foreground bg-muted/40 shadow-hard-sm"
+                "group border border-transparent px-3 py-3 transition-colors duration-150",
+                active ? "border-border bg-muted/40" : "hover:bg-muted/20"
               )}
             >
               <div className="flex items-start gap-2">
                 <button
                   type="button"
                   onClick={() => selectConversation(conversation.id)}
-                  className="flex-1 text-left"
+                  className="flex-1 text-left min-w-0"
                 >
-                  <p className="text-sm font-bold leading-tight uppercase tracking-wide">
+                  <p className="text-sm font-medium leading-tight text-foreground truncate">
                     {conversationLabel(conversation)}
                   </p>
-                  <div className="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                  <div className="mt-1.5 flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
                     <span>{conversation.message_count} msgs</span>
+                    <span>·</span>
                     <span>{relativeDate(conversation.updated_at)}</span>
                   </div>
                 </button>
@@ -243,14 +244,14 @@ export default function ChatPage() {
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="h-8 w-8 shrink-0 inline-flex items-center justify-center border border-transparent text-muted-foreground hover:border-foreground hover:text-foreground"
+                      className="h-8 w-8 shrink-0 inline-flex items-center justify-center border border-transparent text-muted-foreground hover:border-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       aria-label="Conversation actions"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => removeConversation(conversation.id)} className="text-bauhaus-red focus:text-bauhaus-red">
+                    <DropdownMenuItem onClick={() => removeConversation(conversation.id)} className="text-accent focus:text-accent">
                       <Trash2 className="h-4 w-4" />
                       Delete
                     </DropdownMenuItem>
@@ -265,25 +266,28 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-8rem)] flex-col gap-4 md:gap-5">
-      <div className="border-b-4 border-foreground pb-4">
+    <div className="flex min-h-[calc(100svh-8rem)] flex-col gap-5 md:gap-6">
+      <header className="border-b border-border pb-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Coach</h1>
-            <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1.5 font-mono">
-              Continue saved conversations or start a fresh one
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2 font-mono">
+              Coach chat
+            </p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tighter leading-none">Coach</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Continue a saved conversation or start a fresh one
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="px-4 lg:hidden">
+                <Button variant="outline" className="lg:hidden">
                   <MessageCircle className="h-4 w-4" />
                   History
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[85svh] max-w-[95vw] overflow-hidden p-0 sm:max-w-[560px]">
-                <DialogHeader className="border-b-2 border-foreground px-4 py-4 text-left">
+                <DialogHeader className="border-b border-border px-4 py-4 text-left">
                   <DialogTitle>Chat history</DialogTitle>
                   <DialogDescription>Saved coach conversations</DialogDescription>
                 </DialogHeader>
@@ -292,19 +296,19 @@ export default function ChatPage() {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" onClick={startNewConversation} className="px-4">
+            <Button variant="outline" onClick={startNewConversation}>
               <PencilLine className="h-4 w-4" />
               New chat
             </Button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="grid flex-1 min-h-0 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="hidden border-2 border-foreground shadow-hard bg-card min-h-[220px] lg:flex lg:flex-col lg:h-[calc(100svh-13rem)]">
-          <div className="border-b-2 border-foreground px-4 py-3">
-            <p className="text-xs font-black uppercase tracking-widest">Chat history</p>
-            <p className="text-[11px] font-mono text-muted-foreground mt-1">Saved coach conversations</p>
+      <div className="grid flex-1 min-h-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="hidden border border-border bg-card min-h-[220px] lg:flex lg:flex-col lg:h-[calc(100svh-16rem)]">
+          <div className="border-b border-border px-4 py-3.5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-foreground">Chat history</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Saved coach conversations</p>
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -312,15 +316,15 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        <div className="flex min-h-[calc(100svh-13rem)] flex-col border-2 border-foreground shadow-hard bg-card overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 space-y-4 overscroll-contain">
+        <div className="flex min-h-[calc(100svh-16rem)] flex-col border border-border bg-card overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 overscroll-contain">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="h-16 w-16 border-2 border-foreground flex items-center justify-center mb-4 shadow-hard-sm">
-                  <MessageCircle className="h-8 w-8 text-bauhaus-blue" />
+                <div className="h-14 w-14 border border-border flex items-center justify-center mb-4">
+                  <MessageCircle className="h-6 w-6 text-accent" strokeWidth={1.5} />
                 </div>
-                <p className="text-lg font-black uppercase tracking-tighter text-foreground">Your AI fencing coach</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs font-mono">
+                <p className="text-lg font-semibold tracking-tight text-foreground">Your AI fencing coach</p>
+                <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
                   Ask about training, nutrition, peaking, technique, recovery, or competition prep.
                 </p>
               </div>
@@ -337,16 +341,16 @@ export default function ChatPage() {
                   <div className={cn("flex items-end gap-2.5", isUser && "flex-row-reverse")}>
                     <div
                       className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground",
-                        isUser ? "bg-bauhaus-blue text-white" : "bg-bauhaus-yellow text-foreground"
+                        "flex h-8 w-8 shrink-0 items-center justify-center border border-border",
+                        isUser ? "bg-foreground text-background" : "bg-accent/10 text-accent"
                       )}
                     >
                       {isUser ? <User className="h-4 w-4" /> : <Sword className="h-4 w-4" />}
                     </div>
                     <div
                       className={cn(
-                        "max-w-[85%] sm:max-w-[75%] px-3 sm:px-4 py-2.5 sm:py-3 text-sm leading-relaxed whitespace-pre-wrap border-2 border-foreground",
-                        isUser ? "bg-bauhaus-blue text-white shadow-hard-sm" : "bg-card shadow-hard-sm"
+                        "max-w-[85%] sm:max-w-[75%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap border",
+                        isUser ? "bg-foreground text-background border-foreground" : "bg-transparent border-border text-foreground"
                       )}
                     >
                       {m.content}
@@ -356,7 +360,7 @@ export default function ChatPage() {
                   {!isUser && (m.ungroundedClaims?.length || m.contextSnapshot) && (
                     <div className="max-w-[85%] sm:max-w-[75%] ml-[42px] space-y-1.5">
                       {m.ungroundedClaims && m.ungroundedClaims.length > 0 && (
-                        <div className="flex items-start gap-1.5 border border-amber-500/40 bg-amber-500/5 px-2.5 py-1.5">
+                        <div className="flex items-start gap-1.5 border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5">
                           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
                           <p className="text-[11px] text-amber-400 leading-snug">
                             Double-check: this reply cites a number that doesn&rsquo;t
@@ -383,14 +387,14 @@ export default function ChatPage() {
 
             {busy && !messages[messages.length - 1]?.content && (
               <div className="flex items-end gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-foreground bg-bauhaus-yellow text-foreground">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center border border-border bg-accent/10 text-accent">
                   <Sword className="h-4 w-4" />
                 </div>
-                <div className="bg-card border-2 border-foreground shadow-hard-sm px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-foreground animate-pulse" />
-                    <div className="w-2 h-2 bg-foreground animate-pulse [animation-delay:150ms]" />
-                    <div className="w-2 h-2 bg-foreground animate-pulse [animation-delay:300ms]" />
+                <div className="border border-border px-4 py-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
                   </div>
                 </div>
               </div>
@@ -398,8 +402,8 @@ export default function ChatPage() {
 
             {err && (
               <div className="flex justify-center">
-                <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-4 py-2">
-                  <p className="text-sm text-bauhaus-red font-bold">{err}</p>
+                <div className="border border-accent/30 bg-accent/5 px-4 py-2.5">
+                  <p className="text-sm text-accent">{err}</p>
                 </div>
               </div>
             )}
@@ -407,7 +411,7 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t-2 border-foreground p-3 sm:p-4 bg-muted/30 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+          <div className="border-t border-border p-3 sm:p-4 bg-muted/20 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -420,9 +424,10 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Should I skip gym today?"
                 disabled={busy}
+                aria-label="Message the coach"
                 className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
               />
-              <Button type="submit" size="icon" disabled={busy || !input.trim()} className="shrink-0 h-11 w-11 sm:h-10 sm:w-10">
+              <Button type="submit" size="icon" disabled={busy || !input.trim()} className="shrink-0 h-11 w-11 sm:h-10 sm:w-10" aria-label="Send message">
                 <Send className="h-4 w-4" />
               </Button>
             </form>

@@ -14,7 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Save, Loader2, Dumbbell, Target, CheckCircle2, AlertCircle } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
+import { User, Save, Loader2, Dumbbell, Target, AlertCircle } from "lucide-react";
 
 const BODY_COMP_GOALS = [
   { value: "performance", label: "Performance" },
@@ -73,8 +74,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [form, setForm] = useState<Partial<Profile>>({});
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     api.profile
@@ -93,12 +94,11 @@ export default function ProfilePage() {
   async function save() {
     setSaving(true);
     setErr(null);
-    setMsg(null);
     try {
       const updated = await api.profile.update(form);
       setProfile(updated);
       setForm(updated);
-      setMsg("Profile saved successfully.");
+      toast({ title: "Profile saved", description: "Your changes have been saved.", variant: "success" });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -108,41 +108,40 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b-4 border-foreground pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center h-10 w-10 border-2 border-foreground bg-bauhaus-red shadow-hard-sm">
-            <User className="h-5 w-5 text-white" />
-          </div>
+    <div className="space-y-16 md:space-y-20">
+      {/* Header */}
+      <header className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
           <div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Profile</h1>
-            <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 font-mono">Your athlete identity and coaching preferences</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+              Athlete identity
+            </p>
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+              Profile
+            </h1>
+            <p className="mt-4 text-sm text-muted-foreground font-mono">
+              Your details and coaching preferences
+            </p>
+            <div className="h-1 w-16 bg-accent mt-6" />
           </div>
+          {profile && (
+            <Button onClick={save} disabled={saving} size="lg" className="shrink-0">
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          )}
         </div>
-        {profile && (
-          <Button onClick={save} disabled={saving} size="lg">
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {saving ? "SAVING..." : "SAVE"}
-          </Button>
-        )}
-      </div>
+      </header>
 
       {/* Messages */}
-      {msg && (
-        <div className="flex items-center gap-2 p-3 border-2 border-bauhaus-blue bg-bauhaus-blue/5">
-          <CheckCircle2 className="h-4 w-4 text-bauhaus-blue shrink-0" />
-          <p className="text-bauhaus-blue text-sm font-bold">{msg}</p>
-        </div>
-      )}
       {err && (
-        <div className="flex items-center gap-2 p-3 border-2 border-bauhaus-red bg-bauhaus-red/5">
-          <AlertCircle className="h-4 w-4 text-bauhaus-red shrink-0" />
-          <p className="text-bauhaus-red text-sm font-bold">{err}</p>
+        <div className="flex items-center gap-2 px-5 py-4 border border-accent/30 bg-accent/5">
+          <AlertCircle className="h-4 w-4 text-accent shrink-0" />
+          <p className="text-accent text-sm">{err}</p>
         </div>
       )}
 
@@ -155,9 +154,9 @@ export default function ProfilePage() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic info */}
-          <Card title="Athlete Info" icon={<Dumbbell className="h-4 w-4" />}>
+          <Card title="Athlete info" icon={<Dumbbell className="h-4 w-4" />}>
             <div className="space-y-4">
               <Field label="Name">
                 <Input
@@ -228,7 +227,7 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Fencing Style">
+              <Field label="Fencing style">
                 <Select
                   value={form.fencing_style ?? "distance_control"}
                   onValueChange={(v) => update("fencing_style", v)}
@@ -252,9 +251,9 @@ export default function ProfilePage() {
           </Card>
 
           {/* Goals & Nutrition */}
-          <Card title="Goals & Nutrition" icon={<Target className="h-4 w-4" />}>
+          <Card title="Goals & nutrition" icon={<Target className="h-4 w-4" />}>
             <div className="space-y-4">
-              <Field label="Body Composition Goal">
+              <Field label="Body composition goal">
                 <Select
                   value={form.body_comp_goal ?? "performance"}
                   onValueChange={(v) => update("body_comp_goal", v)}
@@ -274,7 +273,7 @@ export default function ProfilePage() {
                   Directly affects calorie targets. Cutting/lean lowers calories; maintain keeps them neutral; gain raises them.
                 </FieldNote>
               </Field>
-              <Field label="Food Budget">
+              <Field label="Food budget">
                 <Select
                   value={form.food_budget ?? "moderate"}
                   onValueChange={(v) => update("food_budget", v)}
@@ -294,7 +293,7 @@ export default function ProfilePage() {
                   Currently saved only. It does not yet change meal-plan generation logic.
                 </FieldNote>
               </Field>
-              <Field label="Dietary Restrictions">
+              <Field label="Dietary restrictions">
                 <Textarea
                   value={form.dietary_restrictions ?? ""}
                   onChange={(e) => update("dietary_restrictions", e.target.value)}
@@ -375,12 +374,12 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-2xs font-bold text-foreground uppercase tracking-wider">{label}</label>
+      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</label>
       {children}
     </div>
   );
 }
 
 function FieldNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] leading-relaxed text-muted-foreground mt-1 font-mono">{children}</p>;
+  return <p className="text-[11px] leading-relaxed text-muted-foreground/70 mt-1">{children}</p>;
 }

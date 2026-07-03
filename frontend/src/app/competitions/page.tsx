@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useToast } from "@/components/ui/toast";
 import { Trophy, MapPin, CalendarDays, Pencil, Trash2, Plus, Swords } from "lucide-react";
 
 const PRIORITIES = ["A", "B", "C"];
@@ -31,6 +33,8 @@ export default function CompetitionsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Competition | null>(null);
+  const { toast } = useToast();
 
   function refresh() {
     api.competitions.list(false).then(setList).catch((e) => setErr(e?.message));
@@ -56,8 +60,10 @@ export default function CompetitionsPage() {
       };
       if (editingId) {
         await api.competitions.update(editingId, body);
+        toast({ title: "Competition updated", variant: "success" });
       } else {
         await api.competitions.create(body);
+        toast({ title: "Competition added", variant: "success" });
       }
       reset();
       refresh();
@@ -82,9 +88,15 @@ export default function CompetitionsPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm("Delete this competition?")) return;
+    const target = list.find((c) => c.id === id) ?? null;
+    setDeleteTarget(target);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.competitions.delete(id);
+      await api.competitions.delete(deleteTarget.id);
+      toast({ title: "Competition deleted", variant: "success" });
       refresh();
     } catch (e: any) {
       setErr(e?.message);
@@ -100,44 +112,59 @@ export default function CompetitionsPage() {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      {/* Page header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 border-b-4 border-foreground pb-4">
-        <div className="flex items-center justify-center h-10 w-10 border-2 border-foreground bg-bauhaus-yellow shadow-hard-sm">
-          <Trophy className="h-5 w-5 text-foreground" />
+    <div className="space-y-16 md:space-y-20">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <header className="relative">
+        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
+          Competition calendar
+        </p>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+          Competitions
+        </h1>
+        <p className="mt-4 text-sm text-muted-foreground font-mono">
+          Plan events, set priorities, and track results
+        </p>
+        <div className="h-1 w-16 bg-accent mt-6" />
+      </header>
+
+      {err && (
+        <div className="border border-accent/30 bg-accent/5 px-5 py-4">
+          <p className="text-accent text-sm">{err}</p>
         </div>
-        <div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter leading-[0.9]">Competitions</h1>
-          <p className="text-xs sm:text-sm font-medium text-muted-foreground mt-1 font-mono">Manage your competition calendar</p>
-        </div>
-      </div>
+      )}
 
       {/* Add / Edit form */}
       <Card
-        title={editingId ? "Edit Competition" : "Add Competition"}
+        title={editingId ? "Edit competition" : "Add competition"}
         icon={editingId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Name (e.g. Budapest GP)"
-          />
-          <Input
-            value={form.location ?? ""}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            placeholder="Location"
-          />
-          <div className="space-y-1">
-            <label className="text-2xs font-bold text-foreground uppercase tracking-wider">Start Date</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Budapest GP"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Location</label>
+            <Input
+              value={form.location ?? ""}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="City, country"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Start date</label>
             <Input
               type="date"
               value={form.event_date}
               onChange={(e) => setForm({ ...form, event_date: e.target.value })}
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-2xs font-bold text-foreground uppercase tracking-wider">End Date</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">End date</label>
             <Input
               type="date"
               value={form.end_date ?? ""}
@@ -145,59 +172,62 @@ export default function CompetitionsPage() {
               placeholder="End date"
             />
           </div>
-          <Select
-            value={form.level ?? ""}
-            onValueChange={(v) => setForm({ ...form, level: v || null })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="— level —" />
-            </SelectTrigger>
-            <SelectContent>
-              {LEVELS.map((l) => (
-                <SelectItem key={l} value={l}>
-                  {l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={form.priority}
-            onValueChange={(v) => setForm({ ...form, priority: v })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PRIORITIES.map((p) => (
-                <SelectItem key={p} value={p}>
-                  Priority {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Textarea
-            value={form.notes ?? ""}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            placeholder="Notes (goals, format, travel)"
-            rows={2}
-            className="sm:col-span-2"
-          />
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Level</label>
+            <Select
+              value={form.level ?? ""}
+              onValueChange={(v) => setForm({ ...form, level: v || null })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select level" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEVELS.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Priority</label>
+            <Select
+              value={form.priority}
+              onValueChange={(v) => setForm({ ...form, priority: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    Priority {p}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes</label>
+            <Textarea
+              value={form.notes ?? ""}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Goals, format, travel"
+              rows={2}
+            />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t-2 border-foreground/10">
+        <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t border-border">
           <Button onClick={submit} disabled={busy || !form.name.trim()}>
-            {busy ? "..." : editingId ? "UPDATE" : "ADD COMPETITION"}
+            {busy ? "Saving…" : editingId ? "Update" : "Add competition"}
           </Button>
           {editingId && (
             <Button variant="outline" onClick={reset}>
-              CANCEL
+              Cancel
             </Button>
           )}
         </div>
-        {err && (
-          <div className="border-2 border-bauhaus-red bg-bauhaus-red/5 px-3 py-2 mt-3">
-            <p className="text-bauhaus-red text-sm font-bold">{err}</p>
-          </div>
-        )}
       </Card>
 
       {/* Upcoming */}
@@ -206,15 +236,15 @@ export default function CompetitionsPage() {
         icon={<CalendarDays className="h-4 w-4" />}
       >
         {upcoming.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
-              <Swords className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="h-12 w-12 border border-dashed border-border flex items-center justify-center mb-3">
+              <Swords className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No upcoming competitions</p>
-            <p className="text-muted-foreground text-xs mt-1 font-mono">Add one above to start planning</p>
+            <p className="text-muted-foreground text-sm font-medium">No upcoming competitions</p>
+            <p className="text-muted-foreground/60 text-xs mt-1 font-mono">Add one above to start planning</p>
           </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-border">
             {upcoming.map((c) => {
               const dOut = Math.round(
                 (new Date(c.event_date).getTime() - new Date(today).getTime()) / 86400000
@@ -222,19 +252,17 @@ export default function CompetitionsPage() {
               return (
                 <li
                   key={c.id}
-                  className="flex items-start justify-between border-2 border-foreground bg-card p-4 shadow-hard-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-hard"
+                  className="flex items-start justify-between py-4 first:pt-0 last:pb-0 gap-4"
                 >
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-muted-foreground text-xs font-bold">
+                      <span className="font-mono text-muted-foreground text-xs">
                         {c.event_date}
                       </span>
-                      <Badge variant="outline" className="text-2xs font-bold">
-                        T-{dOut}d
-                      </Badge>
+                      <Badge variant="outline">T-{dOut}d</Badge>
                       <BandPill band={c.priority === "A" ? "red" : c.priority === "B" ? "amber" : "green"} />
                     </div>
-                    <div className="text-foreground font-bold text-lg">{c.name}</div>
+                    <div className="text-foreground font-semibold text-lg leading-snug">{c.name}</div>
                     {(c.location || c.level) && (
                       <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-mono">
                         {c.location && (
@@ -243,19 +271,25 @@ export default function CompetitionsPage() {
                             <span>{c.location}</span>
                           </>
                         )}
-                        {c.location && c.level && <span className="text-foreground/20">|</span>}
-                        {c.level && <span className="uppercase font-bold">{c.level}</span>}
+                        {c.location && c.level && <span className="text-border">·</span>}
+                        {c.level && <span className="uppercase">{c.level}</span>}
                       </div>
                     )}
                     {c.notes && (
                       <p className="text-muted-foreground text-xs leading-relaxed">{c.notes}</p>
                     )}
                   </div>
-                  <div className="flex gap-1 shrink-0 ml-3">
-                    <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
+                  <div className="flex gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" onClick={() => startEdit(c)} aria-label={`Edit ${c.name}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(c.id)} className="hover:text-bauhaus-red hover:bg-bauhaus-red/10">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => remove(c.id)}
+                      className="hover:text-accent hover:bg-accent/10"
+                      aria-label={`Delete ${c.name}`}
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -269,16 +303,16 @@ export default function CompetitionsPage() {
       {/* Past */}
       <Card title={`Past (${past.length})`} icon={<Trophy className="h-4 w-4" />}>
         {past.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="h-12 w-12 border-2 border-foreground flex items-center justify-center mb-3 shadow-hard-sm">
-              <Trophy className="h-6 w-6 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="h-12 w-12 border border-dashed border-border flex items-center justify-center mb-3">
+              <Trophy className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-wider">No past competitions</p>
+            <p className="text-muted-foreground text-sm font-medium">No past competitions yet</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="max-h-[28rem] overflow-y-auto overflow-x-auto -mx-6 px-6 md:mx-0 md:px-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Name</TableHead>
@@ -293,10 +327,10 @@ export default function CompetitionsPage() {
                 .reverse()
                 .map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-mono text-muted-foreground text-sm font-bold">
+                    <TableCell className="font-mono text-muted-foreground text-sm">
                       {c.event_date}
                     </TableCell>
-                    <TableCell className="font-bold">{c.name}</TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell>{priorityBadge(c.priority)}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {c.result ? JSON.stringify(c.result) : (
@@ -305,10 +339,16 @@ export default function CompetitionsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
+                        <Button variant="ghost" size="icon" onClick={() => startEdit(c)} aria-label={`Edit ${c.name}`}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(c.id)} className="hover:text-bauhaus-red hover:bg-bauhaus-red/10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(c.id)}
+                          className="hover:text-accent hover:bg-accent/10"
+                          aria-label={`Delete ${c.name}`}
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -320,6 +360,19 @@ export default function CompetitionsPage() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete competition?"
+        description={
+          deleteTarget
+            ? `This will permanently remove "${deleteTarget.name}". This can't be undone.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
