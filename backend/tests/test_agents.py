@@ -6,6 +6,7 @@ These tests verify agent setup without making actual LLM calls
 
 from __future__ import annotations
 
+import asyncio
 import os
 from types import SimpleNamespace
 
@@ -27,7 +28,13 @@ from app.agents.nutrition import (
 from app.agents.mealplan import MealPlanOutput, mealplan_agent
 from app.agents.brief import brief_agent
 from app.agents.mental import mental_agent, generate_mental_insight
-from app.agents.coach import coach_agent, _db_messages_to_history, ChatResult
+from app.agents.coach import (
+    coach_agent,
+    _db_messages_to_history,
+    ChatResult,
+    run_coach_chat,
+    stream_coach_chat,
+)
 
 
 # ── deps / model ──────────────────────────────────────────────────────
@@ -245,3 +252,74 @@ class TestCoachAgent:
         r = ChatResult(reply="Hello", model="test-model")
         assert r.reply == "Hello"
         assert r.model == "test-model"
+        assert r.ungrounded_claims == []
+
+    def test_run_coach_chat_flags_ungrounded_claims(self, monkeypatch):
+        async def fake_run(user_prompt, deps=None, message_history=None):
+            return SimpleNamespace(output="Your HRV was 99 last night.")
+
+        monkeypatch.setattr(coach_agent, "run", fake_run)
+
+        result = asyncio.run(
+            run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h")
+        )
+        assert result.reply == "Your HRV was 99 last night."
+        assert len(result.ungrounded_claims) == 1
+        assert "99" in result.ungrounded_claims[0]
+
+    def test_run_coach_chat_no_flags_when_grounded(self, monkeypatch):
+        async def fake_run(user_prompt, deps=None, message_history=None):
+            return SimpleNamespace(output="Your HRV was 55 last night.")
+
+        monkeypatch.setattr(coach_agent, "run", fake_run)
+
+        result = asyncio.run(
+            run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h")
+        )
+        assert result.ungrounded_claims == []
+
+    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(
+        self, monkeypatch
+    ):
+        class _FakeStream:
+            def __init__(self, deltas):
+                self._deltas = deltas
+
+            async def stream_text(self, delta=True):
+                for d in self._deltas:
+                    yield d
+
+        class _FakeStreamCM:
+            def __init__(self, deltas):
+                self._deltas = deltas
+
+            async def __aenter__(self):
+                return _FakeStream(self._deltas)
+
+            async def __aexit__(self, *a):
+                return False
+
+        def fake_run_stream(user_prompt, deps=None, message_history=None):
+            return _FakeStreamCM(
+                ["<think>internal reasoning</think>Your HRV was 99 today."]
+            )
+
+        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
+
+        async def collect():
+            items = []
+            async for item in stream_coach_chat(
+                "how am I doing?", context_text="HRV: 55ms"
+            ):
+                items.append(item)
+            return items
+
+        items = asyncio.run(collect())
+        deltas = [i["delta"] for i in items if "delta" in i]
+        assert "".join(deltas) == "Your HRV was 99 today."
+        assert "internal reasoning" not in "".join(deltas)
+
+        final = items[-1]
+        assert final["done"] is True
+        assert final["reply"] == "Your HRV was 99 today."
+        assert len(final["ungrounded_claims"]) == 1
