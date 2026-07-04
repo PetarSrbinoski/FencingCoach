@@ -22,25 +22,6 @@ log = logging.getLogger(__name__)
 USDA_API_BASE = "https://api.nal.usda.gov/fdc/v1"
 USDA_API_KEY = settings.USDA_API_KEY
 
-# Common food categories to prioritize during import
-COMMON_CATEGORIES = [
-    "Dairy and Egg Products",
-    "Poultry Products",
-    "Beef Products",
-    "Pork Products",
-    "Finfish and Shellfish Products",
-    "Vegetables and Vegetable Products",
-    "Fruits and Fruit Juices",
-    "Legumes and Legume Products",
-    "Nut and Seed Products",
-    "Cereal Grains and Pasta",
-    "Breakfast Cereals",
-    "Baked Products",
-    "Fats and Oils",
-    "Sweets",
-    "Beverages",
-]
-
 # Key nutrient IDs from USDA
 NUTRIENT_MAP = {
     1008: "kcal",
@@ -282,10 +263,3 @@ def _strip_quantity(text: str) -> str:
     # Remove leading "a " or "an "
     cleaned = re.sub(r"^(a|an)\s+", "", cleaned, flags=re.IGNORECASE)
     return cleaned.strip()
-
-
-def get_food_count(db: Session) -> int:
-    """Return the number of USDA foods in the local cache."""
-    from sqlalchemy import func
-
-    return db.scalar(select(func.count(USDAFood.fdc_id))) or 0

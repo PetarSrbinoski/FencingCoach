@@ -6,11 +6,19 @@ The live version is hosted on my home server.
 
 ## What it includes
 
-- Readiness and training overview
+- Home dashboard: readiness overview, key metrics, next competition, quick coach chat, one-click Garmin sync
 - Garmin data sync
 - Nutrition logging
 - Workout tracking
 - Coach chat
+
+## Architecture
+
+High-level overview of how the pieces fit together — a Next.js frontend talking
+to a FastAPI backend, which fans out to PydanticAI agents, background workers, a
+Postgres database, and external services (LLM, USDA MCP, Garmin Connect).
+
+![Architecture diagram](./docs/diagram.png)
 
 ## Tech stack
 
@@ -40,15 +48,7 @@ Then open:
 - Frontend: `http://localhost:3000`
 - API docs: `http://localhost:8000/docs`
 
-## Development
-
-Backend tests, linting, and type checks (from the repo root, with `uv` or any Python 3.12 env with `backend/requirements.txt` + `ruff`/`mypy` installed):
-
-```bash
-pytest
-ruff check backend/app backend/tests
-mypy backend/app backend/tests
-```
+See [AGENTS.md](./AGENTS.md) for a full setup/run guide (useful for coding agents or a fresh dev environment).
 
 ## Notes
 

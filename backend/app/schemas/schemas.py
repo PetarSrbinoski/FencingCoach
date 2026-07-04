@@ -10,11 +10,6 @@ from pydantic import BaseModel, Field, field_validator
 
 
 # ── Chat ──────────────────────────────────────────────────────────────
-class ChatMessage(BaseModel):
-    role: str = Field(pattern=r"^(system|user|assistant)$")
-    content: str
-
-
 class ChatRequest(BaseModel):
     conversation_id: int | None = None
     message: str
@@ -267,16 +262,6 @@ class ShoppingList(BaseModel):
     missing_days: list[str]
     items: list[dict[str, Any]]
     item_count: int
-
-
-class ExerciseRxOut(BaseModel):
-    exercise: str
-    sets: int
-    reps: int
-    load_kg: float | None
-    target_rpe: float
-    intent: str
-    notes: str
 
 
 class TrainingSessionOut(BaseModel):

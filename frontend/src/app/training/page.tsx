@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput, FencingAnalysis } from "@/lib/api";
-import { BandPill, Card, StatRow } from "@/components/ui";
-import { Button } from "@/components/ui/button";
+import { BandPill, Card } from "@/components/ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
 import {
   Dumbbell, Swords, BedDouble, ChevronLeft, ChevronRight,
-  Brain, Send, Trash2, TrendingUp, TrendingDown, Minus, X,
+  Brain, Send, Trash2, TrendingUp, TrendingDown, Minus,
   Sparkles, RotateCcw,
 } from "lucide-react";
 

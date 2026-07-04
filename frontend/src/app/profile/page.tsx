@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { User, Save, Loader2, Dumbbell, Target, AlertCircle } from "lucide-react";
+import { Save, Loader2, Dumbbell, Target, AlertCircle } from "lucide-react";
 
 const BODY_COMP_GOALS = [
   { value: "performance", label: "Performance" },
