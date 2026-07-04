@@ -205,7 +205,7 @@ export default function Home() {
         </div>
 
         {/* Simplified metric cards — value only, no graphs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 self-start auto-rows-fr">
           <StatCard title="HRV" icon={<ActivityIcon className="h-4 w-4" />} series={hrv} unit="ms" />
           <StatCard title="Resting HR" icon={<Heart className="h-4 w-4" />} series={rhr} unit="bpm" />
           <StatCard title="Sleep Score" icon={<Star className="h-4 w-4" />} series={sleepScore} unit="" />
@@ -330,20 +330,22 @@ function StatCard({ title, icon, series, unit }: {
   const value = last?.value;
 
   return (
-    <div className="border border-border p-5 flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground">{icon}</span>
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</span>
+    <div className="border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 min-h-[6.5rem] transition-colors duration-150 hover:border-foreground/25">
+      <div className="flex items-start gap-2">
+        <span className="text-muted-foreground shrink-0">{icon}</span>
+        <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground leading-tight">
+          {title}
+        </span>
       </div>
       {series ? (
-        <span className="text-3xl font-mono font-bold tracking-tight">
+        <span className="text-2xl sm:text-3xl font-mono font-bold tracking-tight tabular-nums leading-none">
           {value != null ? value.toFixed(value >= 100 ? 0 : 1) : "\u2014"}
           {value != null && unit && (
-            <span className="text-xs text-muted-foreground ml-1">{unit}</span>
+            <span className="text-[11px] text-muted-foreground ml-1 font-sans">{unit}</span>
           )}
         </span>
       ) : (
-        <Skeleton className="h-9 w-16" />
+        <Skeleton className="h-8 w-16" />
       )}
     </div>
   );

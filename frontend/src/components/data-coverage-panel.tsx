@@ -132,7 +132,12 @@ export function StaleDataBanner({ windowDays = 30 }: { windowDays?: number }) {
     api.diagnostics.get(windowDays).then(setData).catch(() => {});
   }, [windowDays]);
 
-  const stale = data?.metrics.filter((m) => m.stale) ?? [];
+  // Only surface metrics that were working and went stale (actionable —
+  // usually a sync gap). Metrics that never parsed (`last_ok_day === null`,
+  // e.g. VO2 max on a device that doesn't report it) are unsupported-metric
+  // noise, not something the athlete can act on, so keep them out of the
+  // dashboard banner.
+  const stale = data?.metrics.filter((m) => m.stale && m.last_ok_day !== null) ?? [];
   if (stale.length === 0) return null;
 
   return (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Home,
@@ -37,10 +37,15 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  // `resolvedTheme` is undefined on the server and reads localStorage on the
+  // first client render, so rendering theme-dependent content before mount
+  // causes a hydration mismatch (React #425/#418/#423). Gate it on `mounted`.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   function toggleTheme() {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   }
 
   return (
@@ -124,7 +129,7 @@ export function Sidebar() {
             >
               <Sun className="h-3.5 w-3.5 dark:hidden" />
               <Moon className="h-3.5 w-3.5 hidden dark:block" />
-              <span>{theme === "dark" ? "Dark" : "Light"}</span>
+              <span>{mounted && resolvedTheme === "dark" ? "Dark" : "Light"}</span>
             </button>
           </div>
         </div>
