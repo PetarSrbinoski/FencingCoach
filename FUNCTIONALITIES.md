@@ -50,24 +50,24 @@ Describe a meal and the AI estimates the macros — you confirm to save. Tracks
 intake vs. daily targets, and generates meal plans and shopping lists.
 
 <!-- screenshot: nutrition -->
-![Nutrition](./docs/screenshots/nutrition.png)
+![Nutrition](./docs/screenshots/nutrition1.png)
+![Nutrition](./docs/screenshots/nutrition2.png)
+
 
 ### Competitions
 Add and track competitions with dates, level, and priority. Upcoming events show
 a countdown.
 
 <!-- screenshot: competitions -->
-![Competitions](./docs/screenshots/competitions.png)
+![Competitions](./docs/screenshots/competitions1.png)
+![Competitions](./docs/screenshots/competitions2.png)
 
 ### Weekly
 28-day trends for training load, calories, HRV, sleep, and more.
 
 <!-- screenshot: weekly trends -->
-![Weekly](./docs/screenshots/weekly.png)
-
-### Garmin & Profile
-Sync your Garmin history and manage your athlete profile (stats, goals,
-nutrition preferences).
+![Weekly](./docs/screenshots/weekly1.png)
+![Weekly](./docs/screenshots/weekly2.png)
 
 ---
 
