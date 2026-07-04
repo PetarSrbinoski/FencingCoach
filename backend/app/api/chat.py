@@ -212,8 +212,11 @@ async def chat_stream(
 ) -> StreamingResponse:
     """Server-Sent Events variant of `POST /chat`.
 
-    Emits `data: {"delta": "..."}` frames as the reply is generated, then
-    a terminal `data: {"done": true, "reply": ..., "model": ...,
+    Emits, in order: `data: {"conversation_id": ...}`, then zero or more
+    `data: {"status": "trying"|"retrying", "model": ..., ...}` frames (which
+    model is currently being attempted — see `stream_coach_chat`), then
+    `data: {"delta": "..."}` frames as the reply is generated, then a
+    terminal `data: {"done": true, "reply": ..., "model": ...,
     "context_snapshot": ..., "ungrounded_claims": [...]}` frame.
     On failure mid-stream, emits `data: {"error": "..."}` instead.
     """
@@ -261,6 +264,8 @@ async def chat_stream(
                         )
                         + "\n\n"
                     )
+                elif "status" in item:
+                    yield f"data: {json.dumps(item)}\n\n"
                 else:
                     yield f"data: {json.dumps({'delta': item['delta']})}\n\n"
         except Exception as e:  # noqa: BLE001

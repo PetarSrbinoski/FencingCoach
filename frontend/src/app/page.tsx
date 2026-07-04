@@ -330,18 +330,20 @@ function StatCard({ title, icon, series, unit }: {
   const value = last?.value;
 
   return (
-    <div className="border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 min-h-[6.5rem] transition-colors duration-150 hover:border-foreground/25">
-      <div className="flex items-start gap-2">
+    <div className="border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 min-h-[6.5rem] overflow-hidden transition-colors duration-150 hover:border-foreground/25">
+      <div className="flex items-start gap-2 min-w-0">
         <span className="text-muted-foreground shrink-0">{icon}</span>
-        <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground leading-tight">
+        <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground leading-tight break-words min-w-0">
           {title}
         </span>
       </div>
       {series ? (
-        <span className="text-2xl sm:text-3xl font-mono font-bold tracking-tight tabular-nums leading-none">
-          {value != null ? value.toFixed(value >= 100 ? 0 : 1) : "\u2014"}
+        <span className="flex flex-wrap items-baseline gap-x-1 gap-y-0 font-mono font-bold tracking-tight tabular-nums leading-tight min-w-0">
+          <span className="text-2xl sm:text-3xl break-all">
+            {value != null ? value.toFixed(value >= 100 ? 0 : 1) : "\u2014"}
+          </span>
           {value != null && unit && (
-            <span className="text-[11px] text-muted-foreground ml-1 font-sans">{unit}</span>
+            <span className="text-[11px] text-muted-foreground font-sans font-medium">{unit}</span>
           )}
         </span>
       ) : (

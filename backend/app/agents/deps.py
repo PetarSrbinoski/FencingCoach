@@ -15,6 +15,8 @@ from functools import lru_cache
 from typing import Any
 
 from pydantic_ai import InlineDefsJsonSchemaTransformer
+from pydantic_ai.models import Model
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from sqlalchemy.orm import Session
@@ -36,6 +38,12 @@ MODEL_DEFAULT_SETTINGS = OpenAIChatModelSettings(
         }
     },
 )
+
+# Settings for LLM_FALLBACK_MODEL. Deliberately plain — the fallback exists
+# purely to answer when the primary (reasoning) model's shared NIM worker is
+# at capacity, and non-DeepSeek models don't understand the `thinking` /
+# `reasoning_effort` chat_template_kwargs above.
+FALLBACK_MODEL_SETTINGS = OpenAIChatModelSettings(top_p=0.95)
 
 # Regex to strip <think>...</think> blocks from reasoning models
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -122,17 +130,12 @@ class CoachDeps:
     side_effect_committed: bool = False
 
 
-@lru_cache(maxsize=1)
-def get_model() -> OpenAIChatModel:
-    """Build the shared OpenAI-compatible model from settings.
+def _build_chat_model(model_name: str, model_settings: OpenAIChatModelSettings) -> OpenAIChatModel:
+    """Build a single OpenAI-compatible chat model from settings.
 
-    Works with Ollama, NVIDIA NIM, OpenRouter, Together, vLLM, llama.cpp,
-    OpenAI, etc. — anything that serves an OpenAI-compatible chat endpoint.
-
-    Uses an explicitly configured `AsyncOpenAI` client (timeout +
-    max_retries) instead of the SDK defaults so a stalled connection can't
-    hang a request indefinitely, and transient failures get a couple of
-    automatic retries before surfacing to the caller.
+    Shared by `get_model()` for both the primary (`LLM_MODEL`) and, if
+    configured, the fallback (`LLM_FALLBACK_MODEL`) — same provider
+    connection details, different model name/settings.
     """
     from openai import AsyncOpenAI
     from pydantic_ai.providers.openai import OpenAIProvider
@@ -154,13 +157,45 @@ def get_model() -> OpenAIChatModel:
         openai_supports_strict_tool_definition=False,
     )
 
-    model = OpenAIChatModel(
-        settings.LLM_MODEL,
+    return OpenAIChatModel(
+        model_name,
         provider=provider,
         profile=profile,
-        settings=MODEL_DEFAULT_SETTINGS,
+        settings=model_settings,
     )
 
+
+@lru_cache(maxsize=1)
+def get_model() -> Model:
+    """Build the shared model used by every PydanticAI agent.
+
+    Works with Ollama, NVIDIA NIM, OpenRouter, Together, vLLM, llama.cpp,
+    OpenAI, etc. — anything that serves an OpenAI-compatible chat endpoint.
+
+    Uses an explicitly configured `AsyncOpenAI` client (timeout +
+    max_retries) instead of the SDK defaults so a stalled connection can't
+    hang a request indefinitely, and transient failures get a couple of
+    automatic retries before surfacing to the caller.
+
+    If `LLM_FALLBACK_MODEL` is set, the returned model is a `FallbackModel`
+    wrapping the primary model plus the fallback: pydantic-ai retries the
+    request against the fallback whenever the primary raises a *transient*
+    provider error (`agents.retry.is_transient_llm_error` — the same
+    definition this app's own retry-with-backoff loop uses). This is on
+    top of, not instead of, that loop, which still covers the case where
+    *both* models are unavailable.
+
+    NOTE: `FallbackModel`'s own default (`fallback_on=(ModelAPIError,)`)
+    deliberately isn't used here — NVIDIA NIM's actual capacity failure
+    (a 200 response whose *body* embeds "ResourceExhausted", surfaced by
+    the openai SDK as a plain `openai.APIError`) is *not* a
+    `ModelAPIError`/`ModelHTTPError` instance, so the default would never
+    trigger fallback for the failure this app actually hits in practice
+    (verified against a real NIM 503 vs. this embedded-error shape).
+    """
+    from app.agents.retry import is_transient_llm_error
+
+    primary = _build_chat_model(settings.LLM_MODEL, MODEL_DEFAULT_SETTINGS)
     log.info(
         "PydanticAI model initialised: %s @ %s (timeout=%.0fs, max_retries=%d)",
         settings.LLM_MODEL,
@@ -168,4 +203,10 @@ def get_model() -> OpenAIChatModel:
         settings.LLM_TIMEOUT_SECONDS,
         settings.LLM_MAX_RETRIES,
     )
-    return model
+
+    if not settings.LLM_FALLBACK_MODEL:
+        return primary
+
+    fallback = _build_chat_model(settings.LLM_FALLBACK_MODEL, FALLBACK_MODEL_SETTINGS)
+    log.info("Fallback model configured: %s", settings.LLM_FALLBACK_MODEL)
+    return FallbackModel(primary, fallback, fallback_on=is_transient_llm_error)

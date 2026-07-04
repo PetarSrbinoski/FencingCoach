@@ -40,6 +40,27 @@ type Msg = {
   ungroundedClaims?: string[];
 };
 
+type ChatStatus = {
+  status: "trying" | "retrying";
+  model: string;
+  attempt?: number;
+  max_attempts?: number;
+  delay_seconds?: number;
+};
+
+function shortModelName(model: string) {
+  return model.split("/").pop() ?? model;
+}
+
+function statusLabel(s: ChatStatus) {
+  const model = shortModelName(s.model);
+  if (s.status === "retrying") {
+    const attempt = s.attempt && s.max_attempts ? ` (attempt ${s.attempt}/${s.max_attempts})` : "";
+    return `Coach is busy, retrying with ${model}${attempt}…`;
+  }
+  return `Trying with ${model}…`;
+}
+
 function conversationLabel(conversation: CoachConversationSummary) {
   return conversation.title?.trim() || conversation.last_message_preview?.trim() || "Untitled chat";
 }
@@ -60,6 +81,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<CoachConversationSummary[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [chatStatus, setChatStatus] = useState<ChatStatus | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -135,6 +157,7 @@ export default function ChatPage() {
     setInput("");
     setBusy(true);
     setErr(null);
+    setChatStatus(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -151,7 +174,11 @@ export default function ChatPage() {
             finalConversationId = convId;
             setConversationId(convId);
           },
+          onStatus: (s) => {
+            setChatStatus(s);
+          },
           onDelta: (delta) => {
+            setChatStatus(null);
             setMessages((current) => {
               const next = [...current];
               const last = next[next.length - 1];
@@ -162,6 +189,7 @@ export default function ChatPage() {
           onDone: (frame) => {
             finalConversationId = frame.conversation_id;
             setConversationId(frame.conversation_id);
+            setChatStatus(null);
             setMessages((current) => {
               const next = [...current];
               next[next.length - 1] = {
@@ -174,6 +202,7 @@ export default function ChatPage() {
             });
           },
           onError: (message) => {
+            setChatStatus(null);
             setErr(message);
             setMessages((current) => current.slice(0, -1));
           },
@@ -182,6 +211,7 @@ export default function ChatPage() {
       );
       if (finalConversationId) await loadConversations(finalConversationId);
     } catch (e: any) {
+      setChatStatus(null);
       if (e?.name === "AbortError") {
         // User-initiated cancel — keep whatever partial reply had
         // already streamed in instead of rolling it back like a real
@@ -429,11 +459,22 @@ export default function ChatPage() {
                   <Sword className="h-4 w-4" />
                 </div>
                 <div className="border border-border px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
-                  </div>
+                  {chatStatus ? (
+                    <p
+                      className={cn(
+                        "text-xs font-mono",
+                        chatStatus.status === "retrying" ? "text-amber-400" : "text-muted-foreground"
+                      )}
+                    >
+                      {statusLabel(chatStatus)}
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}

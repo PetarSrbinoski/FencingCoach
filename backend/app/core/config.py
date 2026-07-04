@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-ai/deepseek-v4-flash"
+    # Secondary model tried (same LLM_BASE_URL/LLM_API_KEY) whenever
+    # LLM_MODEL fails with a provider API error — most commonly NVIDIA
+    # NIM's shared-capacity "ResourceExhausted" error. That limit is
+    # per-model-worker, so a different model is very likely to have spare
+    # capacity even when LLM_MODEL doesn't. Set to "" to disable.
+    LLM_FALLBACK_MODEL: str = "meta/llama-3.3-70b-instruct"
     LLM_MAX_TOKENS: int = 16384
     LLM_TEMPERATURE: float = 0.6
     LLM_CONTEXT_TOKENS: int = 131072

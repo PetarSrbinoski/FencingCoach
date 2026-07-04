@@ -84,6 +84,32 @@ def _wants_web_search(message: str) -> bool:
 # (see `CoachDeps.side_effect_committed`).
 
 
+def _last_model_name(messages: list[ModelMessage]) -> str | None:
+    """Name of the model that produced the most recent `ModelResponse`."""
+    for msg in reversed(messages):
+        if isinstance(msg, ModelResponse):
+            return msg.model_name
+    return None
+
+
+def _model_name_used(result: Any) -> str | None:
+    """Which model actually produced a run/stream result, if knowable.
+
+    When `get_model()` returns a `FallbackModel`, this is how we find out
+    (after the fact) whether the primary or the fallback answered —
+    `ModelResponse.model_name` reflects whichever one it was. Defensive
+    about `result` not exposing `all_messages()` (e.g. lightweight test
+    doubles) since this is a best-effort UX nicety, not load-bearing.
+    """
+    all_messages = getattr(result, "all_messages", None)
+    if not callable(all_messages):
+        return None
+    try:
+        return _last_model_name(all_messages())
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _parse_iso_date(value: str, *, field_name: str) -> Date:
     """Parse an ISO date given by the model, or ask it to retry.
 
@@ -332,7 +358,7 @@ async def run_coach_chat(
 
     return ChatResult(
         reply=reply,
-        model=settings.LLM_MODEL,
+        model=_model_name_used(result) or settings.LLM_MODEL,
         ungrounded_claims=ungrounded,
     )
 
@@ -346,10 +372,20 @@ async def stream_coach_chat(
 ) -> AsyncIterator[dict[str, Any]]:
     """Stream the coach chat agent's reply as it's generated.
 
-    Yields `{"delta": str}` chunks (already filtered of any `<think>...
-    </think>` reasoning text) as they arrive, then a single terminal
-    `{"done": True, "reply": ..., "model": ..., "ungrounded_claims": [...]}`
-    once the stream completes.
+    Yields, in order:
+    - `{"status": "trying", "model": ...}` once up front, and again before
+      each transient-error retry — lets the UI show which model is
+      currently being attempted (see `deps.get_model`'s `FallbackModel`:
+      the primary/fallback switch itself happens inside a single attempt
+      and isn't individually observable, so this reports the configured
+      model for the attempt as a whole; which one actually answered is
+      only known once it succeeds, see `model` in the final frame).
+    - `{"delta": str}` chunks (already filtered of any `<think>...
+      </think>` reasoning text) as they arrive.
+    - A single terminal `{"done": True, "reply": ..., "model": ...,
+      "ungrounded_claims": [...]}` once the stream completes, where
+      `model` is the model that actually produced the reply (primary or
+      fallback).
     """
     deps = CoachDeps(db=db, context_text=context_text)
 
@@ -359,11 +395,13 @@ async def stream_coach_chat(
 
     filt = ThinkTagStreamFilter()
     chunks: list[str] = []
+    used_model: str | None = None
 
     agent = coach_agent_search if _wants_web_search(user_message) else coach_agent
 
     attempt = 0
     while True:
+        yield {"status": "trying", "model": settings.LLM_MODEL}
         try:
             async with _llm_slot():
                 async with agent.run_stream(
@@ -376,6 +414,7 @@ async def stream_coach_chat(
                         if visible:
                             chunks.append(visible)
                             yield {"delta": visible}
+                    used_model = _model_name_used(stream)
             break
         except Exception as e:  # noqa: BLE001
             # Only safe to retry if nothing has been streamed to the
@@ -390,13 +429,21 @@ async def stream_coach_chat(
             ):
                 raise
             attempt += 1
+            delay = _backoff_delay(attempt)
             log.warning(
                 "coach stream: transient LLM error (attempt %d/%d), retrying: %s",
                 attempt,
                 _MAX_TRANSIENT_RETRIES,
                 e,
             )
-            await asyncio.sleep(_backoff_delay(attempt))
+            yield {
+                "status": "retrying",
+                "model": settings.LLM_MODEL,
+                "attempt": attempt,
+                "max_attempts": _MAX_TRANSIENT_RETRIES,
+                "delay_seconds": round(delay, 1),
+            }
+            await asyncio.sleep(delay)
 
     tail = filt.flush()
     if tail:
@@ -411,6 +458,6 @@ async def stream_coach_chat(
     yield {
         "done": True,
         "reply": reply,
-        "model": settings.LLM_MODEL,
+        "model": used_model or settings.LLM_MODEL,
         "ungrounded_claims": ungrounded,
     }

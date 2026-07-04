@@ -361,6 +361,13 @@ export const api = {
     include_context: boolean,
     handlers: {
       onStart?: (conversationId: number) => void;
+      onStatus?: (status: {
+        status: "trying" | "retrying";
+        model: string;
+        attempt?: number;
+        max_attempts?: number;
+        delay_seconds?: number;
+      }) => void;
       onDelta?: (delta: string) => void;
       onDone?: (frame: {
         conversation_id: number;
@@ -407,6 +414,8 @@ export const api = {
             handlers.onError?.(parsed.error);
           } else if (parsed.done) {
             handlers.onDone?.(parsed);
+          } else if ("status" in parsed) {
+            handlers.onStatus?.(parsed);
           } else if ("delta" in parsed) {
             handlers.onDelta?.(parsed.delta);
           } else if ("conversation_id" in parsed) {
