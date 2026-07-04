@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   api,
   MealPlan,
@@ -64,6 +64,7 @@ export default function NutritionPage() {
     fiber_g: "",
   });
   const [confirming, setConfirming] = useState(false);
+  const estimateAbortRef = useRef<AbortController | null>(null);
 
   function refresh() {
     Promise.all([
@@ -100,8 +101,12 @@ export default function NutritionPage() {
     if (!text.trim() || busy) return;
     setBusy(true);
     setErr(null);
+
+    const controller = new AbortController();
+    estimateAbortRef.current = controller;
+
     try {
-      const est = await api.nutrition.estimate(text.trim());
+      const est = await api.nutrition.estimate(text.trim(), controller.signal);
       setEstimate(est);
       setDraft({
         kcal: String(est.kcal),
@@ -111,10 +116,17 @@ export default function NutritionPage() {
         fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
       });
     } catch (e: any) {
-      setErr(e?.message ?? String(e));
+      if (e?.name !== "AbortError") {
+        setErr(e?.message ?? String(e));
+      }
     } finally {
+      estimateAbortRef.current = null;
       setBusy(false);
     }
+  }
+
+  function cancelEstimate() {
+    estimateAbortRef.current?.abort();
   }
 
   function discardEstimate() {
@@ -305,6 +317,12 @@ export default function NutritionPage() {
           <Button onClick={requestEstimate} disabled={busy || !!estimate || !text.trim()}>
             {busy ? "Estimating…" : "Estimate"}
           </Button>
+          {busy && (
+            <Button onClick={cancelEstimate} variant="ghost" aria-label="Cancel estimate">
+              <X className="h-3.5 w-3.5" />
+              Cancel
+            </Button>
+          )}
         </div>
 
         {/* Review/edit before saving */}

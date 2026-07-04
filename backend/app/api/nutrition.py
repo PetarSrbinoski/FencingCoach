@@ -7,11 +7,12 @@ from datetime import date as Date
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.agents.nutrition import estimate_nutrition
+from app.core.cancellation import run_cancellable
 from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import NutritionLog
@@ -31,17 +32,24 @@ router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
 
 @router.post("/estimate", response_model=NutritionEstimateOut)
-def estimate(
+async def estimate(
     body: NutritionEstimateRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> NutritionEstimateOut:
     """Estimate macros for a free-text food description. Does NOT persist —
     review/edit the result, then confirm via `POST /nutrition/log`.
 
+    Cancellable: if the athlete cancels from the UI (aborting the fetch),
+    the in-flight LLM call is cancelled server-side too, rather than
+    running to completion for nothing — see `run_cancellable`.
+
     Fails loudly (502) rather than ever returning a fabricated zero estimate.
     """
     try:
-        est = estimate_nutrition(body.text, db=db)
+        est = await run_cancellable(request, estimate_nutrition(body.text, db=db))
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"Nutrition estimation failed: {e}") from e
 

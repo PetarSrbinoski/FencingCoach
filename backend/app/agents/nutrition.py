@@ -21,7 +21,7 @@ from pydantic_ai.capabilities import WebSearch
 from pydantic_ai.mcp import MCPServerStdio
 
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
-from app.agents.retry import call_with_transient_retry
+from app.agents.retry import acall_with_transient_retry
 from app.core.config import settings
 
 log = logging.getLogger(__name__)
@@ -167,9 +167,15 @@ async def _strip_think(
     return _clean_output(result)
 
 
-# ── Public API (sync wrapper) ─────────────────────────────────────────
-def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
+# ── Public API (async) ──────────────────────────────────────────────────
+async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     """Estimate nutrition for free-text food description.
+
+    Async so the caller (`api/nutrition.py`) can cancel it early if the
+    client disconnects (see `app.core.cancellation.run_cancellable`) —
+    this is a real HTTP request to the LLM and can run for several
+    seconds, so a "Cancel" button on the nutrition page needs a genuine
+    cancellation point rather than a fire-and-forget background call.
 
     Args:
         text: Free-text food description.
@@ -188,8 +194,8 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     deps = CoachDeps(db=db) if db else CoachDeps(db=None)  # type: ignore[arg-type]
 
     try:
-        result = call_with_transient_retry(
-            lambda: nutrition_agent.run_sync(text.strip(), deps=deps),
+        result = await acall_with_transient_retry(
+            lambda: nutrition_agent.run(text.strip(), deps=deps),
             label="nutrition agent (primary)",
         )
         return _clean_output(result.output)
@@ -200,8 +206,8 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
                 e,
             )
             try:
-                fallback_result = call_with_transient_retry(
-                    lambda: nutrition_fallback_agent.run_sync(text.strip(), deps=deps),
+                fallback_result = await acall_with_transient_retry(
+                    lambda: nutrition_fallback_agent.run(text.strip(), deps=deps),
                     label="nutrition agent (fallback)",
                 )
                 return _clean_output(fallback_result.output)

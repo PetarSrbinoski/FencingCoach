@@ -141,11 +141,11 @@ class TestNutritionAgent:
     def test_estimate_nutrition_empty_raises(self):
         """Empty text should raise ValueError."""
         with pytest.raises(ValueError, match="empty food description"):
-            estimate_nutrition("")
+            asyncio.run(estimate_nutrition(""))
 
     def test_estimate_nutrition_whitespace_raises(self):
         with pytest.raises(ValueError, match="empty food description"):
-            estimate_nutrition("   ")
+            asyncio.run(estimate_nutrition("   "))
 
     def test_estimate_nutrition_retries_without_usda(self, monkeypatch):
         # Simulate the USDA MCP subprocess script being present (it won't be
@@ -154,7 +154,7 @@ class TestNutritionAgent:
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
         calls: list[str] = []
 
-        def fail_primary(text, deps):
+        async def fail_primary(text, deps):
             calls.append(f"primary:{text}")
             raise RuntimeError("503 Service Unavailable")
 
@@ -168,14 +168,14 @@ class TestNutritionAgent:
             notes="Used web research while USDA MCP was unavailable.",
         )
 
-        def succeed_fallback(text, deps):
+        async def succeed_fallback(text, deps):
             calls.append(f"fallback:{text}")
             return SimpleNamespace(output=fallback_output)
 
-        monkeypatch.setattr(nutrition_agent, "run_sync", fail_primary)
-        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", succeed_fallback)
+        monkeypatch.setattr(nutrition_agent, "run", fail_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run", succeed_fallback)
 
-        result = estimate_nutrition("chicken burrito bowl")
+        result = asyncio.run(estimate_nutrition("chicken burrito bowl"))
 
         assert result == fallback_output
         assert calls == [
@@ -186,27 +186,27 @@ class TestNutritionAgent:
     def test_estimate_nutrition_raises_when_both_agents_fail(self, monkeypatch):
         """Hard-fail loudly — never silently persist a fabricated zero estimate."""
 
-        def fail(text, deps):
+        async def fail(text, deps):
             raise RuntimeError("upstream LLM timeout")
 
-        monkeypatch.setattr(nutrition_agent, "run_sync", fail)
-        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", fail)
+        monkeypatch.setattr(nutrition_agent, "run", fail)
+        monkeypatch.setattr(nutrition_fallback_agent, "run", fail)
 
         with pytest.raises(RuntimeError, match="nutrition estimation failed"):
-            estimate_nutrition("chicken burrito bowl")
+            asyncio.run(estimate_nutrition("chicken burrito bowl"))
 
     def test_estimate_nutrition_raises_when_no_usda_configured(self, monkeypatch):
         """Without USDA configured there's no fallback agent to retry with —
         a primary failure must still raise, not return zeros."""
         monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_SCRIPT", "", raising=False)
 
-        def fail(text, deps):
+        async def fail(text, deps):
             raise RuntimeError("network error")
 
-        monkeypatch.setattr(nutrition_agent, "run_sync", fail)
+        monkeypatch.setattr(nutrition_agent, "run", fail)
 
         with pytest.raises(RuntimeError, match="nutrition estimation failed"):
-            estimate_nutrition("chicken burrito bowl")
+            asyncio.run(estimate_nutrition("chicken burrito bowl"))
 
     def test_estimate_nutrition_retries_transient_error_then_succeeds(self, monkeypatch):
         """Regression test for the prod 503 seen from NVIDIA NIM on
@@ -220,7 +220,7 @@ class TestNutritionAgent:
             kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="high"
         )
 
-        def flaky_primary(text, deps):
+        async def flaky_primary(text, deps):
             calls["n"] += 1
             if calls["n"] == 1:
                 request = httpx.Request(
@@ -233,13 +233,13 @@ class TestNutritionAgent:
                 )
             return SimpleNamespace(output=good_output)
 
-        def fail_fallback(text, deps):  # pragma: no cover - should never be called
+        async def fail_fallback(text, deps):  # pragma: no cover - should never be called
             raise AssertionError("fallback agent should not be needed")
 
-        monkeypatch.setattr(nutrition_agent, "run_sync", flaky_primary)
-        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", fail_fallback)
+        monkeypatch.setattr(nutrition_agent, "run", flaky_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run", fail_fallback)
 
-        result = estimate_nutrition("chicken burrito bowl")
+        result = asyncio.run(estimate_nutrition("chicken burrito bowl"))
 
         assert result == good_output
         assert calls["n"] == 2
@@ -251,7 +251,7 @@ class TestNutritionAgent:
         monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
 
-        def always_flaky_primary(text, deps):
+        async def always_flaky_primary(text, deps):
             request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
             raise openai.APIError(
                 "ResourceExhausted: Worker local total request limit reached",
@@ -263,14 +263,32 @@ class TestNutritionAgent:
             kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="medium"
         )
 
-        def succeed_fallback(text, deps):
+        async def succeed_fallback(text, deps):
             return SimpleNamespace(output=fallback_output)
 
-        monkeypatch.setattr(nutrition_agent, "run_sync", always_flaky_primary)
-        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", succeed_fallback)
+        monkeypatch.setattr(nutrition_agent, "run", always_flaky_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run", succeed_fallback)
 
-        result = estimate_nutrition("chicken burrito bowl")
+        result = asyncio.run(estimate_nutrition("chicken burrito bowl"))
         assert result == fallback_output
+
+    def test_estimate_nutrition_cancelled_mid_flight_propagates(self, monkeypatch):
+        """A cancelled estimate (client disconnected) must propagate
+        CancelledError rather than being swallowed/retried or falling
+        back to the USDA-free agent — see app.core.cancellation."""
+        monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
+
+        async def cancelled(text, deps):
+            raise asyncio.CancelledError()
+
+        async def fail_fallback(text, deps):  # pragma: no cover - should never be called
+            raise AssertionError("fallback agent should not run for a cancelled request")
+
+        monkeypatch.setattr(nutrition_agent, "run", cancelled)
+        monkeypatch.setattr(nutrition_fallback_agent, "run", fail_fallback)
+
+        with pytest.raises(asyncio.CancelledError):
+            asyncio.run(estimate_nutrition("chicken burrito bowl"))
 
     def test_usda_mcp_available_false_when_script_missing(self, monkeypatch):
         monkeypatch.setattr(

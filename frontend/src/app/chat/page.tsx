@@ -25,6 +25,7 @@ import {
   MoreHorizontal,
   PencilLine,
   Send,
+  Square,
   Sword,
   Trash2,
   User,
@@ -64,6 +65,7 @@ export default function ChatPage() {
   const [err, setErr] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -126,49 +128,74 @@ export default function ChatPage() {
     setBusy(true);
     setErr(null);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     let finalConversationId: number | undefined = conversationId;
 
     try {
-      await api.chatStream(content, conversationId, true, {
-        onStart: (convId) => {
-          finalConversationId = convId;
-          setConversationId(convId);
+      await api.chatStream(
+        content,
+        conversationId,
+        true,
+        {
+          onStart: (convId) => {
+            finalConversationId = convId;
+            setConversationId(convId);
+          },
+          onDelta: (delta) => {
+            setMessages((current) => {
+              const next = [...current];
+              const last = next[next.length - 1];
+              next[next.length - 1] = { ...last, content: last.content + delta };
+              return next;
+            });
+          },
+          onDone: (frame) => {
+            finalConversationId = frame.conversation_id;
+            setConversationId(frame.conversation_id);
+            setMessages((current) => {
+              const next = [...current];
+              next[next.length - 1] = {
+                role: "assistant",
+                content: frame.reply,
+                contextSnapshot: frame.context_snapshot,
+                ungroundedClaims: frame.ungrounded_claims,
+              };
+              return next;
+            });
+          },
+          onError: (message) => {
+            setErr(message);
+            setMessages((current) => current.slice(0, -1));
+          },
         },
-        onDelta: (delta) => {
-          setMessages((current) => {
-            const next = [...current];
-            const last = next[next.length - 1];
-            next[next.length - 1] = { ...last, content: last.content + delta };
-            return next;
-          });
-        },
-        onDone: (frame) => {
-          finalConversationId = frame.conversation_id;
-          setConversationId(frame.conversation_id);
-          setMessages((current) => {
-            const next = [...current];
-            next[next.length - 1] = {
-              role: "assistant",
-              content: frame.reply,
-              contextSnapshot: frame.context_snapshot,
-              ungroundedClaims: frame.ungrounded_claims,
-            };
-            return next;
-          });
-        },
-        onError: (message) => {
-          setErr(message);
-          setMessages((current) => current.slice(0, -1));
-        },
-      });
+        controller.signal
+      );
       if (finalConversationId) await loadConversations(finalConversationId);
     } catch (e: any) {
-      setMessages((current) => current.slice(0, -2));
-      setInput(content);
-      setErr(e?.message ?? "Chat failed");
+      if (e?.name === "AbortError") {
+        // User-initiated cancel — keep whatever partial reply had
+        // already streamed in instead of rolling it back like a real
+        // error, and drop the empty placeholder if nothing arrived yet.
+        setMessages((current) => {
+          const last = current[current.length - 1];
+          if (last?.role === "assistant" && !last.content) return current.slice(0, -1);
+          return current;
+        });
+      } else {
+        setMessages((current) => current.slice(0, -2));
+        setInput(content);
+        setErr(e?.message ?? "Chat failed");
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  function cancelSend() {
+    abortRef.current?.abort();
   }
 
   async function removeConversation(id: number) {
@@ -430,8 +457,15 @@ export default function ChatPage() {
                 aria-label="Message the coach"
                 className="flex-1 h-11 sm:h-10 text-base sm:text-sm"
               />
-              <Button type="submit" size="icon" disabled={busy || !input.trim()} className="shrink-0 h-11 w-11 sm:h-10 sm:w-10" aria-label="Send message">
-                <Send className="h-4 w-4" />
+              <Button
+                type={busy ? "button" : "submit"}
+                size="icon"
+                disabled={!busy && !input.trim()}
+                onClick={busy ? cancelSend : undefined}
+                className="shrink-0 h-11 w-11 sm:h-10 sm:w-10"
+                aria-label={busy ? "Stop generating" : "Send message"}
+              >
+                {busy ? <Square className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>
           </div>

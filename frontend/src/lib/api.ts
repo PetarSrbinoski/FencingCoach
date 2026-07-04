@@ -352,7 +352,9 @@ export const api = {
       body: JSON.stringify({ message, conversation_id, include_context }),
     }),
   /** SSE variant of `api.chat`. Invokes callbacks as frames arrive instead
-   * of resolving once with the full reply. */
+   * of resolving once with the full reply. Pass `signal` to allow
+   * cancelling an in-flight request (e.g. a "Stop" button) — aborts the
+   * fetch, which the backend detects and cancels server-side too. */
   chatStream: async (
     message: string,
     conversation_id: number | undefined,
@@ -368,12 +370,14 @@ export const api = {
         ungrounded_claims: string[];
       }) => void;
       onError?: (message: string) => void;
-    }
+    },
+    signal?: AbortSignal
   ): Promise<void> => {
     const res = await fetch(`${BASE}/chat/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, conversation_id, include_context }),
+      signal,
     });
     if (!res.ok || !res.body) {
       let detail = res.statusText;
@@ -387,27 +391,34 @@ export const api = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buffer.indexOf("\n\n")) !== -1) {
-        const rawFrame = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        const line = rawFrame.split("\n").find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const parsed = JSON.parse(line.slice("data: ".length));
-        if ("error" in parsed) {
-          handlers.onError?.(parsed.error);
-        } else if (parsed.done) {
-          handlers.onDone?.(parsed);
-        } else if ("delta" in parsed) {
-          handlers.onDelta?.(parsed.delta);
-        } else if ("conversation_id" in parsed) {
-          handlers.onStart?.(parsed.conversation_id);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const rawFrame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const line = rawFrame.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const parsed = JSON.parse(line.slice("data: ".length));
+          if ("error" in parsed) {
+            handlers.onError?.(parsed.error);
+          } else if (parsed.done) {
+            handlers.onDone?.(parsed);
+          } else if ("delta" in parsed) {
+            handlers.onDelta?.(parsed.delta);
+          } else if ("conversation_id" in parsed) {
+            handlers.onStart?.(parsed.conversation_id);
+          }
         }
       }
+    } finally {
+      // Release the reader/stream immediately on cancel instead of
+      // waiting for GC — a no-op if the loop above already exited via
+      // `done`.
+      reader.cancel().catch(() => {});
     }
   },
   chatConversations: {
@@ -459,10 +470,11 @@ export const api = {
   },
 
   nutrition: {
-    estimate: (text: string) =>
+    estimate: (text: string, signal?: AbortSignal) =>
       request<NutritionEstimate>("/nutrition/estimate", {
         method: "POST",
         body: JSON.stringify({ text }),
+        signal,
       }),
     log: (entry: NutritionLogInput) =>
       request<NutritionLog>("/nutrition/log", {
