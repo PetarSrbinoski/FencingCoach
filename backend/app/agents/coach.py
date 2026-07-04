@@ -5,7 +5,12 @@ Replaces `api/chat.py` direct LLM call with a PydanticAI agent:
 - Streaming (agent.run_stream()) for the SSE chat endpoint
 - Full conversation history via message_history
 - Context injection via dynamic instructions
-- WebSearch capability for real-time lookups
+- WebSearch capability for real-time lookups — attached ONLY when the
+  athlete's message explicitly asks for a web search (see
+  `_wants_web_search` below). Trusting the model's own judgment on when
+  to search proved unreliable (it would search for "hello"), so the
+  decision is made deterministically in code, not via prompt/tool
+  description alone.
 - Strips <think> tags (and withholds them live during streaming)
 - Heuristic grounding check flags replies that cite specific Garmin/health
   numbers not present in the injected context snapshot
@@ -13,13 +18,17 @@ Replaces `api/chat.py` direct LLM call with a PydanticAI agent:
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
+import openai
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
+from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -35,22 +44,85 @@ from app.services.prompts import COACH_SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
 
+# Matches an explicit ask to search/look something up online. Deliberately
+# narrow — greetings, small talk, and in-domain coaching questions should
+# never match this.
+_SEARCH_INTENT_RE = re.compile(
+    r"\b(search|google|look\s?up|look\s+(it\s+)?online|"
+    r"check\s+online|browse\s+the\s+web|on\s+the\s+(internet|web))\b",
+    re.IGNORECASE,
+)
 
-# ── Agent definition ──────────────────────────────────────────────────
-coach_agent = Agent(
-    get_model(),
+
+def _wants_web_search(message: str) -> bool:
+    """True only if the athlete explicitly asked to search/look up online."""
+    return bool(_SEARCH_INTENT_RE.search(message))
+
+
+# The NVIDIA NIM hosted endpoint occasionally fails with a transient
+# capacity/rate-limit error, in one of two shapes depending on how its
+# gateway responds:
+#   1. HTTP 200 (stream started) but the error is embedded in the very
+#      first SSE chunk, e.g. "ResourceExhausted: Worker local total
+#      request limit reached (222/32)" — raised by the openai SDK as a
+#      plain `openai.APIError` (agent.run_stream path).
+#   2. An actual non-2xx HTTP status (e.g. 503) — pydantic-ai wraps this
+#      as `pydantic_ai.exceptions.ModelHTTPError` (agent.run path).
+# Either way this happens before any token is produced, so the OpenAI
+# SDK's own `max_retries` (which only covers pre-stream connection
+# failures) never kicks in — the request just fails outright. From the
+# athlete's side this looked like "every other message gets silently
+# ignored". Since the failure always occurs before any output is
+# generated, it's safe to transparently retry a couple of times.
+_TRANSIENT_ERROR_MARKERS = (
+    "resourceexhausted",
+    "resource exhausted",
+    "rate limit",
+    "rate_limit",
+    "overloaded",
+    "try again",
+    "capacity",
+)
+_RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+_MAX_TRANSIENT_RETRIES = 2
+_RETRY_BACKOFF_SECONDS = 1.5
+
+
+def _is_transient_llm_error(exc: Exception) -> bool:
+    if isinstance(exc, ModelHTTPError):
+        if exc.status_code in _RETRYABLE_HTTP_STATUS:
+            return True
+        return any(marker in str(exc).lower() for marker in _TRANSIENT_ERROR_MARKERS)
+    if isinstance(exc, openai.APIError):
+        return any(marker in str(exc).lower() for marker in _TRANSIENT_ERROR_MARKERS)
+    return False
+
+
+_COACH_AGENT_KWARGS: dict[str, Any] = dict(
     output_type=str,
     instructions=COACH_SYSTEM_PROMPT,
     deps_type=CoachDeps,
-    capabilities=[WebSearch()],
     model_settings={
         "temperature": 0.4,
         "max_tokens": 1200,
     },
 )
 
+# ── Agent definitions ──────────────────────────────────────────────────
+# Default: no tools at all — the model can only answer from its own
+# knowledge + the injected context snapshot. Nothing to misfire on.
+coach_agent = Agent(get_model(), **_COACH_AGENT_KWARGS)
+
+# Used only when `_wants_web_search()` matches the athlete's message.
+coach_agent_search = Agent(
+    get_model(),
+    capabilities=[WebSearch()],
+    **_COACH_AGENT_KWARGS,
+)
+
 
 @coach_agent.instructions
+@coach_agent_search.instructions
 async def _inject_context(ctx: RunContext[CoachDeps]) -> str:
     """Inject live context snapshot into the agent's system prompt."""
     if ctx.deps.context_text:
@@ -59,6 +131,7 @@ async def _inject_context(ctx: RunContext[CoachDeps]) -> str:
 
 
 @coach_agent.output_validator
+@coach_agent_search.output_validator
 async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
 
@@ -115,11 +188,28 @@ async def run_coach_chat(
     if history_messages:
         message_history = _db_messages_to_history(history_messages)
 
-    result = await coach_agent.run(
-        user_message,
-        deps=deps,
-        message_history=message_history,
-    )
+    agent = coach_agent_search if _wants_web_search(user_message) else coach_agent
+
+    attempt = 0
+    while True:
+        try:
+            result = await agent.run(
+                user_message,
+                deps=deps,
+                message_history=message_history,
+            )
+            break
+        except Exception as e:  # noqa: BLE001
+            if attempt >= _MAX_TRANSIENT_RETRIES or not _is_transient_llm_error(e):
+                raise
+            attempt += 1
+            log.warning(
+                "coach chat: transient LLM error (attempt %d/%d), retrying: %s",
+                attempt,
+                _MAX_TRANSIENT_RETRIES,
+                e,
+            )
+            await asyncio.sleep(_RETRY_BACKOFF_SECONDS * attempt)
 
     reply = result.output
     ungrounded = find_ungrounded_claims(reply, context_text)
@@ -155,16 +245,35 @@ async def stream_coach_chat(
     filt = ThinkTagStreamFilter()
     chunks: list[str] = []
 
-    async with coach_agent.run_stream(
-        user_message,
-        deps=deps,
-        message_history=message_history,
-    ) as stream:
-        async for delta in stream.stream_text(delta=True):
-            visible = filt.feed(delta)
-            if visible:
-                chunks.append(visible)
-                yield {"delta": visible}
+    agent = coach_agent_search if _wants_web_search(user_message) else coach_agent
+
+    attempt = 0
+    while True:
+        try:
+            async with agent.run_stream(
+                user_message,
+                deps=deps,
+                message_history=message_history,
+            ) as stream:
+                async for delta in stream.stream_text(delta=True):
+                    visible = filt.feed(delta)
+                    if visible:
+                        chunks.append(visible)
+                        yield {"delta": visible}
+            break
+        except Exception as e:  # noqa: BLE001
+            # Only safe to retry if nothing has been streamed to the
+            # client yet — otherwise a retry would duplicate output.
+            if chunks or attempt >= _MAX_TRANSIENT_RETRIES or not _is_transient_llm_error(e):
+                raise
+            attempt += 1
+            log.warning(
+                "coach stream: transient LLM error (attempt %d/%d), retrying: %s",
+                attempt,
+                _MAX_TRANSIENT_RETRIES,
+                e,
+            )
+            await asyncio.sleep(_RETRY_BACKOFF_SECONDS * attempt)
 
     tail = filt.flush()
     if tail:

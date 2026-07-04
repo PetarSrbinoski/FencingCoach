@@ -13,12 +13,17 @@ from types import SimpleNamespace
 # Override DATABASE_URL before any app imports
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
+import httpx
+import openai
 import pytest
 from app.agents.brief import brief_agent
 from app.agents.coach import (
     ChatResult,
     _db_messages_to_history,
+    _is_transient_llm_error,
+    _wants_web_search,
     coach_agent,
+    coach_agent_search,
     run_coach_chat,
     stream_coach_chat,
 )
@@ -33,6 +38,7 @@ from app.agents.nutrition import (
     nutrition_fallback_agent,
 )
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelHTTPError
 
 
 # ── deps / model ──────────────────────────────────────────────────────
@@ -185,9 +191,7 @@ class TestNutritionAgent:
     def test_estimate_nutrition_raises_when_no_usda_configured(self, monkeypatch):
         """Without USDA configured there's no fallback agent to retry with —
         a primary failure must still raise, not return zeros."""
-        monkeypatch.setattr(
-            "app.agents.nutrition.settings.USDA_MCP_URL", "", raising=False
-        )
+        monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_URL", "", raising=False)
 
         def fail(text, deps):
             raise RuntimeError("network error")
@@ -258,9 +262,7 @@ class TestCoachAgent:
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
 
-        result = asyncio.run(
-            run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h")
-        )
+        result = asyncio.run(run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h"))
         assert result.reply == "Your HRV was 99 last night."
         assert len(result.ungrounded_claims) == 1
         assert "99" in result.ungrounded_claims[0]
@@ -271,14 +273,10 @@ class TestCoachAgent:
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
 
-        result = asyncio.run(
-            run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h")
-        )
+        result = asyncio.run(run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h"))
         assert result.ungrounded_claims == []
 
-    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(
-        self, monkeypatch
-    ):
+    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(self, monkeypatch):
         class _FakeStream:
             def __init__(self, deltas):
                 self._deltas = deltas
@@ -298,17 +296,13 @@ class TestCoachAgent:
                 return False
 
         def fake_run_stream(user_prompt, deps=None, message_history=None):
-            return _FakeStreamCM(
-                ["<think>internal reasoning</think>Your HRV was 99 today."]
-            )
+            return _FakeStreamCM(["<think>internal reasoning</think>Your HRV was 99 today."])
 
         monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
 
         async def collect():
             items = []
-            async for item in stream_coach_chat(
-                "how am I doing?", context_text="HRV: 55ms"
-            ):
+            async for item in stream_coach_chat("how am I doing?", context_text="HRV: 55ms"):
                 items.append(item)
             return items
 
@@ -321,3 +315,216 @@ class TestCoachAgent:
         assert final["done"] is True
         assert final["reply"] == "Your HRV was 99 today."
         assert len(final["ungrounded_claims"]) == 1
+
+
+# ── coach web-search gating ─────────────────────────────────────────────
+class TestCoachWebSearchGating:
+    """Web search must only fire when the athlete explicitly asks for it —
+    trusting the model's own judgment let it search for e.g. "hello"."""
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "hello",
+            "how am I doing today?",
+            "what should I eat before fencing?",
+            "plan my gym session for tomorrow",
+        ],
+    )
+    def test_no_search_intent_for_normal_messages(self, message):
+        assert _wants_web_search(message) is False
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "can you search the web for the latest fencing rule changes?",
+            "google the address of the next competition venue",
+            "look up how many calories are in a Big Mac",
+            "please look online for a good recovery protocol",
+            "check online for today's weather in Berlin",
+        ],
+    )
+    def test_search_intent_for_explicit_requests(self, message):
+        assert _wants_web_search(message) is True
+
+    def test_run_coach_chat_uses_plain_agent_by_default(self, monkeypatch):
+        async def fake_run(user_prompt, deps=None, message_history=None):
+            return SimpleNamespace(output="Hey! How can I help?")
+
+        def fail_run(*a, **kw):  # pragma: no cover - should never be called
+            raise AssertionError("coach_agent_search.run should not be called")
+
+        monkeypatch.setattr(coach_agent, "run", fake_run)
+        monkeypatch.setattr(coach_agent_search, "run", fail_run)
+
+        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        assert result.reply == "Hey! How can I help?"
+
+    def test_run_coach_chat_uses_search_agent_when_explicitly_asked(self, monkeypatch):
+        async def fake_run(user_prompt, deps=None, message_history=None):
+            return SimpleNamespace(output="Found it via search.")
+
+        def fail_run(*a, **kw):  # pragma: no cover - should never be called
+            raise AssertionError("coach_agent.run should not be called")
+
+        monkeypatch.setattr(coach_agent, "run", fail_run)
+        monkeypatch.setattr(coach_agent_search, "run", fake_run)
+
+        result = asyncio.run(run_coach_chat("please search the web for X", context_text=""))
+        assert result.reply == "Found it via search."
+
+
+# ── transient NVIDIA NIM stream-error retry ─────────────────────────────
+def _make_transient_error(
+    message="ResourceExhausted: Worker local total request limit reached (222/32)",
+):
+    """Mimics failure mode 1: HTTP 200 + an error embedded in the first
+    SSE chunk, raised by the openai SDK as a plain APIError
+    (agent.run_stream path)."""
+    request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
+    return openai.APIError(message, request, body={"message": message})
+
+
+def _make_transient_http_error(
+    status_code=503,
+    message="ResourceExhausted: Worker local total request limit reached (33/32)",
+):
+    """Mimics failure mode 2: an actual non-2xx HTTP status, wrapped by
+    pydantic-ai as ModelHTTPError (agent.run path)."""
+    return ModelHTTPError(
+        status_code=status_code,
+        model_name="deepseek-ai/deepseek-v4-flash",
+        body={"message": message, "type": "Service Unavailable", "code": status_code},
+    )
+
+
+class TestCoachTransientErrorRetry:
+    def test_is_transient_llm_error_matches_resource_exhausted(self):
+        assert _is_transient_llm_error(_make_transient_error()) is True
+
+    def test_is_transient_llm_error_false_for_other_openai_errors(self):
+        request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
+        err = openai.APIError("Invalid request: bad schema", request, body=None)
+        assert _is_transient_llm_error(err) is False
+
+    def test_is_transient_llm_error_false_for_non_openai_errors(self):
+        assert _is_transient_llm_error(ValueError("boom")) is False
+
+    def test_is_transient_llm_error_true_for_model_http_error_503(self):
+        assert _is_transient_llm_error(_make_transient_http_error(503)) is True
+
+    def test_is_transient_llm_error_true_for_model_http_error_429(self):
+        assert _is_transient_llm_error(_make_transient_http_error(429)) is True
+
+    def test_is_transient_llm_error_false_for_model_http_error_400(self):
+        err = ModelHTTPError(
+            status_code=400,
+            model_name="deepseek-ai/deepseek-v4-flash",
+            body={"message": "Invalid request: bad schema"},
+        )
+        assert _is_transient_llm_error(err) is False
+
+    def test_run_coach_chat_retries_transient_error_then_succeeds(self, monkeypatch):
+        calls = {"n": 0}
+
+        async def flaky_run(user_prompt, deps=None, message_history=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise _make_transient_error()
+            return SimpleNamespace(output="Hey, all good now.")
+
+        monkeypatch.setattr(coach_agent, "run", flaky_run)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        assert result.reply == "Hey, all good now."
+        assert calls["n"] == 2
+
+    def test_run_coach_chat_retries_model_http_error_then_succeeds(self, monkeypatch):
+        """Regression test: the actual production failure was a real HTTP
+        503 from NVIDIA NIM, wrapped by pydantic-ai as ModelHTTPError —
+        not an openai.APIError. The retry logic must handle both shapes."""
+        calls = {"n": 0}
+
+        async def flaky_run(user_prompt, deps=None, message_history=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise _make_transient_http_error()
+            return SimpleNamespace(output="Hey, all good now.")
+
+        monkeypatch.setattr(coach_agent, "run", flaky_run)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        assert result.reply == "Hey, all good now."
+        assert calls["n"] == 2
+
+    def test_run_coach_chat_gives_up_after_max_retries(self, monkeypatch):
+        calls = {"n": 0}
+
+        async def always_flaky_run(user_prompt, deps=None, message_history=None):
+            calls["n"] += 1
+            raise _make_transient_error()
+
+        monkeypatch.setattr(coach_agent, "run", always_flaky_run)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        with pytest.raises(openai.APIError):
+            asyncio.run(run_coach_chat("hello", context_text=""))
+        # initial attempt + _MAX_TRANSIENT_RETRIES retries
+        assert calls["n"] == 3
+
+    def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch):
+        calls = {"n": 0}
+
+        async def bad_request_run(user_prompt, deps=None, message_history=None):
+            calls["n"] += 1
+            request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
+            raise openai.APIError("Invalid request: bad schema", request, body=None)
+
+        monkeypatch.setattr(coach_agent, "run", bad_request_run)
+
+        with pytest.raises(openai.APIError):
+            asyncio.run(run_coach_chat("hello", context_text=""))
+        assert calls["n"] == 1
+
+    def test_stream_coach_chat_retries_transient_error_before_any_delta(self, monkeypatch):
+        calls = {"n": 0}
+
+        class _FakeStream:
+            def __init__(self, deltas):
+                self._deltas = deltas
+
+            async def stream_text(self, delta=True):
+                for d in self._deltas:
+                    yield d
+
+        class _FakeStreamCM:
+            def __init__(self, deltas):
+                self._deltas = deltas
+
+            async def __aenter__(self):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise _make_transient_error()
+                return _FakeStream(self._deltas)
+
+            async def __aexit__(self, *a):
+                return False
+
+        def fake_run_stream(user_prompt, deps=None, message_history=None):
+            return _FakeStreamCM(["All good now."])
+
+        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        async def collect():
+            items = []
+            async for item in stream_coach_chat("hello", context_text=""):
+                items.append(item)
+            return items
+
+        items = asyncio.run(collect())
+        deltas = [i["delta"] for i in items if "delta" in i]
+        assert "".join(deltas) == "All good now."
+        assert calls["n"] == 2
