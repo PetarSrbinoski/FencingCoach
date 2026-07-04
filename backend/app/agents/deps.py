@@ -1,9 +1,12 @@
 """Shared dependencies and model factory for all PydanticAI agents.
 
 Every agent receives a `CoachDeps` instance at run-time, providing
-database access and configuration. The model is constructed once from
-the same LLM_BASE_URL / LLM_MODEL / LLM_API_KEY env vars the app
-already uses.
+database access and configuration. Which model actually answers a given
+run is decided by the athlete's manual local/cloud toggle
+(`get_active_model()`, backed by `services.llm_provider` + the
+`PUT /settings/llm-provider` endpoint) rather than automatic
+fallback-on-error between local and cloud — see `get_model_for_provider()`
+below for what each pool means.
 """
 
 from __future__ import annotations
@@ -176,81 +179,117 @@ def _build_chat_model(
     )
 
 
-@lru_cache(maxsize=1)
-def get_model() -> Model:
-    """Build the shared model used by every PydanticAI agent.
+@lru_cache(maxsize=4)
+def get_model_for_provider(provider: str) -> Model:
+    """Build (and cache) the model for one provider pool: `"local"` or
+    `"cloud"`.
 
-    Works with Ollama, NVIDIA NIM, OpenRouter, Together, vLLM, llama.cpp,
-    OpenAI, etc. — anything that serves an OpenAI-compatible chat endpoint.
+    - `"local"`: just `LLM_MODEL` @ `LLM_BASE_URL`/`LLM_API_KEY` — no
+      fallback. If it fails, it fails; the athlete explicitly chose local.
+    - `"cloud"`: `LLM_FALLBACK_MODEL` @ `LLM_FALLBACK_BASE_URL`/
+      `LLM_FALLBACK_API_KEY`, cascading to `LLM_FALLBACK2_MODEL` (if
+      configured) on a *transient* provider error
+      (`agents.retry.is_transient_llm_error`) — both tiers here are
+      already "cloud", so that cascade is still useful (e.g. NIM capacity
+      errors), unlike an automatic local->cloud escalation.
 
-    Uses an explicitly configured `AsyncOpenAI` client (timeout +
-    max_retries) instead of the SDK defaults so a stalled connection can't
-    hang a request indefinitely, and transient failures get a couple of
-    automatic retries before surfacing to the caller.
-
-    If `LLM_FALLBACK_MODEL` is set, the returned model is a `FallbackModel`
-    wrapping a chain of up to three models — primary, fallback, fallback2 —
-    tried in order: pydantic-ai advances to the next one whenever the
-    current model raises a *transient* provider error
-    (`agents.retry.is_transient_llm_error` — the same definition this app's
-    own retry-with-backoff loop uses). This is on top of, not instead of,
-    that loop, which still covers the case where every configured model is
-    unavailable. Each tier defaults to the previous tier's connection
-    details, but `LLM_FALLBACK_BASE_URL`/`LLM_FALLBACK_API_KEY` (and the
-    `LLM_FALLBACK2_*` equivalents) let any tier be a completely different
-    provider (e.g. primary = local llama.cpp/vLLM, fallback(s) = hosted
-    cloud endpoints) — `is_transient_llm_error` treats "can't connect at
-    all" the same as a capacity error, so this also covers a tier being
-    offline entirely, not just rate-limited.
-
-    NOTE: `FallbackModel`'s own default (`fallback_on=(ModelAPIError,)`)
-    deliberately isn't used here — NVIDIA NIM's actual capacity failure
-    (a 200 response whose *body* embeds "ResourceExhausted", surfaced by
-    the openai SDK as a plain `openai.APIError`) is *not* a
-    `ModelAPIError`/`ModelHTTPError` instance, so the default would never
-    trigger fallback for the failure this app actually hits in practice
-    (verified against a real NIM 503 vs. this embedded-error shape).
+    Which pool is actually used for a given request is decided by
+    `get_active_model()` below, driven by the athlete's manual toggle
+    (`services.llm_provider`) — this function just builds either pool on
+    demand, cached so repeated calls (and repeated toggle flips back to a
+    pool already built) don't reconnect.
     """
-    from app.agents.retry import is_transient_llm_error
+    if provider == "local":
+        model = _build_chat_model(settings.LLM_MODEL, MODEL_DEFAULT_SETTINGS)
+        log.info(
+            "LLM provider 'local' initialised: %s @ %s (timeout=%.0fs, max_retries=%d)",
+            settings.LLM_MODEL,
+            settings.LLM_BASE_URL,
+            settings.LLM_TIMEOUT_SECONDS,
+            settings.LLM_MAX_RETRIES,
+        )
+        return model
 
-    primary = _build_chat_model(settings.LLM_MODEL, MODEL_DEFAULT_SETTINGS)
-    log.info(
-        "PydanticAI model initialised: %s @ %s (timeout=%.0fs, max_retries=%d)",
-        settings.LLM_MODEL,
-        settings.LLM_BASE_URL,
-        settings.LLM_TIMEOUT_SECONDS,
-        settings.LLM_MAX_RETRIES,
-    )
+    if provider == "cloud":
+        if not settings.LLM_FALLBACK_MODEL:
+            raise RuntimeError(
+                "LLM provider 'cloud' selected but LLM_FALLBACK_MODEL is not configured"
+            )
+        from app.agents.retry import is_transient_llm_error
 
-    if not settings.LLM_FALLBACK_MODEL:
-        return primary
-
-    fallback_base_url = settings.LLM_FALLBACK_BASE_URL or settings.LLM_BASE_URL
-    fallback_api_key = settings.LLM_FALLBACK_API_KEY or settings.LLM_API_KEY
-    fallback = _build_chat_model(
-        settings.LLM_FALLBACK_MODEL,
-        FALLBACK_MODEL_SETTINGS,
-        base_url=fallback_base_url,
-        api_key=fallback_api_key,
-    )
-    log.info("Fallback model configured: %s @ %s", settings.LLM_FALLBACK_MODEL, fallback_base_url)
-
-    chain = [primary, fallback]
-
-    if settings.LLM_FALLBACK2_MODEL:
-        fallback2_base_url = settings.LLM_FALLBACK2_BASE_URL or fallback_base_url
-        fallback2_api_key = settings.LLM_FALLBACK2_API_KEY or fallback_api_key
-        fallback2 = _build_chat_model(
-            settings.LLM_FALLBACK2_MODEL,
+        cloud1_base_url = settings.LLM_FALLBACK_BASE_URL or settings.LLM_BASE_URL
+        cloud1_api_key = settings.LLM_FALLBACK_API_KEY or settings.LLM_API_KEY
+        cloud1 = _build_chat_model(
+            settings.LLM_FALLBACK_MODEL,
             FALLBACK_MODEL_SETTINGS,
-            base_url=fallback2_base_url,
-            api_key=fallback2_api_key,
+            base_url=cloud1_base_url,
+            api_key=cloud1_api_key,
         )
         log.info(
-            "Second fallback model configured: %s @ %s",
-            settings.LLM_FALLBACK2_MODEL,
-            fallback2_base_url,
+            "LLM provider 'cloud' tier 1 initialised: %s @ %s",
+            settings.LLM_FALLBACK_MODEL,
+            cloud1_base_url,
         )
-        chain.append(fallback2)
 
-    return FallbackModel(*chain, fallback_on=is_transient_llm_error)
+        if not settings.LLM_FALLBACK2_MODEL:
+            return cloud1
+
+        cloud2_base_url = settings.LLM_FALLBACK2_BASE_URL or cloud1_base_url
+        cloud2_api_key = settings.LLM_FALLBACK2_API_KEY or cloud1_api_key
+        cloud2 = _build_chat_model(
+            settings.LLM_FALLBACK2_MODEL,
+            FALLBACK_MODEL_SETTINGS,
+            base_url=cloud2_base_url,
+            api_key=cloud2_api_key,
+        )
+        log.info(
+            "LLM provider 'cloud' tier 2 initialised: %s @ %s",
+            settings.LLM_FALLBACK2_MODEL,
+            cloud2_base_url,
+        )
+        return FallbackModel(cloud1, cloud2, fallback_on=is_transient_llm_error)
+
+    raise ValueError(f"unknown LLM provider {provider!r}")
+
+
+# In-process cache of the athlete's manual local/cloud choice. Hydrated from
+# `app_settings` once at startup (see `main.py`'s startup hook) and updated
+# immediately whenever the toggle is flipped via `PUT /settings/llm-provider`
+# — so it takes effect on the very next request, no restart required.
+_active_provider: str = "local"
+
+
+def set_active_provider(provider: str) -> None:
+    """Update the in-process active provider (call after persisting it)."""
+    global _active_provider
+    _active_provider = provider
+
+
+def get_active_provider() -> str:
+    return _active_provider
+
+
+def get_active_model() -> Model:
+    """The model every agent run should actually use for this request —
+    resolved from the athlete's current local/cloud toggle."""
+    return get_model_for_provider(get_active_provider())
+
+
+def active_model_label() -> str:
+    """Human-readable model name for the currently active provider, for
+    status messages / logging (doesn't require constructing the model)."""
+    if get_active_provider() == "cloud":
+        return settings.LLM_FALLBACK_MODEL or settings.LLM_MODEL
+    return settings.LLM_MODEL
+
+
+def get_model() -> Model:
+    """Backward-compatible placeholder model for `Agent(...)` construction
+    at import time (before the active provider is hydrated from the DB).
+
+    Every actual agent run passes `model=get_active_model()` explicitly
+    (see coach.py/nutrition.py/mealplan.py/mental.py/brief.py), which
+    overrides whatever was set here — so this only matters in that it must
+    be a validly constructible model, not that it's the "right" one.
+    """
+    return get_model_for_provider("local")

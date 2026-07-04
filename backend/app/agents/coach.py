@@ -38,7 +38,14 @@ from pydantic_ai.messages import (
 )
 from sqlalchemy.orm import Session
 
-from app.agents.deps import CoachDeps, ThinkTagStreamFilter, get_model, strip_think_tags
+from app.agents.deps import (
+    CoachDeps,
+    ThinkTagStreamFilter,
+    active_model_label,
+    get_active_model,
+    get_model,
+    strip_think_tags,
+)
 from app.agents.retry import (
     MAX_TRANSIENT_RETRIES as _MAX_TRANSIENT_RETRIES,
 )
@@ -51,7 +58,6 @@ from app.agents.retry import (
 from app.agents.retry import (
     llm_slot as _llm_slot,
 )
-from app.core.config import settings
 from app.models import Competition
 from app.schemas import ExerciseOverrideIn
 from app.services.grounding import find_ungrounded_claims
@@ -95,11 +101,12 @@ def _last_model_name(messages: list[ModelMessage]) -> str | None:
 def _model_name_used(result: Any) -> str | None:
     """Which model actually produced a run/stream result, if knowable.
 
-    When `get_model()` returns a `FallbackModel`, this is how we find out
-    (after the fact) whether the primary or the fallback answered —
-    `ModelResponse.model_name` reflects whichever one it was. Defensive
-    about `result` not exposing `all_messages()` (e.g. lightweight test
-    doubles) since this is a best-effort UX nicety, not load-bearing.
+    When `get_active_model()` returns a `FallbackModel` (cloud mode), this
+    is how we find out (after the fact) whether the first or second cloud
+    tier answered — `ModelResponse.model_name` reflects whichever one it
+    was. Defensive about `result` not exposing `all_messages()` (e.g.
+    lightweight test doubles) since this is a best-effort UX nicety, not
+    load-bearing.
     """
     all_messages = getattr(result, "all_messages", None)
     if not callable(all_messages):
@@ -330,6 +337,7 @@ async def run_coach_chat(
                     user_message,
                     deps=deps,
                     message_history=message_history,
+                    model=get_active_model(),
                 )
             break
         except Exception as e:  # noqa: BLE001
@@ -358,7 +366,7 @@ async def run_coach_chat(
 
     return ChatResult(
         reply=reply,
-        model=_model_name_used(result) or settings.LLM_MODEL,
+        model=_model_name_used(result) or active_model_label(),
         ungrounded_claims=ungrounded,
     )
 
@@ -375,11 +383,13 @@ async def stream_coach_chat(
     Yields, in order:
     - `{"status": "trying", "model": ...}` once up front, and again before
       each transient-error retry — lets the UI show which model is
-      currently being attempted (see `deps.get_model`'s `FallbackModel`:
-      the primary/fallback switch itself happens inside a single attempt
-      and isn't individually observable, so this reports the configured
-      model for the attempt as a whole; which one actually answered is
-      only known once it succeeds, see `model` in the final frame).
+      currently being attempted (see `deps.get_active_model()`: in
+      "cloud" mode this may be a `FallbackModel` cascading between two
+      cloud tiers, and the switch itself happens inside a single attempt
+      and isn't individually observable, so this reports the active
+      provider's label for the attempt as a whole; which model actually
+      answered is only known once it succeeds, see `model` in the final
+      frame).
     - `{"delta": str}` chunks (already filtered of any `<think>...
       </think>` reasoning text) as they arrive.
     - A single terminal `{"done": True, "reply": ..., "model": ...,
@@ -401,13 +411,14 @@ async def stream_coach_chat(
 
     attempt = 0
     while True:
-        yield {"status": "trying", "model": settings.LLM_MODEL}
+        yield {"status": "trying", "model": active_model_label()}
         try:
             async with _llm_slot():
                 async with agent.run_stream(
                     user_message,
                     deps=deps,
                     message_history=message_history,
+                    model=get_active_model(),
                 ) as stream:
                     async for delta in stream.stream_text(delta=True):
                         visible = filt.feed(delta)
@@ -438,7 +449,7 @@ async def stream_coach_chat(
             )
             yield {
                 "status": "retrying",
-                "model": settings.LLM_MODEL,
+                "model": active_model_label(),
                 "attempt": attempt,
                 "max_attempts": _MAX_TRANSIENT_RETRIES,
                 "delay_seconds": round(delay, 1),
@@ -458,6 +469,6 @@ async def stream_coach_chat(
     yield {
         "done": True,
         "reply": reply,
-        "model": used_model or settings.LLM_MODEL,
+        "model": used_model or active_model_label(),
         "ungrounded_claims": ungrounded,
     }

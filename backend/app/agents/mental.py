@@ -13,7 +13,7 @@ from collections.abc import Sequence
 
 from pydantic_ai import Agent, RunContext
 
-from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
 from app.models import MentalEntry
 
 log = logging.getLogger(__name__)
@@ -86,5 +86,5 @@ def generate_mental_insight(
     # No DB needed for this agent — pass None
     deps = CoachDeps(db=None)  # type: ignore[arg-type]
 
-    result = mental_agent.run_sync(user_msg, deps=deps)
+    result = mental_agent.run_sync(user_msg, deps=deps, model=get_active_model())
     return result.output.strip()

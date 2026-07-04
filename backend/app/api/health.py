@@ -19,11 +19,11 @@ router = APIRouter(tags=["health"])
 def _check_llm() -> bool:
     """Quick liveness probe against the LLM endpoint via OpenAI SDK."""
     try:
-        from app.agents.deps import get_model
+        from app.agents.deps import get_active_model
 
         # Just verify the model object can be constructed (provider is reachable
         # is checked lazily on first call). This is a lightweight check.
-        model = get_model()
+        model = get_active_model()
         return model is not None
     except Exception as e:  # noqa: BLE001
         log.warning("LLM health check failed: %s", e)

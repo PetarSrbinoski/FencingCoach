@@ -20,7 +20,13 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.deps import (
+    CoachDeps,
+    active_model_label,
+    get_active_model,
+    get_model,
+    strip_think_tags,
+)
 from app.agents.retry import call_with_transient_retry
 from app.core.clock import athlete_today
 from app.core.config import settings
@@ -157,7 +163,7 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
 
     try:
         result = call_with_transient_retry(
-            lambda: mealplan_agent.run_sync(user_msg, deps=deps),
+            lambda: mealplan_agent.run_sync(user_msg, deps=deps, model=get_active_model()),
             label="mealplan agent",
         )
         plan_data = result.output.model_dump()
@@ -167,7 +173,7 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
 
     payload = {
         "plan": plan_data,
-        "model": settings.LLM_MODEL,
+        "model": active_model_label(),
     }
     targets_payload = targets.to_dict()
 

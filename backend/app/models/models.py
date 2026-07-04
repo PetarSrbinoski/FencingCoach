@@ -365,3 +365,23 @@ class USDAFood(Base):
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# App settings (generic key/value)
+# ─────────────────────────────────────────────────────────────────────
+class AppSetting(Base):
+    """Generic single-row-per-key app-wide setting (single-user app, no
+    per-user scoping needed). Currently used for the manual LLM provider
+    toggle (`key="llm_provider"`, `value="local"|"cloud"` — see
+    `services/llm_provider.py`), but intentionally generic so future
+    simple global flags don't each need their own table + migration.
+    """
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[str] = mapped_column(String(200), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -17,9 +17,14 @@ from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.deps import (
+    CoachDeps,
+    active_model_label,
+    get_active_model,
+    get_model,
+    strip_think_tags,
+)
 from app.core.clock import athlete_today
-from app.core.config import settings
 from app.models import DailyBrief
 from app.services.context import build_context
 from app.services.prompts import COACH_SYSTEM_PROMPT, DAILY_BRIEF_PROMPT
@@ -69,7 +74,7 @@ def generate_brief(db: Session, day: date | None = None) -> DailyBrief:
     deps = CoachDeps(db=db, context_text=context)
 
     try:
-        result = brief_agent.run_sync(DAILY_BRIEF_PROMPT, deps=deps)
+        result = brief_agent.run_sync(DAILY_BRIEF_PROMPT, deps=deps, model=get_active_model())
         summary = result.output
     except Exception as e:
         log.error("Brief agent failed: %s", e)
@@ -77,7 +82,7 @@ def generate_brief(db: Session, day: date | None = None) -> DailyBrief:
 
     payload = {
         "readiness": readiness.to_dict(),
-        "model": settings.LLM_MODEL,
+        "model": active_model_label(),
     }
 
     stmt = pg_insert(DailyBrief).values(

@@ -518,6 +518,15 @@ export const api = {
       request<{ day: string; source: string }>(`/targets/day-type/${day}`, { method: "DELETE" }),
   },
 
+  settings: {
+    getLlmProvider: () => request<{ provider: string }>("/settings/llm-provider"),
+    setLlmProvider: (provider: "local" | "cloud") =>
+      request<{ provider: string }>("/settings/llm-provider", {
+        method: "PUT",
+        body: JSON.stringify({ provider }),
+      }),
+  },
+
   mealplan: {
     get: (day: string) => request<MealPlan | null>(`/mealplan/${day}`),
     generateToday: () => request<MealPlan>("/mealplan/today", { method: "POST" }),

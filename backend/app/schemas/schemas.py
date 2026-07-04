@@ -248,6 +248,14 @@ class DayTypeOverrideRequest(BaseModel):
     day_type: str
 
 
+class LLMProviderOut(BaseModel):
+    provider: str  # "local" or "cloud"
+
+
+class LLMProviderRequest(BaseModel):
+    provider: str  # "local" or "cloud"
+
+
 class MealPlanOut(BaseModel):
     day: Date
     targets: dict[str, Any]

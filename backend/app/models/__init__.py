@@ -2,6 +2,7 @@
 
 from app.models.models import (  # noqa: F401
     Activity,
+    AppSetting,
     AthleteProfile,
     CoachConversation,
     CoachMessage,

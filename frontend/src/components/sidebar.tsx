@@ -21,6 +21,7 @@ import {
   Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LlmProviderToggle } from "@/components/llm-provider-toggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -122,6 +123,7 @@ export function Sidebar() {
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-border px-6 py-4">
           <div className="space-y-3">
+            <LlmProviderToggle />
             <button
               onClick={toggleTheme}
               className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -187,9 +189,11 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom: theme toggle + collapse */}
+        {/* Bottom: LLM provider toggle + theme toggle + collapse */}
         <div className="border-t border-border p-3 shrink-0 space-y-3">
-          <div className="flex items-center justify-between">
+          {!collapsed && <LlmProviderToggle />}
+          <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "justify-between")}>
+            {collapsed && <LlmProviderToggle collapsed />}
             <button
               className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={toggleTheme}

@@ -18,6 +18,8 @@ from app.schemas.schemas import (  # noqa: F401
     GarminLoginRequest,
     GarminSyncResult,
     HealthResponse,
+    LLMProviderOut,
+    LLMProviderRequest,
     MealPlanOut,
     MentalEntryCreate,
     MentalEntryOut,

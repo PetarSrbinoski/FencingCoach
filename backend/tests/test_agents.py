@@ -155,7 +155,7 @@ class TestNutritionAgent:
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
         calls: list[str] = []
 
-        async def fail_primary(text, deps):
+        async def fail_primary(text, deps, model=None):
             calls.append(f"primary:{text}")
             raise RuntimeError("503 Service Unavailable")
 
@@ -169,7 +169,7 @@ class TestNutritionAgent:
             notes="Used web research while USDA MCP was unavailable.",
         )
 
-        async def succeed_fallback(text, deps):
+        async def succeed_fallback(text, deps, model=None):
             calls.append(f"fallback:{text}")
             return SimpleNamespace(output=fallback_output)
 
@@ -187,7 +187,7 @@ class TestNutritionAgent:
     def test_estimate_nutrition_raises_when_both_agents_fail(self, monkeypatch):
         """Hard-fail loudly — never silently persist a fabricated zero estimate."""
 
-        async def fail(text, deps):
+        async def fail(text, deps, model=None):
             raise RuntimeError("upstream LLM timeout")
 
         monkeypatch.setattr(nutrition_agent, "run", fail)
@@ -201,7 +201,7 @@ class TestNutritionAgent:
         a primary failure must still raise, not return zeros."""
         monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_SCRIPT", "", raising=False)
 
-        async def fail(text, deps):
+        async def fail(text, deps, model=None):
             raise RuntimeError("network error")
 
         monkeypatch.setattr(nutrition_agent, "run", fail)
@@ -221,7 +221,7 @@ class TestNutritionAgent:
             kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="high"
         )
 
-        async def flaky_primary(text, deps):
+        async def flaky_primary(text, deps, model=None):
             calls["n"] += 1
             if calls["n"] == 1:
                 request = httpx.Request(
@@ -234,7 +234,7 @@ class TestNutritionAgent:
                 )
             return SimpleNamespace(output=good_output)
 
-        async def fail_fallback(text, deps):  # pragma: no cover - should never be called
+        async def fail_fallback(text, deps, model=None):  # pragma: no cover - should never be called
             raise AssertionError("fallback agent should not be needed")
 
         monkeypatch.setattr(nutrition_agent, "run", flaky_primary)
@@ -252,7 +252,7 @@ class TestNutritionAgent:
         monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
 
-        async def always_flaky_primary(text, deps):
+        async def always_flaky_primary(text, deps, model=None):
             request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
             raise openai.APIError(
                 "ResourceExhausted: Worker local total request limit reached",
@@ -264,7 +264,7 @@ class TestNutritionAgent:
             kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="medium"
         )
 
-        async def succeed_fallback(text, deps):
+        async def succeed_fallback(text, deps, model=None):
             return SimpleNamespace(output=fallback_output)
 
         monkeypatch.setattr(nutrition_agent, "run", always_flaky_primary)
@@ -279,10 +279,10 @@ class TestNutritionAgent:
         back to the USDA-free agent — see app.core.cancellation."""
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
 
-        async def cancelled(text, deps):
+        async def cancelled(text, deps, model=None):
             raise asyncio.CancelledError()
 
-        async def fail_fallback(text, deps):  # pragma: no cover - should never be called
+        async def fail_fallback(text, deps, model=None):  # pragma: no cover - should never be called
             raise AssertionError("fallback agent should not run for a cancelled request")
 
         monkeypatch.setattr(nutrition_agent, "run", cancelled)
@@ -344,7 +344,7 @@ class TestMealPlanAgent:
 
         good_output = MealPlanOutput(meals=[], rationale="ok")
 
-        def flaky_run(user_msg, deps=None):
+        def flaky_run(user_msg, deps=None, model=None):
             calls["n"] += 1
             if calls["n"] == 1:
                 request = httpx.Request(
@@ -402,7 +402,7 @@ class TestCoachAgent:
         assert r.ungrounded_claims == []
 
     def test_run_coach_chat_flags_ungrounded_claims(self, monkeypatch, db):
-        async def fake_run(user_prompt, deps=None, message_history=None):
+        async def fake_run(user_prompt, deps=None, message_history=None, model=None):
             return SimpleNamespace(output="Your HRV was 99 last night.")
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
@@ -415,7 +415,7 @@ class TestCoachAgent:
         assert "99" in result.ungrounded_claims[0]
 
     def test_run_coach_chat_no_flags_when_grounded(self, monkeypatch, db):
-        async def fake_run(user_prompt, deps=None, message_history=None):
+        async def fake_run(user_prompt, deps=None, message_history=None, model=None):
             return SimpleNamespace(output="Your HRV was 55 last night.")
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
@@ -444,7 +444,7 @@ class TestCoachAgent:
             async def __aexit__(self, *a):
                 return False
 
-        def fake_run_stream(user_prompt, deps=None, message_history=None):
+        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
             return _FakeStreamCM(["<think>internal reasoning</think>Your HRV was 99 today."])
 
         monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
@@ -685,7 +685,7 @@ class TestCoachWebSearchGating:
         assert _wants_web_search(message) is True
 
     def test_run_coach_chat_uses_plain_agent_by_default(self, monkeypatch, db):
-        async def fake_run(user_prompt, deps=None, message_history=None):
+        async def fake_run(user_prompt, deps=None, message_history=None, model=None):
             return SimpleNamespace(output="Hey! How can I help?")
 
         def fail_run(*a, **kw):  # pragma: no cover - should never be called
@@ -698,7 +698,7 @@ class TestCoachWebSearchGating:
         assert result.reply == "Hey! How can I help?"
 
     def test_run_coach_chat_uses_search_agent_when_explicitly_asked(self, monkeypatch, db):
-        async def fake_run(user_prompt, deps=None, message_history=None):
+        async def fake_run(user_prompt, deps=None, message_history=None, model=None):
             return SimpleNamespace(output="Found it via search.")
 
         def fail_run(*a, **kw):  # pragma: no cover - should never be called
@@ -764,7 +764,7 @@ class TestCoachTransientErrorRetry:
     def test_run_coach_chat_retries_transient_error_then_succeeds(self, monkeypatch, db):
         calls = {"n": 0}
 
-        async def flaky_run(user_prompt, deps=None, message_history=None):
+        async def flaky_run(user_prompt, deps=None, message_history=None, model=None):
             calls["n"] += 1
             if calls["n"] == 1:
                 raise _make_transient_error()
@@ -783,7 +783,7 @@ class TestCoachTransientErrorRetry:
         not an openai.APIError. The retry logic must handle both shapes."""
         calls = {"n": 0}
 
-        async def flaky_run(user_prompt, deps=None, message_history=None):
+        async def flaky_run(user_prompt, deps=None, message_history=None, model=None):
             calls["n"] += 1
             if calls["n"] == 1:
                 raise _make_transient_http_error()
@@ -799,7 +799,7 @@ class TestCoachTransientErrorRetry:
     def test_run_coach_chat_gives_up_after_max_retries(self, monkeypatch, db):
         calls = {"n": 0}
 
-        async def always_flaky_run(user_prompt, deps=None, message_history=None):
+        async def always_flaky_run(user_prompt, deps=None, message_history=None, model=None):
             calls["n"] += 1
             raise _make_transient_error()
 
@@ -814,7 +814,7 @@ class TestCoachTransientErrorRetry:
     def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch, db):
         calls = {"n": 0}
 
-        async def bad_request_run(user_prompt, deps=None, message_history=None):
+        async def bad_request_run(user_prompt, deps=None, message_history=None, model=None):
             calls["n"] += 1
             request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
             raise openai.APIError("Invalid request: bad schema", request, body=None)
@@ -831,7 +831,7 @@ class TestCoachTransientErrorRetry:
         silently duplicate the side effect."""
         calls = {"n": 0}
 
-        async def flaky_run_with_side_effect(user_prompt, deps=None, message_history=None):
+        async def flaky_run_with_side_effect(user_prompt, deps=None, message_history=None, model=None):
             calls["n"] += 1
             deps.side_effect_committed = True  # simulates a tool having run
             raise _make_transient_error()
@@ -867,7 +867,7 @@ class TestCoachTransientErrorRetry:
             async def __aexit__(self, *a):
                 return False
 
-        def fake_run_stream(user_prompt, deps=None, message_history=None):
+        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
             return _FakeStreamCM(["All good now."])
 
         monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
@@ -898,7 +898,7 @@ class TestCoachTransientErrorRetry:
             async def __aexit__(self, *a):
                 return False
 
-        def fake_run_stream(user_prompt, deps=None, message_history=None):
+        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
             deps.side_effect_committed = True  # simulates a tool having run
             return _FakeStreamCM()
 

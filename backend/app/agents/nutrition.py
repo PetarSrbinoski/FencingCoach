@@ -20,7 +20,7 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
 from pydantic_ai.mcp import MCPServerStdio
 
-from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
 from app.agents.retry import acall_with_transient_retry
 from app.core.config import settings
 
@@ -195,7 +195,7 @@ async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutp
 
     try:
         result = await acall_with_transient_retry(
-            lambda: nutrition_agent.run(text.strip(), deps=deps),
+            lambda: nutrition_agent.run(text.strip(), deps=deps, model=get_active_model()),
             label="nutrition agent (primary)",
         )
         return _clean_output(result.output)
@@ -207,7 +207,9 @@ async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutp
             )
             try:
                 fallback_result = await acall_with_transient_retry(
-                    lambda: nutrition_fallback_agent.run(text.strip(), deps=deps),
+                    lambda: nutrition_fallback_agent.run(
+                        text.strip(), deps=deps, model=get_active_model()
+                    ),
                     label="nutrition agent (fallback)",
                 )
                 return _clean_output(fallback_result.output)
