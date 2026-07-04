@@ -72,7 +72,15 @@ export default function ChatPage() {
   }, [messages, busy]);
 
   useEffect(() => {
-    loadConversations();
+    const pending = sessionStorage.getItem("pendingChatMessage");
+    if (pending) sessionStorage.removeItem("pendingChatMessage");
+    (async () => {
+      await loadConversations();
+      if (pending) {
+        startNewConversation();
+        send(pending);
+      }
+    })();
   }, []);
 
   async function loadConversations(selectId?: number) {
@@ -115,10 +123,10 @@ export default function ChatPage() {
     setHistoryOpen(false);
   }
 
-  async function send() {
-    if (!input.trim() || busy) return;
+  async function send(overrideText?: string) {
+    const content = (overrideText ?? input).trim();
+    if (!content || busy) return;
 
-    const content = input.trim();
     setMessages((current) => [
       ...current,
       { role: "user", content },
