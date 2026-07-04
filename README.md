@@ -12,6 +12,9 @@ The live version is hosted on my home server.
 - Workout tracking
 - Coach chat
 
+See [FUNCTIONALITIES.md](./FUNCTIONALITIES.md) for a full breakdown of the coach
+agent's capabilities and every app feature.
+
 ## Architecture
 
 High-level overview of how the pieces fit together — a Next.js frontend talking

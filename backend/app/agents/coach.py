@@ -43,10 +43,13 @@ from app.agents.retry import (
     MAX_TRANSIENT_RETRIES as _MAX_TRANSIENT_RETRIES,
 )
 from app.agents.retry import (
-    RETRY_BACKOFF_SECONDS as _RETRY_BACKOFF_SECONDS,
+    backoff_delay as _backoff_delay,
 )
 from app.agents.retry import (
     is_transient_llm_error as _is_transient_llm_error,
+)
+from app.agents.retry import (
+    llm_slot as _llm_slot,
 )
 from app.core.config import settings
 from app.models import Competition
@@ -296,11 +299,12 @@ async def run_coach_chat(
     attempt = 0
     while True:
         try:
-            result = await agent.run(
-                user_message,
-                deps=deps,
-                message_history=message_history,
-            )
+            async with _llm_slot():
+                result = await agent.run(
+                    user_message,
+                    deps=deps,
+                    message_history=message_history,
+                )
             break
         except Exception as e:  # noqa: BLE001
             # Never retry a whole run once a tool has already committed a
@@ -319,7 +323,7 @@ async def run_coach_chat(
                 _MAX_TRANSIENT_RETRIES,
                 e,
             )
-            await asyncio.sleep(_RETRY_BACKOFF_SECONDS * attempt)
+            await asyncio.sleep(_backoff_delay(attempt))
 
     reply = result.output
     ungrounded = find_ungrounded_claims(reply, context_text)
@@ -361,16 +365,17 @@ async def stream_coach_chat(
     attempt = 0
     while True:
         try:
-            async with agent.run_stream(
-                user_message,
-                deps=deps,
-                message_history=message_history,
-            ) as stream:
-                async for delta in stream.stream_text(delta=True):
-                    visible = filt.feed(delta)
-                    if visible:
-                        chunks.append(visible)
-                        yield {"delta": visible}
+            async with _llm_slot():
+                async with agent.run_stream(
+                    user_message,
+                    deps=deps,
+                    message_history=message_history,
+                ) as stream:
+                    async for delta in stream.stream_text(delta=True):
+                        visible = filt.feed(delta)
+                        if visible:
+                            chunks.append(visible)
+                            yield {"delta": visible}
             break
         except Exception as e:  # noqa: BLE001
             # Only safe to retry if nothing has been streamed to the
@@ -391,7 +396,7 @@ async def stream_coach_chat(
                 _MAX_TRANSIENT_RETRIES,
                 e,
             )
-            await asyncio.sleep(_RETRY_BACKOFF_SECONDS * attempt)
+            await asyncio.sleep(_backoff_delay(attempt))
 
     tail = filt.flush()
     if tail:

@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     # indefinitely on a stalled connection.
     LLM_TIMEOUT_SECONDS: float = 120.0
     LLM_MAX_RETRIES: int = 2
+    # How many times to transparently retry a *transient* provider error
+    # (capacity/rate-limit, e.g. NVIDIA NIM's "ResourceExhausted: Worker
+    # local total request limit reached"). These failures happen before any
+    # token is produced, so retrying is safe. Uses exponential backoff.
+    LLM_MAX_TRANSIENT_RETRIES: int = 4
+    # Max number of concurrent in-flight LLM requests this process will make.
+    # A global asyncio semaphore queues anything beyond this so we never push
+    # the provider over its own per-worker concurrency limit (32 for NIM).
+    LLM_MAX_CONCURRENCY: int = 8
 
     # ── Garmin ────────────────────────────────────────────────────────
     GARMIN_EMAIL: str = ""

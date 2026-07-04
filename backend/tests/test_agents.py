@@ -18,6 +18,7 @@ import openai
 import pytest
 from app.agents.brief import brief_agent
 from app.agents.coach import (
+    _MAX_TRANSIENT_RETRIES,
     ChatResult,
     _db_messages_to_history,
     _is_transient_llm_error,
@@ -770,7 +771,7 @@ class TestCoachTransientErrorRetry:
             return SimpleNamespace(output="Hey, all good now.")
 
         monkeypatch.setattr(coach_agent, "run", flaky_run)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         result = asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert result.reply == "Hey, all good now."
@@ -789,7 +790,7 @@ class TestCoachTransientErrorRetry:
             return SimpleNamespace(output="Hey, all good now.")
 
         monkeypatch.setattr(coach_agent, "run", flaky_run)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         result = asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert result.reply == "Hey, all good now."
@@ -803,12 +804,12 @@ class TestCoachTransientErrorRetry:
             raise _make_transient_error()
 
         monkeypatch.setattr(coach_agent, "run", always_flaky_run)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         with pytest.raises(openai.APIError):
             asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         # initial attempt + _MAX_TRANSIENT_RETRIES retries
-        assert calls["n"] == 3
+        assert calls["n"] == _MAX_TRANSIENT_RETRIES + 1
 
     def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch, db):
         calls = {"n": 0}
@@ -836,7 +837,7 @@ class TestCoachTransientErrorRetry:
             raise _make_transient_error()
 
         monkeypatch.setattr(coach_agent, "run", flaky_run_with_side_effect)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         with pytest.raises(openai.APIError):
             asyncio.run(run_coach_chat("hello", db=db, context_text=""))
@@ -870,7 +871,7 @@ class TestCoachTransientErrorRetry:
             return _FakeStreamCM(["All good now."])
 
         monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         async def collect():
             items = []
@@ -902,7 +903,7 @@ class TestCoachTransientErrorRetry:
             return _FakeStreamCM()
 
         monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
-        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
 
         async def collect():
             items = []
