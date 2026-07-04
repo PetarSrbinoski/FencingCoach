@@ -27,18 +27,22 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-ai/deepseek-v4-flash"
-    # Secondary model tried whenever LLM_MODEL fails with a transient
-    # provider error (capacity/rate-limit, or the primary being completely
-    # unreachable — e.g. a local model server that isn't running). By
-    # default it's assumed to be served by the same provider (shares
-    # LLM_BASE_URL/LLM_API_KEY); set LLM_FALLBACK_BASE_URL/
-    # LLM_FALLBACK_API_KEY to point it at a *different* provider instead
-    # (e.g. primary = local llama.cpp/vLLM on your own machine, fallback =
-    # a hosted cloud endpoint that's always available). Set LLM_FALLBACK_MODEL
-    # to "" to disable the fallback entirely.
+    # Fallback chain tried, in order, whenever the current model fails with
+    # a transient error (capacity/rate-limit, or being completely
+    # unreachable — e.g. a local model server that isn't running):
+    # LLM_MODEL -> LLM_FALLBACK_MODEL -> LLM_FALLBACK2_MODEL. Each tier
+    # defaults to the previous tier's connection details (LLM_BASE_URL/
+    # LLM_API_KEY) if its own *_BASE_URL/*_API_KEY are left blank, so e.g.
+    # both fallbacks can share one cloud provider's credentials while the
+    # primary is a local llama.cpp/vLLM server. Set LLM_FALLBACK_MODEL to
+    # "" to disable fallback entirely (LLM_FALLBACK2_MODEL is then ignored).
     LLM_FALLBACK_MODEL: str = "meta/llama-3.3-70b-instruct"
     LLM_FALLBACK_BASE_URL: str = ""
     LLM_FALLBACK_API_KEY: str = ""
+    # Second-tier fallback, tried only if LLM_FALLBACK_MODEL also fails.
+    LLM_FALLBACK2_MODEL: str = ""
+    LLM_FALLBACK2_BASE_URL: str = ""
+    LLM_FALLBACK2_API_KEY: str = ""
     LLM_MAX_TOKENS: int = 16384
     LLM_TEMPERATURE: float = 0.6
     LLM_CONTEXT_TOKENS: int = 131072

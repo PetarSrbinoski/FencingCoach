@@ -189,17 +189,19 @@ def get_model() -> Model:
     automatic retries before surfacing to the caller.
 
     If `LLM_FALLBACK_MODEL` is set, the returned model is a `FallbackModel`
-    wrapping the primary model plus the fallback: pydantic-ai retries the
-    request against the fallback whenever the primary raises a *transient*
-    provider error (`agents.retry.is_transient_llm_error` — the same
-    definition this app's own retry-with-backoff loop uses). This is on
-    top of, not instead of, that loop, which still covers the case where
-    *both* models are unavailable. The fallback defaults to sharing the
-    primary's connection details, but `LLM_FALLBACK_BASE_URL`/
-    `LLM_FALLBACK_API_KEY` let it be a completely different provider (e.g.
-    primary = local llama.cpp/vLLM, fallback = a hosted cloud endpoint) —
-    `is_transient_llm_error` treats "can't connect at all" the same as a
-    capacity error, so this also covers the primary being offline entirely.
+    wrapping a chain of up to three models — primary, fallback, fallback2 —
+    tried in order: pydantic-ai advances to the next one whenever the
+    current model raises a *transient* provider error
+    (`agents.retry.is_transient_llm_error` — the same definition this app's
+    own retry-with-backoff loop uses). This is on top of, not instead of,
+    that loop, which still covers the case where every configured model is
+    unavailable. Each tier defaults to the previous tier's connection
+    details, but `LLM_FALLBACK_BASE_URL`/`LLM_FALLBACK_API_KEY` (and the
+    `LLM_FALLBACK2_*` equivalents) let any tier be a completely different
+    provider (e.g. primary = local llama.cpp/vLLM, fallback(s) = hosted
+    cloud endpoints) — `is_transient_llm_error` treats "can't connect at
+    all" the same as a capacity error, so this also covers a tier being
+    offline entirely, not just rate-limited.
 
     NOTE: `FallbackModel`'s own default (`fallback_on=(ModelAPIError,)`)
     deliberately isn't used here — NVIDIA NIM's actual capacity failure
@@ -232,4 +234,23 @@ def get_model() -> Model:
         api_key=fallback_api_key,
     )
     log.info("Fallback model configured: %s @ %s", settings.LLM_FALLBACK_MODEL, fallback_base_url)
-    return FallbackModel(primary, fallback, fallback_on=is_transient_llm_error)
+
+    chain = [primary, fallback]
+
+    if settings.LLM_FALLBACK2_MODEL:
+        fallback2_base_url = settings.LLM_FALLBACK2_BASE_URL or fallback_base_url
+        fallback2_api_key = settings.LLM_FALLBACK2_API_KEY or fallback_api_key
+        fallback2 = _build_chat_model(
+            settings.LLM_FALLBACK2_MODEL,
+            FALLBACK_MODEL_SETTINGS,
+            base_url=fallback2_base_url,
+            api_key=fallback2_api_key,
+        )
+        log.info(
+            "Second fallback model configured: %s @ %s",
+            settings.LLM_FALLBACK2_MODEL,
+            fallback2_base_url,
+        )
+        chain.append(fallback2)
+
+    return FallbackModel(*chain, fallback_on=is_transient_llm_error)
