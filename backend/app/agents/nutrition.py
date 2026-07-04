@@ -21,6 +21,7 @@ from pydantic_ai.capabilities import WebSearch
 from pydantic_ai.mcp import MCPServerStdio
 
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
+from app.agents.retry import call_with_transient_retry
 from app.core.config import settings
 
 log = logging.getLogger(__name__)
@@ -187,7 +188,10 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     deps = CoachDeps(db=db) if db else CoachDeps(db=None)  # type: ignore[arg-type]
 
     try:
-        result = nutrition_agent.run_sync(text.strip(), deps=deps)
+        result = call_with_transient_retry(
+            lambda: nutrition_agent.run_sync(text.strip(), deps=deps),
+            label="nutrition agent (primary)",
+        )
         return _clean_output(result.output)
     except Exception as e:
         if _usda_mcp_available():
@@ -196,7 +200,10 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
                 e,
             )
             try:
-                fallback_result = nutrition_fallback_agent.run_sync(text.strip(), deps=deps)
+                fallback_result = call_with_transient_retry(
+                    lambda: nutrition_fallback_agent.run_sync(text.strip(), deps=deps),
+                    label="nutrition agent (fallback)",
+                )
                 return _clean_output(fallback_result.output)
             except Exception as fallback_error:
                 log.error(

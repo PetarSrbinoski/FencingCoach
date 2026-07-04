@@ -208,6 +208,70 @@ class TestNutritionAgent:
         with pytest.raises(RuntimeError, match="nutrition estimation failed"):
             estimate_nutrition("chicken burrito bowl")
 
+    def test_estimate_nutrition_retries_transient_error_then_succeeds(self, monkeypatch):
+        """Regression test for the prod 503 seen from NVIDIA NIM on
+        /nutrition/estimate: a transient provider error on the primary
+        USDA-backed agent must be retried in place, without falling back
+        to (and needlessly losing) USDA-grounded results."""
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
+        calls = {"n": 0}
+
+        good_output = NutritionEstimateOutput(
+            kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="high"
+        )
+
+        def flaky_primary(text, deps):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                request = httpx.Request(
+                    "POST", "https://integrate.api.nvidia.com/v1/chat/completions"
+                )
+                raise openai.APIError(
+                    "ResourceExhausted: Worker local total request limit reached",
+                    request,
+                    body=None,
+                )
+            return SimpleNamespace(output=good_output)
+
+        def fail_fallback(text, deps):  # pragma: no cover - should never be called
+            raise AssertionError("fallback agent should not be needed")
+
+        monkeypatch.setattr(nutrition_agent, "run_sync", flaky_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", fail_fallback)
+
+        result = estimate_nutrition("chicken burrito bowl")
+
+        assert result == good_output
+        assert calls["n"] == 2
+
+    def test_estimate_nutrition_gives_up_then_falls_back_to_usda_free(self, monkeypatch):
+        """If the primary agent keeps failing transiently past the retry
+        budget, it should still fall back to the USDA-free agent rather
+        than surfacing the error directly."""
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
+        monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
+
+        def always_flaky_primary(text, deps):
+            request = httpx.Request("POST", "https://integrate.api.nvidia.com/v1/chat/completions")
+            raise openai.APIError(
+                "ResourceExhausted: Worker local total request limit reached",
+                request,
+                body=None,
+            )
+
+        fallback_output = NutritionEstimateOutput(
+            kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="medium"
+        )
+
+        def succeed_fallback(text, deps):
+            return SimpleNamespace(output=fallback_output)
+
+        monkeypatch.setattr(nutrition_agent, "run_sync", always_flaky_primary)
+        monkeypatch.setattr(nutrition_fallback_agent, "run_sync", succeed_fallback)
+
+        result = estimate_nutrition("chicken burrito bowl")
+        assert result == fallback_output
+
     def test_usda_mcp_available_false_when_script_missing(self, monkeypatch):
         monkeypatch.setattr(
             "app.agents.nutrition.settings.USDA_MCP_SCRIPT", "/nonexistent/path/main.py"
@@ -250,6 +314,36 @@ class TestMealPlanAgent:
         d = plan.model_dump()
         assert d["rationale"] == "test plan"
         assert d["meals"] == []
+
+    def test_generate_meal_plan_retries_transient_error_then_succeeds(self, monkeypatch, db):
+        from datetime import date
+
+        from app.agents.mealplan import generate_meal_plan, mealplan_agent
+
+        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
+        calls = {"n": 0}
+
+        good_output = MealPlanOutput(meals=[], rationale="ok")
+
+        def flaky_run(user_msg, deps=None):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                request = httpx.Request(
+                    "POST", "https://integrate.api.nvidia.com/v1/chat/completions"
+                )
+                raise openai.APIError(
+                    "ResourceExhausted: Worker local total request limit reached",
+                    request,
+                    body=None,
+                )
+            return SimpleNamespace(output=good_output)
+
+        monkeypatch.setattr(mealplan_agent, "run_sync", flaky_run)
+
+        plan = generate_meal_plan(db, day=date(2026, 8, 1))
+
+        assert calls["n"] == 2
+        assert plan.plan["plan"]["rationale"] == "ok"
 
 
 # ── brief agent ───────────────────────────────────────────────────────

@@ -26,10 +26,9 @@ from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Any
 
-import openai
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.exceptions import ModelHTTPError, ModelRetry
+from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -40,6 +39,15 @@ from pydantic_ai.messages import (
 from sqlalchemy.orm import Session
 
 from app.agents.deps import CoachDeps, ThinkTagStreamFilter, get_model, strip_think_tags
+from app.agents.retry import (
+    MAX_TRANSIENT_RETRIES as _MAX_TRANSIENT_RETRIES,
+)
+from app.agents.retry import (
+    RETRY_BACKOFF_SECONDS as _RETRY_BACKOFF_SECONDS,
+)
+from app.agents.retry import (
+    is_transient_llm_error as _is_transient_llm_error,
+)
 from app.core.config import settings
 from app.models import Competition
 from app.schemas import ExerciseOverrideIn
@@ -64,43 +72,13 @@ def _wants_web_search(message: str) -> bool:
     return bool(_SEARCH_INTENT_RE.search(message))
 
 
-# The NVIDIA NIM hosted endpoint occasionally fails with a transient
-# capacity/rate-limit error, in one of two shapes depending on how its
-# gateway responds:
-#   1. HTTP 200 (stream started) but the error is embedded in the very
-#      first SSE chunk, e.g. "ResourceExhausted: Worker local total
-#      request limit reached (222/32)" — raised by the openai SDK as a
-#      plain `openai.APIError` (agent.run_stream path).
-#   2. An actual non-2xx HTTP status (e.g. 503) — pydantic-ai wraps this
-#      as `pydantic_ai.exceptions.ModelHTTPError` (agent.run path).
-# Either way this happens before any token is produced, so the OpenAI
-# SDK's own `max_retries` (which only covers pre-stream connection
-# failures) never kicks in — the request just fails outright. From the
-# athlete's side this looked like "every other message gets silently
-# ignored". Since the failure always occurs before any output is
-# generated, it's safe to transparently retry a couple of times.
-_TRANSIENT_ERROR_MARKERS = (
-    "resourceexhausted",
-    "resource exhausted",
-    "rate limit",
-    "rate_limit",
-    "overloaded",
-    "try again",
-    "capacity",
-)
-_RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
-_MAX_TRANSIENT_RETRIES = 2
-_RETRY_BACKOFF_SECONDS = 1.5
-
-
-def _is_transient_llm_error(exc: Exception) -> bool:
-    if isinstance(exc, ModelHTTPError):
-        if exc.status_code in _RETRYABLE_HTTP_STATUS:
-            return True
-        return any(marker in str(exc).lower() for marker in _TRANSIENT_ERROR_MARKERS)
-    if isinstance(exc, openai.APIError):
-        return any(marker in str(exc).lower() for marker in _TRANSIENT_ERROR_MARKERS)
-    return False
+# Transient-LLM-error classification + retry constants are shared with
+# nutrition.py/mealplan.py via app.agents.retry (see that module for the
+# full explanation of the two NVIDIA NIM failure shapes). This chat agent
+# keeps its own retry loop below rather than the generic
+# `call_with_transient_retry` helper because it needs an extra guard:
+# never retry once a tool has already committed a DB write this attempt
+# (see `CoachDeps.side_effect_committed`).
 
 
 def _parse_iso_date(value: str, *, field_name: str) -> Date:
