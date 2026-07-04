@@ -130,21 +130,32 @@ class CoachDeps:
     side_effect_committed: bool = False
 
 
-def _build_chat_model(model_name: str, model_settings: OpenAIChatModelSettings) -> OpenAIChatModel:
+def _build_chat_model(
+    model_name: str,
+    model_settings: OpenAIChatModelSettings,
+    *,
+    base_url: str | None = None,
+    api_key: str | None = None,
+) -> OpenAIChatModel:
     """Build a single OpenAI-compatible chat model from settings.
 
     Shared by `get_model()` for both the primary (`LLM_MODEL`) and, if
-    configured, the fallback (`LLM_FALLBACK_MODEL`) — same provider
-    connection details, different model name/settings.
+    configured, the fallback (`LLM_FALLBACK_MODEL`). Defaults to the
+    primary's connection details (`LLM_BASE_URL`/`LLM_API_KEY`) when
+    `base_url`/`api_key` aren't given, but the fallback can point at an
+    entirely different provider via `LLM_FALLBACK_BASE_URL`/
+    `LLM_FALLBACK_API_KEY`.
     """
     from openai import AsyncOpenAI
     from pydantic_ai.providers.openai import OpenAIProvider
 
-    api_key = settings.LLM_API_KEY or "not-needed"
+    resolved_key = api_key if api_key is not None else settings.LLM_API_KEY
+    resolved_key = resolved_key or "not-needed"
+    resolved_base_url = base_url or settings.LLM_BASE_URL
 
     openai_client = AsyncOpenAI(
-        base_url=settings.LLM_BASE_URL,
-        api_key=api_key,
+        base_url=resolved_base_url,
+        api_key=resolved_key,
         timeout=settings.LLM_TIMEOUT_SECONDS,
         max_retries=settings.LLM_MAX_RETRIES,
     )
@@ -183,7 +194,12 @@ def get_model() -> Model:
     provider error (`agents.retry.is_transient_llm_error` — the same
     definition this app's own retry-with-backoff loop uses). This is on
     top of, not instead of, that loop, which still covers the case where
-    *both* models are unavailable.
+    *both* models are unavailable. The fallback defaults to sharing the
+    primary's connection details, but `LLM_FALLBACK_BASE_URL`/
+    `LLM_FALLBACK_API_KEY` let it be a completely different provider (e.g.
+    primary = local llama.cpp/vLLM, fallback = a hosted cloud endpoint) —
+    `is_transient_llm_error` treats "can't connect at all" the same as a
+    capacity error, so this also covers the primary being offline entirely.
 
     NOTE: `FallbackModel`'s own default (`fallback_on=(ModelAPIError,)`)
     deliberately isn't used here — NVIDIA NIM's actual capacity failure
@@ -207,6 +223,13 @@ def get_model() -> Model:
     if not settings.LLM_FALLBACK_MODEL:
         return primary
 
-    fallback = _build_chat_model(settings.LLM_FALLBACK_MODEL, FALLBACK_MODEL_SETTINGS)
-    log.info("Fallback model configured: %s", settings.LLM_FALLBACK_MODEL)
+    fallback_base_url = settings.LLM_FALLBACK_BASE_URL or settings.LLM_BASE_URL
+    fallback_api_key = settings.LLM_FALLBACK_API_KEY or settings.LLM_API_KEY
+    fallback = _build_chat_model(
+        settings.LLM_FALLBACK_MODEL,
+        FALLBACK_MODEL_SETTINGS,
+        base_url=fallback_base_url,
+        api_key=fallback_api_key,
+    )
+    log.info("Fallback model configured: %s @ %s", settings.LLM_FALLBACK_MODEL, fallback_base_url)
     return FallbackModel(primary, fallback, fallback_on=is_transient_llm_error)

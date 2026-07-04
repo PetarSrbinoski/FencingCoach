@@ -27,12 +27,18 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-ai/deepseek-v4-flash"
-    # Secondary model tried (same LLM_BASE_URL/LLM_API_KEY) whenever
-    # LLM_MODEL fails with a provider API error — most commonly NVIDIA
-    # NIM's shared-capacity "ResourceExhausted" error. That limit is
-    # per-model-worker, so a different model is very likely to have spare
-    # capacity even when LLM_MODEL doesn't. Set to "" to disable.
+    # Secondary model tried whenever LLM_MODEL fails with a transient
+    # provider error (capacity/rate-limit, or the primary being completely
+    # unreachable — e.g. a local model server that isn't running). By
+    # default it's assumed to be served by the same provider (shares
+    # LLM_BASE_URL/LLM_API_KEY); set LLM_FALLBACK_BASE_URL/
+    # LLM_FALLBACK_API_KEY to point it at a *different* provider instead
+    # (e.g. primary = local llama.cpp/vLLM on your own machine, fallback =
+    # a hosted cloud endpoint that's always available). Set LLM_FALLBACK_MODEL
+    # to "" to disable the fallback entirely.
     LLM_FALLBACK_MODEL: str = "meta/llama-3.3-70b-instruct"
+    LLM_FALLBACK_BASE_URL: str = ""
+    LLM_FALLBACK_API_KEY: str = ""
     LLM_MAX_TOKENS: int = 16384
     LLM_TEMPERATURE: float = 0.6
     LLM_CONTEXT_TOKENS: int = 131072

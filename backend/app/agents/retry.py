@@ -17,6 +17,13 @@ transparently retry (`call_with_transient_retry` /
 `acall_with_transient_retry` below) with exponential backoff, up to
 `MAX_TRANSIENT_RETRIES` (from `settings.LLM_MAX_TRANSIENT_RETRIES`).
 
+Also treated as transient: `openai.APIConnectionError` (the provider
+couldn't be reached at all — DNS/refused/timeout). This matters when
+`LLM_BASE_URL` points at a locally-hosted model (e.g. llama.cpp/vLLM on
+a machine that isn't always on) — if it's offline, requests should
+transparently retry and, if `LLM_FALLBACK_MODEL`/`LLM_FALLBACK_BASE_URL`
+is configured, fall through to a secondary provider instead of failing.
+
 To avoid *causing* the capacity error in the first place, `llm_slot`
 provides a process-wide asyncio semaphore that caps how many LLM
 requests are in flight at once (`settings.LLM_MAX_CONCURRENCY`), so we
@@ -110,6 +117,13 @@ def is_transient_llm_error(exc: Exception) -> bool:
         if exc.status_code in RETRYABLE_HTTP_STATUS:
             return True
         return any(marker in str(exc).lower() for marker in TRANSIENT_ERROR_MARKERS)
+    if isinstance(exc, openai.APIConnectionError):
+        # Couldn't reach the provider at all (DNS failure, connection
+        # refused, timed out before a response) — e.g. a local model
+        # server that isn't running. Always transient: it's exactly the
+        # case a configured fallback provider (LLM_FALLBACK_MODEL) exists
+        # to cover, and there's no response body to pattern-match on.
+        return True
     if isinstance(exc, openai.APIError):
         return any(marker in str(exc).lower() for marker in TRANSIENT_ERROR_MARKERS)
     return False
