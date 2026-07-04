@@ -17,13 +17,16 @@ from app.schemas import (
     TrainingSessionOut,
     WorkoutLogCreate,
     WorkoutLogOut,
+    WorkoutOverrideRequest,
 )
 from app.services.training import (
     THU_TEMPLATE,
     TUE_TEMPLATE,
     build_session,
+    clear_workout_override,
     detect_plateau,
     epley_1rm,
+    set_workout_override,
 )
 
 router = APIRouter(prefix="/training", tags=["training"])
@@ -64,6 +67,39 @@ def exercises() -> list[str]:
             if item["exercise"] not in seen:
                 seen.append(item["exercise"])
     return seen
+
+
+# ── manual session overrides ──────────────────────────────────────────
+@router.put("/session/{day}/override", response_model=TrainingSessionOut)
+def set_session_override(
+    day: Date,
+    body: WorkoutOverrideRequest,
+    db: Session = Depends(get_db),
+) -> TrainingSessionOut:
+    """Replace the auto-generated gym session for `day` with a manual one.
+
+    An empty `exercises` list clears the override instead of persisting a
+    manual, zero-exercise session — mirrors the coach chat tool's
+    `update_day_workout` behavior (see `agents/coach.py`).
+    """
+    if not body.exercises:
+        clear_workout_override(db, day)
+    else:
+        set_workout_override(
+            db,
+            day,
+            exercises=[e.model_dump() for e in body.exercises],
+            session_name=body.session_name,
+            notes=body.notes,
+        )
+    return TrainingSessionOut(**build_session(db, day))
+
+
+@router.delete("/session/{day}/override", response_model=TrainingSessionOut)
+def clear_session_override(day: Date, db: Session = Depends(get_db)) -> TrainingSessionOut:
+    """Revert `day` back to the auto-generated session."""
+    clear_workout_override(db, day)
+    return TrainingSessionOut(**build_session(db, day))
 
 
 # ── workout logging ───────────────────────────────────────────────────

@@ -9,8 +9,9 @@ psycopg[binary]==3.2.3
 alembic==1.14.0
 
 # LLM — PydanticAI agents
-# Pinned <2.0: pydantic-ai 2.x renamed/removed MCPServerStreamableHTTP and
-# other APIs used in app/agents/mealplan.py. Bump deliberately + re-test.
+# Pinned <2.0: pydantic-ai 2.x renamed/removed several `pydantic_ai.mcp`
+# APIs used in app/agents/nutrition.py and app/agents/mealplan.py.
+# Bump deliberately + re-test.
 pydantic-ai>=1.89.0,<2.0.0
 openai>=1.59.3
 tiktoken>=0.12.0
@@ -28,6 +29,7 @@ APScheduler==3.11.0
 httpx==0.28.1
 python-dateutil==2.9.0.post0
 orjson==3.10.12
+python-dotenv>=1.1.0  # required by the local USDA MCP subprocess (main.py)
 
 # Testing
 pytest==8.3.4

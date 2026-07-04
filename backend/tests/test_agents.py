@@ -33,12 +33,15 @@ from app.agents.mental import mental_agent
 from app.agents.nutrition import (
     NutritionEstimateOutput,
     NutritionMicros,
+    _build_nutrition_toolsets,
+    _usda_mcp_available,
     estimate_nutrition,
     nutrition_agent,
     nutrition_fallback_agent,
 )
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.mcp import MCPServerStdio
 
 
 # ── deps / model ──────────────────────────────────────────────────────
@@ -145,6 +148,10 @@ class TestNutritionAgent:
             estimate_nutrition("   ")
 
     def test_estimate_nutrition_retries_without_usda(self, monkeypatch):
+        # Simulate the USDA MCP subprocess script being present (it won't be
+        # in this test environment, which doesn't clone it) so the retry
+        # path under test actually engages.
+        monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
         calls: list[str] = []
 
         def fail_primary(text, deps):
@@ -191,7 +198,7 @@ class TestNutritionAgent:
     def test_estimate_nutrition_raises_when_no_usda_configured(self, monkeypatch):
         """Without USDA configured there's no fallback agent to retry with —
         a primary failure must still raise, not return zeros."""
-        monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_URL", "", raising=False)
+        monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_SCRIPT", "", raising=False)
 
         def fail(text, deps):
             raise RuntimeError("network error")
@@ -200,6 +207,31 @@ class TestNutritionAgent:
 
         with pytest.raises(RuntimeError, match="nutrition estimation failed"):
             estimate_nutrition("chicken burrito bowl")
+
+    def test_usda_mcp_available_false_when_script_missing(self, monkeypatch):
+        monkeypatch.setattr(
+            "app.agents.nutrition.settings.USDA_MCP_SCRIPT", "/nonexistent/path/main.py"
+        )
+        assert _usda_mcp_available() is False
+
+    def test_build_nutrition_toolsets_spawns_stdio_mcp_when_script_present(
+        self, monkeypatch, tmp_path
+    ):
+        script = tmp_path / "main.py"
+        script.write_text("# stub USDA MCP server")
+        monkeypatch.setattr("app.agents.nutrition.settings.USDA_MCP_SCRIPT", str(script))
+
+        toolsets = _build_nutrition_toolsets()
+
+        assert len(toolsets) == 1
+        assert isinstance(toolsets[0], MCPServerStdio)
+        assert toolsets[0].args == [str(script)]
+
+    def test_build_nutrition_toolsets_empty_when_script_missing(self, monkeypatch):
+        monkeypatch.setattr(
+            "app.agents.nutrition.settings.USDA_MCP_SCRIPT", "/nonexistent/path/main.py"
+        )
+        assert _build_nutrition_toolsets() == []
 
 
 # ── mealplan agent ────────────────────────────────────────────────────
@@ -256,27 +288,31 @@ class TestCoachAgent:
         assert r.model == "test-model"
         assert r.ungrounded_claims == []
 
-    def test_run_coach_chat_flags_ungrounded_claims(self, monkeypatch):
+    def test_run_coach_chat_flags_ungrounded_claims(self, monkeypatch, db):
         async def fake_run(user_prompt, deps=None, message_history=None):
             return SimpleNamespace(output="Your HRV was 99 last night.")
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
 
-        result = asyncio.run(run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h"))
+        result = asyncio.run(
+            run_coach_chat("how am I doing?", db=db, context_text="HRV: 55ms, Sleep: 7h")
+        )
         assert result.reply == "Your HRV was 99 last night."
         assert len(result.ungrounded_claims) == 1
         assert "99" in result.ungrounded_claims[0]
 
-    def test_run_coach_chat_no_flags_when_grounded(self, monkeypatch):
+    def test_run_coach_chat_no_flags_when_grounded(self, monkeypatch, db):
         async def fake_run(user_prompt, deps=None, message_history=None):
             return SimpleNamespace(output="Your HRV was 55 last night.")
 
         monkeypatch.setattr(coach_agent, "run", fake_run)
 
-        result = asyncio.run(run_coach_chat("how am I doing?", context_text="HRV: 55ms, Sleep: 7h"))
+        result = asyncio.run(
+            run_coach_chat("how am I doing?", db=db, context_text="HRV: 55ms, Sleep: 7h")
+        )
         assert result.ungrounded_claims == []
 
-    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(self, monkeypatch):
+    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(self, monkeypatch, db):
         class _FakeStream:
             def __init__(self, deltas):
                 self._deltas = deltas
@@ -302,7 +338,7 @@ class TestCoachAgent:
 
         async def collect():
             items = []
-            async for item in stream_coach_chat("how am I doing?", context_text="HRV: 55ms"):
+            async for item in stream_coach_chat("how am I doing?", db=db, context_text="HRV: 55ms"):
                 items.append(item)
             return items
 
@@ -315,6 +351,194 @@ class TestCoachAgent:
         assert final["done"] is True
         assert final["reply"] == "Your HRV was 99 today."
         assert len(final["ungrounded_claims"]) == 1
+
+
+# ── coach tools (update_day_workout / add_competition) ──────────────────
+def _ctx(db) -> SimpleNamespace:
+    """Minimal stand-in for RunContext[CoachDeps] — the tools only ever
+    touch `ctx.deps.db`."""
+    return SimpleNamespace(deps=CoachDeps(db=db))
+
+
+class TestCoachWorkoutTool:
+    def test_update_day_workout_sets_manual_override(self, db):
+        from datetime import date
+
+        from app.agents.coach import update_day_workout
+        from app.models import WorkoutOverride
+        from app.schemas import ExerciseOverrideIn
+
+        day = date(2026, 7, 14)
+        result = asyncio.run(
+            update_day_workout(
+                _ctx(db),
+                day=day.isoformat(),
+                exercises=[
+                    ExerciseOverrideIn(exercise="Front Squat", sets=5, reps=3, load_kg=90),
+                ],
+                session_name="deload",
+                notes="Athlete asked for a lighter day.",
+            )
+        )
+        assert "Front Squat" in result
+        assert day.isoformat() in result
+
+        row = db.get(WorkoutOverride, day)
+        assert row is not None
+        assert row.session_name == "deload"
+        assert row.exercises[0]["exercise"] == "Front Squat"
+        assert row.exercises[0]["sets"] == 5
+
+    def test_update_day_workout_feeds_into_build_session(self, db):
+        from datetime import date
+
+        from app.agents.coach import update_day_workout
+        from app.schemas import ExerciseOverrideIn
+        from app.services.training import build_session
+
+        day = date(2026, 7, 15)  # Wednesday — normally a fencing/rest day
+        asyncio.run(
+            update_day_workout(
+                _ctx(db),
+                day=day.isoformat(),
+                exercises=[ExerciseOverrideIn(exercise="Box Jump", sets=4, reps=5)],
+            )
+        )
+        out = build_session(db, day)
+        assert out["source"] == "manual"
+        assert out["session"]["exercises"][0]["exercise"] == "Box Jump"
+
+    def test_update_day_workout_clears_override_when_no_exercises(self, db):
+        from datetime import date
+
+        from app.agents.coach import update_day_workout
+        from app.models import WorkoutOverride
+        from app.schemas import ExerciseOverrideIn
+
+        day = date(2026, 7, 16)
+        asyncio.run(
+            update_day_workout(
+                _ctx(db),
+                day=day.isoformat(),
+                exercises=[ExerciseOverrideIn(exercise="Deadlift", sets=3, reps=5)],
+            )
+        )
+        assert db.get(WorkoutOverride, day) is not None
+
+        result = asyncio.run(update_day_workout(_ctx(db), day=day.isoformat(), exercises=None))
+        assert "revert" in result.lower()
+        assert db.get(WorkoutOverride, day) is None
+
+    def test_update_day_workout_bad_date_raises_model_retry(self, db):
+        from app.agents.coach import update_day_workout
+        from app.schemas import ExerciseOverrideIn
+        from pydantic_ai.exceptions import ModelRetry
+
+        with pytest.raises(ModelRetry):
+            asyncio.run(
+                update_day_workout(
+                    _ctx(db),
+                    day="not-a-date",
+                    exercises=[ExerciseOverrideIn(exercise="Squat", sets=3, reps=5)],
+                )
+            )
+
+    def test_update_day_workout_sets_side_effect_flag(self, db):
+        from datetime import date
+
+        from app.agents.coach import update_day_workout
+        from app.schemas import ExerciseOverrideIn
+
+        ctx = _ctx(db)
+        assert ctx.deps.side_effect_committed is False
+        asyncio.run(
+            update_day_workout(
+                ctx,
+                day=date(2026, 7, 17).isoformat(),
+                exercises=[ExerciseOverrideIn(exercise="Squat", sets=3, reps=5)],
+            )
+        )
+        assert ctx.deps.side_effect_committed is True
+
+    def test_update_day_workout_clear_sets_side_effect_flag(self, db):
+        from datetime import date
+
+        from app.agents.coach import update_day_workout
+        from app.schemas import ExerciseOverrideIn
+
+        day = date(2026, 7, 18)
+        asyncio.run(
+            update_day_workout(
+                _ctx(db),
+                day=day.isoformat(),
+                exercises=[ExerciseOverrideIn(exercise="Squat", sets=3, reps=5)],
+            )
+        )
+        ctx = _ctx(db)
+        asyncio.run(update_day_workout(ctx, day=day.isoformat(), exercises=None))
+        assert ctx.deps.side_effect_committed is True
+
+
+class TestCoachCompetitionTool:
+    def test_add_competition_creates_row(self, db):
+        from app.agents.coach import add_competition
+        from app.models import Competition
+
+        result = asyncio.run(
+            add_competition(
+                _ctx(db),
+                name="Budapest World Cup",
+                event_date="2026-09-12",
+                location="Budapest",
+                level="FIE world cup",
+                priority="A",
+            )
+        )
+        assert "Budapest World Cup" in result
+
+        comp = db.query(Competition).filter_by(name="Budapest World Cup").one()
+        assert comp.event_date.isoformat() == "2026-09-12"
+        assert comp.priority == "A"
+        assert comp.level == "FIE world cup"
+
+    def test_add_competition_defaults_invalid_priority_to_a(self, db):
+        from app.agents.coach import add_competition
+        from app.models import Competition
+
+        asyncio.run(
+            add_competition(
+                _ctx(db),
+                name="Local Open",
+                event_date="2026-08-01",
+                priority="Z",
+            )
+        )
+        comp = db.query(Competition).filter_by(name="Local Open").one()
+        assert comp.priority == "A"
+
+    def test_add_competition_bad_event_date_raises_model_retry(self, db):
+        from app.agents.coach import add_competition
+        from pydantic_ai.exceptions import ModelRetry
+
+        with pytest.raises(ModelRetry):
+            asyncio.run(add_competition(_ctx(db), name="X", event_date="not-a-date"))
+
+    def test_add_competition_bad_end_date_raises_model_retry(self, db):
+        from app.agents.coach import add_competition
+        from pydantic_ai.exceptions import ModelRetry
+
+        with pytest.raises(ModelRetry):
+            asyncio.run(
+                add_competition(_ctx(db), name="X", event_date="2026-08-01", end_date="not-a-date")
+            )
+
+    def test_add_competition_sets_side_effect_flag(self, db):
+        from app.agents.coach import add_competition
+
+        ctx = _ctx(db)
+        assert ctx.deps.side_effect_committed is False
+        asyncio.run(add_competition(ctx, name="Flag Test Cup", event_date="2026-09-01"))
+        assert ctx.deps.side_effect_committed is True
 
 
 # ── coach web-search gating ─────────────────────────────────────────────
@@ -347,7 +571,7 @@ class TestCoachWebSearchGating:
     def test_search_intent_for_explicit_requests(self, message):
         assert _wants_web_search(message) is True
 
-    def test_run_coach_chat_uses_plain_agent_by_default(self, monkeypatch):
+    def test_run_coach_chat_uses_plain_agent_by_default(self, monkeypatch, db):
         async def fake_run(user_prompt, deps=None, message_history=None):
             return SimpleNamespace(output="Hey! How can I help?")
 
@@ -357,10 +581,10 @@ class TestCoachWebSearchGating:
         monkeypatch.setattr(coach_agent, "run", fake_run)
         monkeypatch.setattr(coach_agent_search, "run", fail_run)
 
-        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        result = asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert result.reply == "Hey! How can I help?"
 
-    def test_run_coach_chat_uses_search_agent_when_explicitly_asked(self, monkeypatch):
+    def test_run_coach_chat_uses_search_agent_when_explicitly_asked(self, monkeypatch, db):
         async def fake_run(user_prompt, deps=None, message_history=None):
             return SimpleNamespace(output="Found it via search.")
 
@@ -370,7 +594,7 @@ class TestCoachWebSearchGating:
         monkeypatch.setattr(coach_agent, "run", fail_run)
         monkeypatch.setattr(coach_agent_search, "run", fake_run)
 
-        result = asyncio.run(run_coach_chat("please search the web for X", context_text=""))
+        result = asyncio.run(run_coach_chat("please search the web for X", db=db, context_text=""))
         assert result.reply == "Found it via search."
 
 
@@ -424,7 +648,7 @@ class TestCoachTransientErrorRetry:
         )
         assert _is_transient_llm_error(err) is False
 
-    def test_run_coach_chat_retries_transient_error_then_succeeds(self, monkeypatch):
+    def test_run_coach_chat_retries_transient_error_then_succeeds(self, monkeypatch, db):
         calls = {"n": 0}
 
         async def flaky_run(user_prompt, deps=None, message_history=None):
@@ -436,11 +660,11 @@ class TestCoachTransientErrorRetry:
         monkeypatch.setattr(coach_agent, "run", flaky_run)
         monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
 
-        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        result = asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert result.reply == "Hey, all good now."
         assert calls["n"] == 2
 
-    def test_run_coach_chat_retries_model_http_error_then_succeeds(self, monkeypatch):
+    def test_run_coach_chat_retries_model_http_error_then_succeeds(self, monkeypatch, db):
         """Regression test: the actual production failure was a real HTTP
         503 from NVIDIA NIM, wrapped by pydantic-ai as ModelHTTPError —
         not an openai.APIError. The retry logic must handle both shapes."""
@@ -455,11 +679,11 @@ class TestCoachTransientErrorRetry:
         monkeypatch.setattr(coach_agent, "run", flaky_run)
         monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
 
-        result = asyncio.run(run_coach_chat("hello", context_text=""))
+        result = asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert result.reply == "Hey, all good now."
         assert calls["n"] == 2
 
-    def test_run_coach_chat_gives_up_after_max_retries(self, monkeypatch):
+    def test_run_coach_chat_gives_up_after_max_retries(self, monkeypatch, db):
         calls = {"n": 0}
 
         async def always_flaky_run(user_prompt, deps=None, message_history=None):
@@ -470,11 +694,11 @@ class TestCoachTransientErrorRetry:
         monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
 
         with pytest.raises(openai.APIError):
-            asyncio.run(run_coach_chat("hello", context_text=""))
+            asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         # initial attempt + _MAX_TRANSIENT_RETRIES retries
         assert calls["n"] == 3
 
-    def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch):
+    def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch, db):
         calls = {"n": 0}
 
         async def bad_request_run(user_prompt, deps=None, message_history=None):
@@ -485,10 +709,28 @@ class TestCoachTransientErrorRetry:
         monkeypatch.setattr(coach_agent, "run", bad_request_run)
 
         with pytest.raises(openai.APIError):
-            asyncio.run(run_coach_chat("hello", context_text=""))
+            asyncio.run(run_coach_chat("hello", db=db, context_text=""))
         assert calls["n"] == 1
 
-    def test_stream_coach_chat_retries_transient_error_before_any_delta(self, monkeypatch):
+    def test_run_coach_chat_does_not_retry_after_tool_side_effect(self, monkeypatch, db):
+        """A transient error after a tool already committed a DB write
+        (e.g. add_competition) must NOT be retried — retrying would
+        silently duplicate the side effect."""
+        calls = {"n": 0}
+
+        async def flaky_run_with_side_effect(user_prompt, deps=None, message_history=None):
+            calls["n"] += 1
+            deps.side_effect_committed = True  # simulates a tool having run
+            raise _make_transient_error()
+
+        monkeypatch.setattr(coach_agent, "run", flaky_run_with_side_effect)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        with pytest.raises(openai.APIError):
+            asyncio.run(run_coach_chat("hello", db=db, context_text=""))
+        assert calls["n"] == 1
+
+    def test_stream_coach_chat_retries_transient_error_before_any_delta(self, monkeypatch, db):
         calls = {"n": 0}
 
         class _FakeStream:
@@ -520,7 +762,7 @@ class TestCoachTransientErrorRetry:
 
         async def collect():
             items = []
-            async for item in stream_coach_chat("hello", context_text=""):
+            async for item in stream_coach_chat("hello", db=db, context_text=""):
                 items.append(item)
             return items
 
@@ -528,3 +770,34 @@ class TestCoachTransientErrorRetry:
         deltas = [i["delta"] for i in items if "delta" in i]
         assert "".join(deltas) == "All good now."
         assert calls["n"] == 2
+
+    def test_stream_coach_chat_does_not_retry_after_tool_side_effect(self, monkeypatch, db):
+        """Same guard as run_coach_chat: once a tool has committed a side
+        effect during this attempt, a subsequent transient error must not
+        trigger a retry of the whole stream."""
+        calls = {"n": 0}
+
+        class _FakeStreamCM:
+            async def __aenter__(self):
+                calls["n"] += 1
+                raise _make_transient_error()
+
+            async def __aexit__(self, *a):
+                return False
+
+        def fake_run_stream(user_prompt, deps=None, message_history=None):
+            deps.side_effect_committed = True  # simulates a tool having run
+            return _FakeStreamCM()
+
+        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
+        monkeypatch.setattr("app.agents.coach._RETRY_BACKOFF_SECONDS", 0)
+
+        async def collect():
+            items = []
+            async for item in stream_coach_chat("hello", db=db, context_text=""):
+                items.append(item)
+            return items
+
+        with pytest.raises(openai.APIError):
+            asyncio.run(collect())
+        assert calls["n"] == 1

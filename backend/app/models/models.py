@@ -54,9 +54,7 @@ class AthleteProfile(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -92,9 +90,7 @@ class GarminMetric(Base):
     #   implausible — a value was found but rejected as out-of-range
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ok")
     detail: Mapped[str | None] = mapped_column(Text)
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Activity(Base):
@@ -108,9 +104,7 @@ class Activity(Base):
     source: Mapped[str] = mapped_column(String(20), default="garmin")  # garmin|manual
     activity_type: Mapped[str | None] = mapped_column(String(60))
     name: Mapped[str | None] = mapped_column(String(200))
-    start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     duration_s: Mapped[int | None] = mapped_column(Integer)
     distance_m: Mapped[float | None] = mapped_column(Float)
     calories: Mapped[int | None] = mapped_column(Integer)
@@ -130,12 +124,8 @@ class NutritionLog(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     day: Mapped[date] = mapped_column(Date, nullable=False)
-    logged_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    meal: Mapped[str | None] = mapped_column(
-        String(40)
-    )  # breakfast|lunch|dinner|snack|pre|post
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    meal: Mapped[str | None] = mapped_column(String(40))  # breakfast|lunch|dinner|snack|pre|post
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     kcal: Mapped[float | None] = mapped_column(Float)
     protein_g: Mapped[float | None] = mapped_column(Float)
@@ -168,17 +158,13 @@ class TrainingPlan(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
-    phase: Mapped[str] = mapped_column(
-        String(40)
-    )  # base|build|peak|taper|comp|recovery
+    phase: Mapped[str] = mapped_column(String(40))  # base|build|peak|taper|comp|recovery
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date] = mapped_column(Date)
     weeks: Mapped[int] = mapped_column(Integer)
     structure: Mapped[dict[str, Any]] = mapped_column(JSONB)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class WorkoutLog(Base):
@@ -195,9 +181,7 @@ class WorkoutLog(Base):
     weight_kg: Mapped[float | None] = mapped_column(Float)
     rpe: Mapped[float | None] = mapped_column(Float)
     notes: Mapped[str | None] = mapped_column(Text)
-    logged_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -212,9 +196,7 @@ class Competition(Base):
     location: Mapped[str | None] = mapped_column(String(200))
     event_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date | None] = mapped_column(Date)
-    level: Mapped[str | None] = mapped_column(
-        String(60)
-    )  # local|national|FIE world cup|...
+    level: Mapped[str | None] = mapped_column(String(60))  # local|national|FIE world cup|...
     priority: Mapped[str] = mapped_column(String(10), default="A")  # A|B|C
     notes: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
@@ -228,9 +210,7 @@ class CoachConversation(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str | None] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -250,14 +230,10 @@ class CoachMessage(Base):
     conversation_id: Mapped[int] = mapped_column(
         ForeignKey("coach_conversations.id", ondelete="CASCADE"), nullable=False
     )
-    role: Mapped[str] = mapped_column(
-        String(20), nullable=False
-    )  # system|user|assistant
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # system|user|assistant
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tokens: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     conversation: Mapped[CoachConversation] = relationship(back_populates="messages")
 
@@ -283,9 +259,7 @@ class DataSummary(Base):
 
     __tablename__ = "data_summaries"
     __table_args__ = (
-        UniqueConstraint(
-            "domain", "period", "period_start", name="uq_summary_domain_period"
-        ),
+        UniqueConstraint("domain", "period", "period_start", name="uq_summary_domain_period"),
         Index("ix_summary_domain_period", "domain", "period", "period_start"),
     )
 
@@ -312,8 +286,28 @@ class DayTypeOverride(Base):
 
     day: Mapped[date] = mapped_column(Date, primary_key=True)
     override_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WorkoutOverride(Base):
+    """Manual replacement of the auto-generated gym session for a given day.
+
+    `build_session()` (services/training.py) normally *computes* the
+    prescribed exercises from templates + phase + readiness. When a row
+    exists here for a day, it takes precedence over that computation
+    verbatim — used by the coach chat agent (or, in future, a UI form) to
+    change what's planned for a specific (usually upcoming) day.
+    """
+
+    __tablename__ = "workout_overrides"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    session_name: Mapped[str | None] = mapped_column(String(80))
+    exercises: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -337,9 +331,7 @@ class MentalEntry(Base):
     confidence_score: Mapped[int | None] = mapped_column(Integer)  # 1-10
     content: Mapped[str | None] = mapped_column(Text)
     tags: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -366,9 +358,7 @@ class USDAFood(Base):
     fdc_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     description_lower: Mapped[str] = mapped_column(String(500), nullable=False)
-    data_type: Mapped[str | None] = mapped_column(
-        String(40)
-    )  # Foundation|SR Legacy|Survey
+    data_type: Mapped[str | None] = mapped_column(String(40))  # Foundation|SR Legacy|Survey
     category: Mapped[str | None] = mapped_column(String(200))
     nutrients: Mapped[dict[str, Any]] = mapped_column(JSONB)  # per-100g macros + micros
     serving_size_g: Mapped[float | None] = mapped_column(Float)

@@ -30,6 +30,7 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Markdown } from "@/components/ui/markdown";
 
 type Msg = {
   role: "user" | "assistant";
@@ -266,7 +267,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100svh-8rem)] flex-col gap-5 md:gap-6">
+    <div className="flex h-[calc(100svh-8rem)] flex-col gap-5 overflow-hidden md:gap-6">
       <header className="border-b border-border pb-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -305,7 +306,7 @@ export default function ChatPage() {
       </header>
 
       <div className="grid flex-1 min-h-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="hidden border border-border bg-card min-h-[220px] lg:flex lg:flex-col lg:h-[calc(100svh-16rem)]">
+        <aside className="hidden border border-border bg-card min-h-[220px] lg:flex lg:flex-col lg:h-full lg:min-h-0">
           <div className="border-b border-border px-4 py-3.5">
             <p className="text-xs font-semibold uppercase tracking-widest text-foreground">Chat history</p>
             <p className="text-[11px] text-muted-foreground mt-1">Saved coach conversations</p>
@@ -316,7 +317,7 @@ export default function ChatPage() {
           </div>
         </aside>
 
-        <div className="flex min-h-[calc(100svh-16rem)] flex-col border border-border bg-card overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col border border-border bg-card overflow-hidden">
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-5 overscroll-contain">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
@@ -349,11 +350,13 @@ export default function ChatPage() {
                     </div>
                     <div
                       className={cn(
-                        "max-w-[85%] sm:max-w-[75%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap border",
-                        isUser ? "bg-foreground text-background border-foreground" : "bg-transparent border-border text-foreground"
+                        "max-w-[85%] sm:max-w-[75%] px-4 py-3 text-sm leading-relaxed border",
+                        isUser
+                          ? "whitespace-pre-wrap bg-foreground text-background border-foreground"
+                          : "bg-transparent border-border text-foreground"
                       )}
                     >
-                      {m.content}
+                      {isUser ? m.content : <Markdown>{m.content}</Markdown>}
                     </div>
                   </div>
 

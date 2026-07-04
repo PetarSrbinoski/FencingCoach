@@ -14,9 +14,7 @@ class Settings(BaseSettings):
     # ── DB ────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+psycopg://coach:changeme_dev_only@db:5432/coachapp"
 
-    BACKEND_CORS_ORIGINS: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000"]
-    )
+    BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -69,8 +67,17 @@ class Settings(BaseSettings):
     WEEKLY_SCHEDULE: str = "fencing,gym,fencing,gym,fencing,fencing,rest"
 
     # ── USDA / Nutrition MCP ─────────────────────────────────────────
+    # USDA FoodData Central API key — used both directly by
+    # services/usda.py and passed through as an env var to the local
+    # USDA MCP server subprocess below.
     USDA_API_KEY: str = "DEMO_KEY"
-    USDA_MCP_URL: str = "https://usda-nutrition-mcp-oc46l7ob5a-uc.a.run.app/mcp"
+    # Local stdio MCP server (rpassafaro/usda-api-mcp), cloned into the
+    # backend image at build time (see Dockerfile) and spawned as a
+    # subprocess per agent run via pydantic_ai.mcp.MCPServerStdio — no
+    # external hosted dependency required. If the script isn't present
+    # (e.g. running outside Docker without cloning it), USDA tools are
+    # simply omitted and agents fall back to web search.
+    USDA_MCP_SCRIPT: str = "/opt/usda-api-mcp/main.py"
 
     # ── Observability ─────────────────────────────────────────────────
     LOGFIRE_TOKEN: str = ""

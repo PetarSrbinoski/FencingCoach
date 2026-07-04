@@ -176,6 +176,7 @@ async def chat(
     try:
         result = await run_coach_chat(
             user_message=req.message,
+            db=db,
             context_text=context_text,
             history_messages=history_for_agent if history_for_agent else None,
         )
@@ -233,6 +234,7 @@ async def chat_stream(
         try:
             async for item in stream_coach_chat(
                 user_message=req.message,
+                db=db,
                 context_text=context_text,
                 history_messages=history_for_agent if history_for_agent else None,
             ):

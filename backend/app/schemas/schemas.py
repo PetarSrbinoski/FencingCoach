@@ -6,7 +6,7 @@ from datetime import date as Date
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Chat ──────────────────────────────────────────────────────────────
@@ -286,6 +286,35 @@ class TrainingSessionOut(BaseModel):
     phase: dict[str, Any]
     readiness: dict[str, Any]
     reason: str | None = None
+    source: str = "auto"  # "auto" (computed) or "manual" (overridden)
+
+
+class ExerciseOverrideIn(BaseModel):
+    """One exercise prescription within a manually-set day's workout."""
+
+    exercise: str
+    sets: int = Field(ge=1, le=20)
+    reps: int = Field(ge=1, le=100)
+    load_kg: float | None = Field(default=None, ge=0)
+    target_rpe: float = Field(default=8.0, ge=0, le=10)
+    intent: str = "strength"  # strength|power|hypertrophy|skill
+    notes: str = ""
+
+    @field_validator("intent")
+    @classmethod
+    def _validate_intent(cls, v: str) -> str:
+        allowed = {"strength", "power", "hypertrophy", "skill"}
+        if v not in allowed:
+            raise ValueError(f"intent must be one of {sorted(allowed)}")
+        return v
+
+
+class WorkoutOverrideRequest(BaseModel):
+    """Replace the auto-generated gym session for a specific day."""
+
+    exercises: list[ExerciseOverrideIn]
+    session_name: str | None = None
+    notes: str | None = None
 
 
 class WorkoutLogCreate(BaseModel):

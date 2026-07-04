@@ -16,4 +16,5 @@ from app.models.models import (  # noqa: F401
     TrainingPlan,
     USDAFood,
     WorkoutLog,
+    WorkoutOverride,
 )

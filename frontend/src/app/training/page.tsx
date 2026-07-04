@@ -5,9 +5,11 @@ import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput, Fen
 import { BandPill, Card, StatRow } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Dumbbell, Swords, BedDouble, ChevronLeft, ChevronRight,
   Brain, Send, Trash2, TrendingUp, TrendingDown, Minus, X,
+  Sparkles, RotateCcw,
 } from "lucide-react";
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -465,9 +467,7 @@ function MentalTrainingSection() {
 
               {/* LLM insight text */}
               <div className="border-l-2 border-accent pl-3">
-                <p className="text-xs text-foreground/70 leading-relaxed">
-                  {insight.insight}
-                </p>
+                <Markdown className="text-xs text-foreground/70">{insight.insight}</Markdown>
               </div>
             </div>
           ) : (
@@ -487,6 +487,7 @@ export default function TrainingPage() {
   const [weekStart, setWeekStart] = useState<Date>(mondayOf(new Date()));
   const [week, setWeek] = useState<TrainingSession[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [resettingDay, setResettingDay] = useState<string | null>(null);
 
   function isoDate(d: Date): string {
     return d.toISOString().slice(0, 10);
@@ -497,6 +498,17 @@ export default function TrainingPage() {
   }, [weekStart]);
 
   useEffect(() => { fetchWeek(); }, [fetchWeek]);
+
+  async function resetOverride(day: string) {
+    setResettingDay(day);
+    try {
+      await api.training.clearOverride(day);
+      fetchWeek();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to reset workout");
+    }
+    setResettingDay(null);
+  }
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -629,13 +641,22 @@ export default function TrainingPage() {
                 {/* Gym day */}
                 {dayType === "gym" && session.session && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold uppercase tracking-widest text-accent">
                         Gym
                       </span>
                       <span className="text-xs text-foreground/75 capitalize font-mono">
                         {session.session.name.replace(/_/g, " ")}
                       </span>
+                      {session.source === "manual" && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-accent border border-accent/40 px-1.5 py-0.5"
+                          title={session.session.rationale || "Manually edited via chat"}
+                        >
+                          <Sparkles className="h-3 w-3" strokeWidth={1.5} />
+                          Coach edit
+                        </span>
+                      )}
                     </div>
                     <div className="space-y-1.5 border-t border-border pt-3">
                       {session.session.exercises.map((rx) => (
@@ -653,6 +674,16 @@ export default function TrainingPage() {
                         </div>
                       ))}
                     </div>
+                    {session.source === "manual" && (
+                      <button
+                        onClick={() => resetOverride(session.day)}
+                        disabled={resettingDay === session.day}
+                        className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors duration-150"
+                      >
+                        <RotateCcw className="h-3 w-3" strokeWidth={1.5} />
+                        {resettingDay === session.day ? "Resetting…" : "Reset to auto plan"}
+                      </button>
+                    )}
                   </div>
                 )}
 

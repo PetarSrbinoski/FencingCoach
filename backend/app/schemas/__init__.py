@@ -11,6 +11,7 @@ from app.schemas.schemas import (  # noqa: F401
     DataSummaryOut,
     DayTypeOverrideRequest,
     DiagnosticsResponse,
+    ExerciseOverrideIn,
     ExerciseProgress,
     ExerciseRxOut,
     FencingAnalysisOut,
@@ -43,4 +44,5 @@ from app.schemas.schemas import (  # noqa: F401
     USDASearchResult,
     WorkoutLogCreate,
     WorkoutLogOut,
+    WorkoutOverrideRequest,
 )

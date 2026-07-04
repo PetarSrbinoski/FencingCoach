@@ -25,7 +25,7 @@ The live version is hosted on my home server.
 - Shared `CoachDeps` keeps the DB session, live context snapshot, and extra runtime data in one place
 - A cached OpenAI-compatible model factory is reused across agents
 - Chat uses message history, live context injection, and `WebSearch` for lookup support
-- Nutrition and meal-plan agents return structured Pydantic output and can call USDA MCP tools plus web search
+- Nutrition and meal-plan agents return structured Pydantic output and can call USDA MCP tools (local stdio subprocess, [rpassafaro/usda-api-mcp](https://github.com/rpassafaro/usda-api-mcp)) plus web search
 - Brief and mental agents are text-only, but still use the same prompt and output cleanup flow
 
 ## Run locally

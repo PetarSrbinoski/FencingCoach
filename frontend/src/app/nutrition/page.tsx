@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Utensils,
   ShoppingCart,
@@ -354,7 +355,7 @@ export default function NutritionPage() {
             </div>
 
             {estimate.notes && (
-              <p className="text-xs text-muted-foreground font-mono">{estimate.notes}</p>
+              <Markdown className="text-xs text-muted-foreground">{estimate.notes}</Markdown>
             )}
 
             <div className="flex gap-2 pt-1">

@@ -176,10 +176,11 @@ export type ExerciseRx = {
 export type TrainingSession = {
   day: string;
   weekday: string;
-  session: { name: string; exercises: ExerciseRx[] } | null;
+  session: { name: string; exercises: ExerciseRx[]; rationale?: string } | null;
   phase: Record<string, unknown>;
   readiness: Record<string, unknown>;
   reason?: string | null;
+  source: "auto" | "manual";
 };
 
 export type WorkoutLog = {
@@ -546,6 +547,10 @@ export const api = {
       request<ExerciseProgress>(
         `/training/progress/${encodeURIComponent(exercise)}?days=${days}`
       ),
+    clearOverride: (day: string) =>
+      request<TrainingSession>(`/training/session/${day}/override`, {
+        method: "DELETE",
+      }),
   },
 
   fencing: {

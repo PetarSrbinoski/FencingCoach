@@ -9,12 +9,13 @@ Replaces `services/mealplan.py` LLM call with a PydanticAI agent that:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPServerStdio
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
@@ -82,10 +83,17 @@ Rules:
 
 
 def _build_mealplan_toolsets() -> list:
-    """Build toolsets: USDA MCP + WebSearch."""
+    """Build toolsets: USDA MCP (local stdio subprocess) + WebSearch."""
     toolsets = []
-    if settings.USDA_MCP_URL:
-        toolsets.append(MCPServerStreamableHTTP(url=settings.USDA_MCP_URL, timeout=15))
+    if settings.USDA_MCP_SCRIPT and os.path.isfile(settings.USDA_MCP_SCRIPT):
+        toolsets.append(
+            MCPServerStdio(
+                command="python",
+                args=[settings.USDA_MCP_SCRIPT],
+                env={"USDA_API_KEY": settings.USDA_API_KEY},
+                timeout=15,
+            )
+        )
     return toolsets
 
 

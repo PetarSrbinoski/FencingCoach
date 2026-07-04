@@ -108,11 +108,18 @@ class CoachDeps:
             used by brief/chat agents that need athlete state.
         extra: Arbitrary extra data (targets dict, mental entries, etc.)
             agents can pass through for tool/instruction use.
+        side_effect_committed: Set to True by any tool that commits a DB
+            write (e.g. `update_day_workout`, `add_competition`). Once
+            True, a transient LLM-provider error must NOT trigger a
+            whole-run retry — the side effect already happened, and
+            retrying risks silently duplicating it (e.g. a second
+            Competition row) or redundantly re-running it.
     """
 
     db: Session
     context_text: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
+    side_effect_committed: bool = False
 
 
 @lru_cache(maxsize=1)

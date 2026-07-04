@@ -15,6 +15,7 @@ import { Sparkline, Gauge } from "@/components/charts";
 import { Card, BandPill, StatRow } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Markdown } from "@/components/ui/markdown";
 import { StaleDataBanner } from "@/components/data-coverage-panel";
 import {
   Heart,
@@ -185,8 +186,8 @@ export default function Home() {
             </Button>
           </div>
           {brief ? (
-            <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground/90 max-w-2xl">
-              {brief.summary}
+            <div className="max-w-2xl text-base text-foreground/90">
+              <Markdown>{brief.summary}</Markdown>
             </div>
           ) : (
             <div className="py-12 text-center border border-border">

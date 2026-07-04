@@ -21,11 +21,12 @@ from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
-from app.models import WorkoutLog
+from app.models import WorkoutLog, WorkoutOverride
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
 from app.services.schedule import weekly_schedule
@@ -273,12 +274,63 @@ def _template_for(day: date) -> tuple[str, list[dict[str, Any]]] | None:
     return _GYM_TEMPLATES[idx]
 
 
+def get_workout_override(db: Session, day: date) -> WorkoutOverride | None:
+    return db.get(WorkoutOverride, day)
+
+
+def set_workout_override(
+    db: Session,
+    day: date,
+    exercises: list[dict[str, Any]],
+    session_name: str | None = None,
+    notes: str | None = None,
+) -> WorkoutOverride:
+    """Upsert a manual replacement for a day's gym session (create or update)."""
+    stmt = pg_insert(WorkoutOverride).values(
+        day=day, session_name=session_name, exercises=exercises, notes=notes
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["day"],
+        set_={
+            "session_name": stmt.excluded.session_name,
+            "exercises": stmt.excluded.exercises,
+            "notes": stmt.excluded.notes,
+            "updated_at": func.now(),
+        },
+    )
+    db.execute(stmt)
+    db.commit()
+    return db.get(WorkoutOverride, day)  # type: ignore[return-value]
+
+
+def clear_workout_override(db: Session, day: date) -> None:
+    """Remove a manual override so the day reverts to the auto-generated plan."""
+    db.execute(delete(WorkoutOverride).where(WorkoutOverride.day == day))
+    db.commit()
+
+
 def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
     """Return today's gym session, or `{"session": None, ...}` on non-gym days."""
     day = day or athlete_today()
-    tpl = _template_for(day)
     phase = compute_phase(db, day)
     readiness = compute_readiness(db, day)
+
+    override = get_workout_override(db, day)
+    if override is not None:
+        return {
+            "day": day.isoformat(),
+            "weekday": day.strftime("%A"),
+            "session": {
+                "name": override.session_name or "custom",
+                "exercises": override.exercises,
+                "rationale": override.notes or "Manually set.",
+            },
+            "phase": phase.to_dict(),
+            "readiness": {"score": readiness.score, "band": readiness.band},
+            "source": "manual",
+        }
+
+    tpl = _template_for(day)
 
     if tpl is None:
         return {
@@ -288,6 +340,7 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
             "phase": phase.to_dict(),
             "readiness": {"score": readiness.score, "band": readiness.band},
             "reason": "Not a gym day per the configured weekly schedule.",
+            "source": "auto",
         }
 
     session_name, items = tpl
@@ -344,4 +397,5 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
         },
         "phase": phase.to_dict(),
         "readiness": {"score": readiness.score, "band": readiness.band},
+        "source": "auto",
     }

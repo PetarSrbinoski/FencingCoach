@@ -20,19 +20,15 @@ def client(db):
         app.dependency_overrides.pop(get_db, None)
 
 
-async def _fake_run_coach_chat(user_message, *, context_text="", history_messages=None):
+async def _fake_run_coach_chat(user_message, *, db=None, context_text="", history_messages=None):
     from app.agents.coach import ChatResult
 
-    return ChatResult(
-        reply="Sample coach reply.", model="test-model", ungrounded_claims=[]
-    )
+    return ChatResult(reply="Sample coach reply.", model="test-model", ungrounded_claims=[])
 
 
 def test_chat_returns_context_snapshot_and_ungrounded_claims(client, db, monkeypatch):
     monkeypatch.setattr("app.api.chat.run_coach_chat", _fake_run_coach_chat)
-    monkeypatch.setattr(
-        "app.api.chat.build_context", lambda db: "## Readiness\nSome context"
-    )
+    monkeypatch.setattr("app.api.chat.build_context", lambda db: "## Readiness\nSome context")
 
     res = client.post("/chat", json={"message": "how am I doing?"})
     assert res.status_code == 200
@@ -65,9 +61,7 @@ def test_chat_without_context_omits_snapshot(client, db, monkeypatch):
 
 
 def test_chat_stream_emits_deltas_then_done(client, db, monkeypatch):
-    async def fake_stream_coach_chat(
-        user_message, *, context_text="", history_messages=None
-    ):
+    async def fake_stream_coach_chat(user_message, *, db=None, context_text="", history_messages=None):
         yield {"delta": "Hello "}
         yield {"delta": "there."}
         yield {
@@ -110,7 +104,7 @@ def test_chat_stream_emits_deltas_then_done(client, db, monkeypatch):
 
 
 def test_chat_stream_emits_error_frame_on_failure(client, db, monkeypatch):
-    async def failing_stream(user_message, *, context_text="", history_messages=None):
+    async def failing_stream(user_message, *, db=None, context_text="", history_messages=None):
         raise RuntimeError("upstream failure")
         yield  # pragma: no cover - unreachable, makes this an async generator
 
@@ -128,8 +122,6 @@ def test_chat_stream_emits_error_frame_on_failure(client, db, monkeypatch):
 
     # User turn is still persisted even though the assistant reply failed.
     conv = db.query(CoachConversation).one()
-    messages = (
-        db.query(CoachMessage).filter(CoachMessage.conversation_id == conv.id).all()
-    )
+    messages = db.query(CoachMessage).filter(CoachMessage.conversation_id == conv.id).all()
     assert len(messages) == 1
     assert messages[0].role == "user"

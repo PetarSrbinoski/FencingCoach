@@ -2,7 +2,9 @@
 
 Replaces `services/nutrition.py` LLM calls with a PydanticAI agent that:
 - Returns structured `NutritionEstimate` output via output_type
-- Uses USDA MCP tools (search_foods, get_food_nutrition) as primary source
+- Uses USDA MCP tools (search_foods, get_food_details, ...) as primary
+  source — a local stdio MCP server (rpassafaro/usda-api-mcp) spawned as
+  a subprocess, see `_usda_mcp_available()` below
 - Falls back to WebSearch (DuckDuckGo) when MCP doesn't have the food
 - Strips <think> tags from reasoning models via result_validator
 """
@@ -10,12 +12,13 @@ Replaces `services/nutrition.py` LLM calls with a PydanticAI agent that:
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPServerStdio
 
 from app.agents.deps import CoachDeps, get_model, strip_think_tags
 from app.core.config import settings
@@ -48,9 +51,7 @@ class NutritionEstimateOutput(BaseModel):
     fiber_g: float | None = Field(None, description="Fiber in grams")
     micros: NutritionMicros = Field(default_factory=NutritionMicros)
     items: list[NutritionItem] = Field(default_factory=list)
-    confidence: str = Field(
-        "medium", description="Estimate confidence: low, medium, or high"
-    )
+    confidence: str = Field("medium", description="Estimate confidence: low, medium, or high")
     notes: str = Field("", description="Assumptions or notes about the estimate")
 
 
@@ -68,8 +69,9 @@ You are a precise sports-nutrition macro estimator for an elite épée fencer.
 Given a free-text food description, estimate its nutritional content.
 
 Strategy:
-1. FIRST try the USDA MCP tools (search_foods, get_food_nutrition) to look up
-   actual USDA data for each food item. This is your most reliable source.
+1. FIRST try the USDA MCP tools (search_foods, get_food_details,
+   get_food_nutrients) to look up actual USDA data for each food item.
+   This is your most reliable source.
 2. If USDA MCP doesn't have the food or returns no results, use web search
    to find nutritional information from reliable sources.
 3. Combine the data into a single estimate.
@@ -108,18 +110,25 @@ Rules:
   unavailable."""
 
 
+def _usda_mcp_available() -> bool:
+    """Whether the local USDA MCP subprocess script is present."""
+    return bool(settings.USDA_MCP_SCRIPT) and os.path.isfile(settings.USDA_MCP_SCRIPT)
+
+
 def _build_nutrition_toolsets(include_usda: bool = True) -> list[Any]:
     """Build toolsets list for the nutrition agent."""
     toolsets = []
 
-    # USDA Nutrition MCP server
-    if include_usda and settings.USDA_MCP_URL:
-        mcp_server = MCPServerStreamableHTTP(
-            url=settings.USDA_MCP_URL,
+    # USDA Nutrition MCP server — spawned as a local stdio subprocess.
+    if include_usda and _usda_mcp_available():
+        mcp_server = MCPServerStdio(
+            command="python",
+            args=[settings.USDA_MCP_SCRIPT],
+            env={"USDA_API_KEY": settings.USDA_API_KEY},
             timeout=15,
         )
         toolsets.append(mcp_server)
-        log.info("Nutrition agent: USDA MCP at %s", settings.USDA_MCP_URL)
+        log.info("Nutrition agent: USDA MCP subprocess at %s", settings.USDA_MCP_SCRIPT)
 
     return toolsets
 
@@ -181,15 +190,13 @@ def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
         result = nutrition_agent.run_sync(text.strip(), deps=deps)
         return _clean_output(result.output)
     except Exception as e:
-        if settings.USDA_MCP_URL:
+        if _usda_mcp_available():
             log.warning(
                 "Nutrition agent failed with USDA tools, retrying without USDA: %s",
                 e,
             )
             try:
-                fallback_result = nutrition_fallback_agent.run_sync(
-                    text.strip(), deps=deps
-                )
+                fallback_result = nutrition_fallback_agent.run_sync(text.strip(), deps=deps)
                 return _clean_output(fallback_result.output)
             except Exception as fallback_error:
                 log.error(

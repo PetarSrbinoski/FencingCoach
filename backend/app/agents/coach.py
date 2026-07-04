@@ -23,12 +23,13 @@ import logging
 import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from datetime import date as Date
 from typing import Any
 
 import openai
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, ModelRetry
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -36,11 +37,15 @@ from pydantic_ai.messages import (
     TextPart,
     UserPromptPart,
 )
+from sqlalchemy.orm import Session
 
 from app.agents.deps import CoachDeps, ThinkTagStreamFilter, get_model, strip_think_tags
 from app.core.config import settings
+from app.models import Competition
+from app.schemas import ExerciseOverrideIn
 from app.services.grounding import find_ungrounded_claims
 from app.services.prompts import COACH_SYSTEM_PROMPT
+from app.services.training import clear_workout_override, set_workout_override
 
 log = logging.getLogger(__name__)
 
@@ -98,6 +103,21 @@ def _is_transient_llm_error(exc: Exception) -> bool:
     return False
 
 
+def _parse_iso_date(value: str, *, field_name: str) -> Date:
+    """Parse an ISO date given by the model, or ask it to retry.
+
+    A malformed date must never crash the whole turn with an unhandled
+    `ValueError` — raising `ModelRetry` lets pydantic-ai feed the error
+    back to the model so it can correct the argument and try again.
+    """
+    try:
+        return Date.fromisoformat(value)
+    except ValueError as e:
+        raise ModelRetry(
+            f"Invalid {field_name} '{value}': must be an ISO date (YYYY-MM-DD)."
+        ) from e
+
+
 _COACH_AGENT_KWARGS: dict[str, Any] = dict(
     output_type=str,
     instructions=COACH_SYSTEM_PROMPT,
@@ -136,6 +156,108 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
 
 
+# ── Tools ───────────────────────────────────────────────────────────────
+# Both tools mutate the database directly (via `ctx.deps.db`, a real
+# SQLAlchemy Session — see `run_coach_chat`/`stream_coach_chat` below).
+# Registered on both agent instances so they're available regardless of
+# whether web search was also attached for this turn.
+@coach_agent.tool
+@coach_agent_search.tool
+async def update_day_workout(
+    ctx: RunContext[CoachDeps],
+    day: str,
+    exercises: list[ExerciseOverrideIn] | None = None,
+    session_name: str | None = None,
+    notes: str | None = None,
+) -> str:
+    """Change the planned gym workout for a specific day (usually today or an
+    upcoming day). This replaces the auto-generated session for that day —
+    use it when the athlete asks to swap an exercise, change sets/reps/load,
+    or otherwise edit what's prescribed.
+
+    Args:
+        day: ISO date (YYYY-MM-DD) of the day to modify.
+        exercises: The full new list of exercises for that day (this
+            replaces the entire session, not just one exercise — include
+            every exercise that should remain). Each item needs `exercise`,
+            `sets`, and `reps`; `load_kg`, `target_rpe`, `intent`
+            (strength|power|hypertrophy|skill), and `notes` are optional.
+            Pass `None` or an empty list to clear a manual edit and revert
+            the day to the auto-generated plan.
+        session_name: Optional short label for the session, e.g. "upper
+            body power" or "deload".
+        notes: Optional rationale shown alongside the session.
+    """
+    parsed_day = _parse_iso_date(day, field_name="day")
+    if not exercises:
+        clear_workout_override(ctx.deps.db, parsed_day)
+        ctx.deps.side_effect_committed = True
+        return (
+            f"Cleared the manual edit for {parsed_day.isoformat()} — it will "
+            "revert to the auto-generated plan."
+        )
+
+    set_workout_override(
+        ctx.deps.db,
+        parsed_day,
+        exercises=[e.model_dump() for e in exercises],
+        session_name=session_name,
+        notes=notes,
+    )
+    ctx.deps.side_effect_committed = True
+    names = ", ".join(e.exercise for e in exercises)
+    return (
+        f"Updated the workout for {parsed_day.isoformat()} "
+        f"({session_name or 'custom session'}): {names}."
+    )
+
+
+@coach_agent.tool
+@coach_agent_search.tool
+async def add_competition(
+    ctx: RunContext[CoachDeps],
+    name: str,
+    event_date: str,
+    location: str | None = None,
+    end_date: str | None = None,
+    level: str | None = None,
+    priority: str = "A",
+    notes: str | None = None,
+) -> str:
+    """Add a new competition to the athlete's competition calendar.
+
+    Args:
+        name: Competition name, e.g. "Budapest World Cup".
+        event_date: ISO date (YYYY-MM-DD) the competition starts.
+        location: City/country, optional.
+        end_date: ISO date (YYYY-MM-DD) if the competition spans multiple
+            days, optional.
+        level: e.g. "local", "national", "FIE world cup", "regional".
+        priority: "A" (peak for this one), "B", or "C". Defaults to "A" —
+            an A-priority competition drives periodization (phase/taper)
+            and nutrition targets, so ask if unsure.
+        notes: Any additional notes.
+    """
+    parsed_priority = priority if priority in {"A", "B", "C"} else "A"
+    comp = Competition(
+        name=name,
+        location=location,
+        event_date=_parse_iso_date(event_date, field_name="event_date"),
+        end_date=_parse_iso_date(end_date, field_name="end_date") if end_date else None,
+        level=level,
+        priority=parsed_priority,
+        notes=notes,
+    )
+    ctx.deps.db.add(comp)
+    ctx.deps.db.commit()
+    ctx.deps.db.refresh(comp)
+    ctx.deps.side_effect_committed = True
+    return (
+        f"Added competition '{comp.name}' on {comp.event_date.isoformat()} "
+        f"(priority {comp.priority}, id={comp.id})."
+    )
+
+
 # ── History conversion ────────────────────────────────────────────────
 def _db_messages_to_history(
     messages: list[Any],
@@ -167,6 +289,7 @@ class ChatResult:
 async def run_coach_chat(
     user_message: str,
     *,
+    db: Session,
     context_text: str = "",
     history_messages: list[Any] | None = None,
 ) -> ChatResult:
@@ -174,6 +297,8 @@ async def run_coach_chat(
 
     Args:
         user_message: The user's message text.
+        db: SQLAlchemy session — passed through to any tool the agent calls
+            (e.g. `update_day_workout`, `add_competition`).
         context_text: Pre-built context snapshot to inject.
         history_messages: List of DB CoachMessage objects for conversation history.
 
@@ -181,7 +306,7 @@ async def run_coach_chat(
         ChatResult with reply text, model name, and any heuristically
         flagged ungrounded claims (see `services.grounding`).
     """
-    deps = CoachDeps(db=None, context_text=context_text)  # type: ignore[arg-type]
+    deps = CoachDeps(db=db, context_text=context_text)
 
     # Convert DB message history to PydanticAI format
     message_history: list[ModelMessage] | None = None
@@ -200,7 +325,14 @@ async def run_coach_chat(
             )
             break
         except Exception as e:  # noqa: BLE001
-            if attempt >= _MAX_TRANSIENT_RETRIES or not _is_transient_llm_error(e):
+            # Never retry a whole run once a tool has already committed a
+            # DB write during this attempt — retrying could silently
+            # duplicate that side effect (e.g. a second Competition row).
+            if (
+                deps.side_effect_committed
+                or attempt >= _MAX_TRANSIENT_RETRIES
+                or not _is_transient_llm_error(e)
+            ):
                 raise
             attempt += 1
             log.warning(
@@ -226,6 +358,7 @@ async def run_coach_chat(
 async def stream_coach_chat(
     user_message: str,
     *,
+    db: Session,
     context_text: str = "",
     history_messages: list[Any] | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
@@ -236,7 +369,7 @@ async def stream_coach_chat(
     `{"done": True, "reply": ..., "model": ..., "ungrounded_claims": [...]}`
     once the stream completes.
     """
-    deps = CoachDeps(db=None, context_text=context_text)  # type: ignore[arg-type]
+    deps = CoachDeps(db=db, context_text=context_text)
 
     message_history: list[ModelMessage] | None = None
     if history_messages:
@@ -263,8 +396,15 @@ async def stream_coach_chat(
             break
         except Exception as e:  # noqa: BLE001
             # Only safe to retry if nothing has been streamed to the
-            # client yet — otherwise a retry would duplicate output.
-            if chunks or attempt >= _MAX_TRANSIENT_RETRIES or not _is_transient_llm_error(e):
+            # client yet — otherwise a retry would duplicate output. Also
+            # never retry once a tool has already committed a DB write
+            # during this attempt (see run_coach_chat for the same guard).
+            if (
+                chunks
+                or deps.side_effect_committed
+                or attempt >= _MAX_TRANSIENT_RETRIES
+                or not _is_transient_llm_error(e)
+            ):
                 raise
             attempt += 1
             log.warning(
