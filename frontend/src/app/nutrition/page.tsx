@@ -31,11 +31,52 @@ import {
   CalendarClock,
   Trash2,
   AlertTriangle,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
+  Zap,
+  BatteryCharging,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 const MEALS = ["breakfast", "lunch", "dinner", "snack", "pre", "post"];
 const DAY_TYPES = ["auto", "rest", "gym", "fencing", "double", "competition"];
+
+type MealPlanIngredient = { name: string; qty_g: number };
+
+type MealPlanMeal = {
+  slot: string;
+  time: string;
+  name: string;
+  ingredients?: MealPlanIngredient[];
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  notes?: string;
+};
+
+type MealPlanTotals = {
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+};
+
+const SLOT_ICONS: Record<string, LucideIcon> = {
+  breakfast: Coffee,
+  lunch: Sun,
+  dinner: Moon,
+  snack: Cookie,
+  pre_workout: Zap,
+  post_workout: BatteryCharging,
+};
+
+function slotLabel(slot: string): string {
+  return slot.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function NutritionPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -197,10 +238,10 @@ export default function NutritionPage() {
   }
 
   function renderMealPlan(plan: Record<string, unknown>) {
-    const mealKeys = ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "evening_snack", "pre_workout", "post_workout"];
-    const found = mealKeys.filter((k) => k in plan);
+    const meals = plan.meals as MealPlanMeal[] | undefined;
 
-    if (found.length === 0) {
+    if (!Array.isArray(meals) || meals.length === 0) {
+      // Unexpected/older shape — fall back to a raw dump rather than hide data.
       return (
         <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted p-4 border border-border max-h-96 overflow-auto">
           {JSON.stringify(plan, null, 2)}
@@ -208,49 +249,74 @@ export default function NutritionPage() {
       );
     }
 
+    const sorted = [...meals].sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+    const totals = plan.totals as MealPlanTotals | undefined;
+    const rationale = typeof plan.rationale === "string" ? plan.rationale : "";
+
     return (
       <div className="space-y-3">
-        {found.map((mealKey) => {
-          const mealData = plan[mealKey] as any;
-          const label = mealKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        {sorted.map((mealItem, i) => {
+          const Icon = SLOT_ICONS[mealItem.slot] ?? Utensils;
           return (
-            <div key={mealKey} className="border border-border p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-2">{label}</h4>
-              {Array.isArray(mealData?.items ?? mealData) ? (
-                <ul className="space-y-1.5 text-sm text-muted-foreground">
-                  {(mealData?.items ?? mealData).map((item: any, i: number) => (
-                    <li key={i} className="flex justify-between">
-                      <span>{typeof item === "string" ? item : item?.name ?? item?.food ?? JSON.stringify(item)}</span>
-                      {item?.amount && (
-                        <span className="text-muted-foreground font-mono text-xs">
-                          {item.amount}{item.unit ? ` ${item.unit}` : ""}
-                        </span>
-                      )}
+            <div key={i} className="border border-border p-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon className="h-4 w-4 text-accent shrink-0" strokeWidth={1.5} />
+                  <span className="font-semibold text-sm text-foreground truncate">
+                    {mealItem.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="outline">{slotLabel(mealItem.slot)}</Badge>
+                  {mealItem.time && (
+                    <span className="font-mono text-xs text-muted-foreground">{mealItem.time}</span>
+                  )}
+                </div>
+              </div>
+
+              {mealItem.ingredients && mealItem.ingredients.length > 0 && (
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {mealItem.ingredients.map((ing, j) => (
+                    <li key={j} className="flex justify-between">
+                      <span className="capitalize">{ing.name}</span>
+                      <span className="font-mono text-xs text-muted-foreground/80">
+                        {ing.qty_g}g
+                      </span>
                     </li>
                   ))}
                 </ul>
-              ) : typeof mealData === "object" && mealData !== null ? (
-                <div className="text-sm text-muted-foreground">
-                  {mealData.description && <p>{mealData.description}</p>}
-                  {mealData.kcal && (
-                    <p className="text-xs text-muted-foreground mt-1.5 font-mono">
-                      ~{mealData.kcal} kcal
-                      {mealData.protein_g ? ` · P${mealData.protein_g}` : ""}
-                      {mealData.carbs_g ? ` · C${mealData.carbs_g}` : ""}
-                      {mealData.fat_g ? ` · F${mealData.fat_g}` : ""}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{String(mealData)}</p>
+              )}
+
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                <span className="text-foreground/90">{mealItem.kcal ?? 0} kcal</span>
+                <span>P {mealItem.protein_g ?? 0}g</span>
+                <span>C {mealItem.carbs_g ?? 0}g</span>
+                <span>F {mealItem.fat_g ?? 0}g</span>
+              </div>
+
+              {mealItem.notes && (
+                <p className="text-xs text-muted-foreground mt-2 italic leading-relaxed">
+                  {mealItem.notes}
+                </p>
               )}
             </div>
           );
         })}
-        {plan.totals != null && (
-          <p className="text-xs text-muted-foreground font-mono mt-2">
-            Plan totals: {JSON.stringify(plan.totals)}
-          </p>
+
+        {totals && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground border-t border-border pt-3 mt-1">
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
+              Day totals
+            </span>
+            <span className="text-foreground/90 font-medium">{totals.kcal ?? 0} kcal</span>
+            <span>P {totals.protein_g ?? 0}g</span>
+            <span>C {totals.carbs_g ?? 0}g</span>
+            <span>F {totals.fat_g ?? 0}g</span>
+          </div>
+        )}
+
+        {rationale && (
+          <p className="text-xs text-muted-foreground leading-relaxed pt-1">{rationale}</p>
         )}
       </div>
     );
