@@ -110,7 +110,7 @@ _COACH_AGENT_KWARGS: dict[str, Any] = dict(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.4,
-        "max_tokens": 1200,
+        "max_tokens": 1800,
     },
 )
 

@@ -22,7 +22,7 @@ mental_agent = Agent(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.4,
-        "max_tokens": 256,
+        "max_tokens": 512,
     },
 )
 
