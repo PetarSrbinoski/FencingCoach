@@ -28,6 +28,7 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "FencingCoach",
   description: "Elite epee performance platform",
+  icons: "/CoachIcon.png",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
