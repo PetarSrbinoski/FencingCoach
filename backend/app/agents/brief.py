@@ -37,7 +37,7 @@ brief_agent = Agent(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.5,
-        "max_tokens": 900,
+        "max_tokens": 1200,
     },
 )
 
