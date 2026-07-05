@@ -26,7 +26,6 @@ from app.agents.coach import (
     coach_agent,
     coach_agent_search,
     run_coach_chat,
-    stream_coach_chat,
 )
 from app.agents.deps import CoachDeps, ThinkTagStreamFilter, strip_think_tags
 from app.agents.mealplan import MealPlanOutput, mealplan_agent
@@ -234,7 +233,9 @@ class TestNutritionAgent:
                 )
             return SimpleNamespace(output=good_output)
 
-        async def fail_fallback(text, deps, model=None):  # pragma: no cover - should never be called
+        async def fail_fallback(
+            text, deps, model=None
+        ):  # pragma: no cover - should never be called
             raise AssertionError("fallback agent should not be needed")
 
         monkeypatch.setattr(nutrition_agent, "run", flaky_primary)
@@ -282,7 +283,9 @@ class TestNutritionAgent:
         async def cancelled(text, deps, model=None):
             raise asyncio.CancelledError()
 
-        async def fail_fallback(text, deps, model=None):  # pragma: no cover - should never be called
+        async def fail_fallback(
+            text, deps, model=None
+        ):  # pragma: no cover - should never be called
             raise AssertionError("fallback agent should not run for a cancelled request")
 
         monkeypatch.setattr(nutrition_agent, "run", cancelled)
@@ -424,46 +427,6 @@ class TestCoachAgent:
             run_coach_chat("how am I doing?", db=db, context_text="HRV: 55ms, Sleep: 7h")
         )
         assert result.ungrounded_claims == []
-
-    def test_stream_coach_chat_filters_think_tags_and_flags_grounding(self, monkeypatch, db):
-        class _FakeStream:
-            def __init__(self, deltas):
-                self._deltas = deltas
-
-            async def stream_text(self, delta=True):
-                for d in self._deltas:
-                    yield d
-
-        class _FakeStreamCM:
-            def __init__(self, deltas):
-                self._deltas = deltas
-
-            async def __aenter__(self):
-                return _FakeStream(self._deltas)
-
-            async def __aexit__(self, *a):
-                return False
-
-        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
-            return _FakeStreamCM(["<think>internal reasoning</think>Your HRV was 99 today."])
-
-        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
-
-        async def collect():
-            items = []
-            async for item in stream_coach_chat("how am I doing?", db=db, context_text="HRV: 55ms"):
-                items.append(item)
-            return items
-
-        items = asyncio.run(collect())
-        deltas = [i["delta"] for i in items if "delta" in i]
-        assert "".join(deltas) == "Your HRV was 99 today."
-        assert "internal reasoning" not in "".join(deltas)
-
-        final = items[-1]
-        assert final["done"] is True
-        assert final["reply"] == "Your HRV was 99 today."
-        assert len(final["ungrounded_claims"]) == 1
 
 
 # ── coach tools (update_day_workout / add_competition) ──────────────────
@@ -831,7 +794,9 @@ class TestCoachTransientErrorRetry:
         silently duplicate the side effect."""
         calls = {"n": 0}
 
-        async def flaky_run_with_side_effect(user_prompt, deps=None, message_history=None, model=None):
+        async def flaky_run_with_side_effect(
+            user_prompt, deps=None, message_history=None, model=None
+        ):
             calls["n"] += 1
             deps.side_effect_committed = True  # simulates a tool having run
             raise _make_transient_error()
@@ -841,76 +806,4 @@ class TestCoachTransientErrorRetry:
 
         with pytest.raises(openai.APIError):
             asyncio.run(run_coach_chat("hello", db=db, context_text=""))
-        assert calls["n"] == 1
-
-    def test_stream_coach_chat_retries_transient_error_before_any_delta(self, monkeypatch, db):
-        calls = {"n": 0}
-
-        class _FakeStream:
-            def __init__(self, deltas):
-                self._deltas = deltas
-
-            async def stream_text(self, delta=True):
-                for d in self._deltas:
-                    yield d
-
-        class _FakeStreamCM:
-            def __init__(self, deltas):
-                self._deltas = deltas
-
-            async def __aenter__(self):
-                calls["n"] += 1
-                if calls["n"] == 1:
-                    raise _make_transient_error()
-                return _FakeStream(self._deltas)
-
-            async def __aexit__(self, *a):
-                return False
-
-        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
-            return _FakeStreamCM(["All good now."])
-
-        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
-        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
-
-        async def collect():
-            items = []
-            async for item in stream_coach_chat("hello", db=db, context_text=""):
-                items.append(item)
-            return items
-
-        items = asyncio.run(collect())
-        deltas = [i["delta"] for i in items if "delta" in i]
-        assert "".join(deltas) == "All good now."
-        assert calls["n"] == 2
-
-    def test_stream_coach_chat_does_not_retry_after_tool_side_effect(self, monkeypatch, db):
-        """Same guard as run_coach_chat: once a tool has committed a side
-        effect during this attempt, a subsequent transient error must not
-        trigger a retry of the whole stream."""
-        calls = {"n": 0}
-
-        class _FakeStreamCM:
-            async def __aenter__(self):
-                calls["n"] += 1
-                raise _make_transient_error()
-
-            async def __aexit__(self, *a):
-                return False
-
-        def fake_run_stream(user_prompt, deps=None, message_history=None, model=None):
-            deps.side_effect_committed = True  # simulates a tool having run
-            return _FakeStreamCM()
-
-        monkeypatch.setattr(coach_agent, "run_stream", fake_run_stream)
-        monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
-
-        async def collect():
-            items = []
-            async for item in stream_coach_chat("hello", db=db, context_text=""):
-                items.append(item)
-            return items
-
-        with pytest.raises(openai.APIError):
-            asyncio.run(collect())
         assert calls["n"] == 1

@@ -1,8 +1,4 @@
-"""SQLAlchemy ORM models for FencingCoach AI.
-
-All models share a single Base. They are imported in `app.models.__init__`
-so Alembic autogenerate sees them.
-"""
+"""SQLAlchemy ORM models for FencingCoach AI."""
 
 from __future__ import annotations
 
@@ -29,9 +25,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Athlete
-# ─────────────────────────────────────────────────────────────────────
 class AthleteProfile(Base):
     """Static / slowly changing profile. Single row in single-user app."""
 
@@ -60,9 +53,6 @@ class AthleteProfile(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Garmin time-series
-# ─────────────────────────────────────────────────────────────────────
 class GarminMetric(Base):
     """One row per metric snapshot. `kind` discriminates data type.
 
@@ -115,9 +105,6 @@ class Activity(Base):
     raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Nutrition
-# ─────────────────────────────────────────────────────────────────────
 class NutritionLog(Base):
     __tablename__ = "nutrition_log"
     __table_args__ = (Index("ix_nutrition_log_day", "day"),)
@@ -136,6 +123,37 @@ class NutritionLog(Base):
     estimated_by: Mapped[str | None] = mapped_column(String(40))  # llm|manual|usda
 
 
+class NutritionEstimate(Base):
+    """A `POST /nutrition/estimate` request and its (async) LLM result.
+
+    Created with `status="pending"` immediately, before the LLM call
+    starts, so the request can return right away (202) and a detached
+    background job (see `app/core/background.py`) can fill in the result
+    whenever it finishes — surviving the athlete navigating away from
+    `/nutrition` while it's in flight. Confirming an estimate into a
+    logged meal is still a separate step (`POST /nutrition/log`)."""
+
+    __tablename__ = "nutrition_estimates"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="pending"
+    )  # pending|done|error
+    error: Mapped[str | None] = mapped_column(Text)
+
+    kcal: Mapped[float | None] = mapped_column(Float)
+    protein_g: Mapped[float | None] = mapped_column(Float)
+    carbs_g: Mapped[float | None] = mapped_column(Float)
+    fat_g: Mapped[float | None] = mapped_column(Float)
+    fiber_g: Mapped[float | None] = mapped_column(Float)
+    micros: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    items: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    confidence: Mapped[str | None] = mapped_column(String(20))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+
 class NutritionPlan(Base):
     __tablename__ = "nutrition_plans"
 
@@ -148,9 +166,6 @@ class NutritionPlan(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Training
-# ─────────────────────────────────────────────────────────────────────
 class TrainingPlan(Base):
     """Mesocycle / current programming."""
 
@@ -184,9 +199,6 @@ class WorkoutLog(Base):
     logged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Competition
-# ─────────────────────────────────────────────────────────────────────
 class Competition(Base):
     __tablename__ = "competitions"
     __table_args__ = (Index("ix_competitions_event_date", "event_date"),)
@@ -202,9 +214,6 @@ class Competition(Base):
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Coach
-# ─────────────────────────────────────────────────────────────────────
 class CoachConversation(Base):
     __tablename__ = "coach_conversations"
 
@@ -234,6 +243,17 @@ class CoachMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # For assistant messages: "pending" until the detached generation job
+    # (see app/core/background.py) fills in `content` and flips this to
+    # "done"/"error" — lets the reply keep generating server-side even if
+    # the athlete navigates away from /chat before it finishes. User
+    # messages are always "done" (there's nothing to wait for).
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="done")
+    error: Mapped[str | None] = mapped_column(Text)
+    # model used, context snapshot, ungrounded-claims list — set once the
+    # background job finishes (see api/chat.py:_generate_reply). Mirrors
+    # what the old synchronous response used to return inline.
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     conversation: Mapped[CoachConversation] = relationship(back_populates="messages")
 
@@ -251,9 +271,6 @@ class DailyBrief(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Long-term storage
-# ─────────────────────────────────────────────────────────────────────
 class DataSummary(Base):
     """Weekly / monthly aggregates for long-term retention."""
 
@@ -276,9 +293,6 @@ class DataSummary(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Day-type overrides
-# ─────────────────────────────────────────────────────────────────────
 class DayTypeOverride(Base):
     """Manual override for the auto-detected day type on a given day."""
 
@@ -311,9 +325,6 @@ class WorkoutOverride(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# Mental Training
-# ─────────────────────────────────────────────────────────────────────
 class MentalEntry(Base):
     """Mental check-in, pre-competition mindset, or reflection journal entry."""
 
@@ -334,9 +345,6 @@ class MentalEntry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-# ─────────────────────────────────────────────────────────────────────
-# USDA Food Reference
-# ─────────────────────────────────────────────────────────────────────
 class USDAFood(Base):
     """Cached USDA FoodData Central item for nutrition cross-reference."""
 
@@ -367,9 +375,6 @@ class USDAFood(Base):
     )
 
 
-# ─────────────────────────────────────────────────────────────────────
-# App settings (generic key/value)
-# ─────────────────────────────────────────────────────────────────────
 class AppSetting(Base):
     """Generic single-row-per-key app-wide setting (single-user app, no
     per-user scoping needed). Currently used for the manual LLM provider

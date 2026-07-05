@@ -12,6 +12,7 @@ from app.models.models import (  # noqa: F401
     DayTypeOverride,
     GarminMetric,
     MentalEntry,
+    NutritionEstimate,
     NutritionLog,
     NutritionPlan,
     TrainingPlan,

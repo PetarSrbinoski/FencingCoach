@@ -105,7 +105,25 @@ export default function NutritionPage() {
     fiber_g: "",
   });
   const [confirming, setConfirming] = useState(false);
-  const estimateAbortRef = useRef<AbortController | null>(null);
+  const estimatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Resume watching an estimate that was still generating server-side
+  // last time this page was open (e.g. the athlete navigated away or
+  // reloaded before it finished) — see requestEstimate/pollEstimateResult.
+  useEffect(() => {
+    const raw = sessionStorage.getItem("pendingNutritionEstimate");
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw) as { id: number; text: string };
+        setText(saved.text);
+        setBusy(true);
+        pollEstimateResult(saved.id);
+      } catch {
+        sessionStorage.removeItem("pendingNutritionEstimate");
+      }
+    }
+    return () => stopEstimatePolling();
+  }, []);
 
   function refresh() {
     Promise.all([
@@ -138,36 +156,69 @@ export default function NutritionPage() {
     }
   }
 
+  function stopEstimatePolling() {
+    if (estimatePollRef.current) {
+      clearInterval(estimatePollRef.current);
+      estimatePollRef.current = null;
+    }
+  }
+
+  /** Poll `GET /nutrition/estimate/{id}` until the LLM call finishes —
+   * it keeps running server-side (see `api.nutrition.estimate`) even if
+   * this page is closed/navigated away from before it resolves. */
+  function pollEstimateResult(id: number) {
+    stopEstimatePolling();
+    estimatePollRef.current = setInterval(async () => {
+      try {
+        const est = await api.nutrition.pollEstimate(id);
+        if (est.status === "pending") return;
+        stopEstimatePolling();
+        setBusy(false);
+        sessionStorage.removeItem("pendingNutritionEstimate");
+        if (est.status === "done") {
+          setEstimate(est);
+          setDraft({
+            kcal: String(est.kcal ?? ""),
+            protein_g: String(est.protein_g ?? ""),
+            carbs_g: String(est.carbs_g ?? ""),
+            fat_g: String(est.fat_g ?? ""),
+            fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
+          });
+        } else {
+          setErr(est.error ?? "Nutrition estimation failed");
+        }
+      } catch (e: any) {
+        stopEstimatePolling();
+        setBusy(false);
+        sessionStorage.removeItem("pendingNutritionEstimate");
+        setErr(e?.message ?? String(e));
+      }
+    }, 1200);
+  }
+
   async function requestEstimate() {
     if (!text.trim() || busy) return;
     setBusy(true);
     setErr(null);
 
-    const controller = new AbortController();
-    estimateAbortRef.current = controller;
-
     try {
-      const est = await api.nutrition.estimate(text.trim(), controller.signal);
-      setEstimate(est);
-      setDraft({
-        kcal: String(est.kcal),
-        protein_g: String(est.protein_g),
-        carbs_g: String(est.carbs_g),
-        fat_g: String(est.fat_g),
-        fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
-      });
+      const accepted = await api.nutrition.estimate(text.trim());
+      sessionStorage.setItem(
+        "pendingNutritionEstimate",
+        JSON.stringify({ id: accepted.id, text: text.trim() })
+      );
+      pollEstimateResult(accepted.id);
     } catch (e: any) {
-      if (e?.name !== "AbortError") {
-        setErr(e?.message ?? String(e));
-      }
-    } finally {
-      estimateAbortRef.current = null;
       setBusy(false);
+      setErr(e?.message ?? String(e));
     }
   }
 
-  function cancelEstimate() {
-    estimateAbortRef.current?.abort();
+  function stopWatchingEstimate() {
+    // Client-side only: the estimate keeps generating server-side —
+    // reopening this page while it's still pending resumes watching it.
+    stopEstimatePolling();
+    setBusy(false);
   }
 
   function discardEstimate() {
@@ -189,7 +240,7 @@ export default function NutritionPage() {
         fiber_g: draft.fiber_g ? Number(draft.fiber_g) : undefined,
         micros: estimate.micros,
         items: estimate.items,
-        confidence: estimate.confidence,
+        confidence: estimate.confidence ?? undefined,
         notes: estimate.notes,
       });
       setText("");
@@ -384,9 +435,14 @@ export default function NutritionPage() {
             {busy ? "Estimating…" : "Estimate"}
           </Button>
           {busy && (
-            <Button onClick={cancelEstimate} variant="ghost" aria-label="Cancel estimate">
+            <Button
+              onClick={stopWatchingEstimate}
+              variant="ghost"
+              aria-label="Stop watching (estimate keeps generating)"
+              title="The estimate keeps generating in the background — this just stops watching it here."
+            >
               <X className="h-3.5 w-3.5" />
-              Cancel
+              Stop watching
             </Button>
           )}
         </div>

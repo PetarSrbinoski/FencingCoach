@@ -1,8 +1,9 @@
 from app.schemas.schemas import (  # noqa: F401
     ActivityOut,
     BriefOut,
+    ChatAccepted,
+    ChatMessageStatus,
     ChatRequest,
-    ChatResponse,
     CoachConversationOut,
     CoachConversationSummary,
     CoachMessageOut,
@@ -28,6 +29,7 @@ from app.schemas.schemas import (  # noqa: F401
     MetricPoint,
     MetricSeries,
     NutritionDayTotals,
+    NutritionEstimateAccepted,
     NutritionEstimateItemOut,
     NutritionEstimateOut,
     NutritionEstimateRequest,

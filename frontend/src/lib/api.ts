@@ -68,15 +68,27 @@ export type NutritionLog = {
 
 export type NutritionEstimateItem = { name: string; qty_g: number };
 
+export type NutritionEstimateStatus = "pending" | "done" | "error";
+
+/** Returned immediately by `POST /nutrition/estimate` — poll
+ * `api.nutrition.pollEstimate` for the actual result. */
+export type NutritionEstimateAccepted = {
+  id: number;
+  status: NutritionEstimateStatus;
+};
+
 export type NutritionEstimate = {
-  kcal: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
+  id: number;
+  status: NutritionEstimateStatus;
+  error: string | null;
+  kcal: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
   fiber_g: number | null;
   micros: Record<string, number>;
   items: NutritionEstimateItem[];
-  confidence: "low" | "medium" | "high" | string;
+  confidence: "low" | "medium" | "high" | string | null;
   notes: string;
 };
 
@@ -309,11 +321,33 @@ export type MentalInsight = {
   insight: string;
 };
 
+export type ChatMessageStatusValue = "pending" | "done" | "error";
+
 export type CoachMessage = {
   id: number;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  status: ChatMessageStatusValue;
+};
+
+/** Returned immediately by `POST /chat` — poll `api.chatMessages.poll`
+ * for the actual reply. */
+export type ChatAccepted = {
+  conversation_id: number;
+  message_id: number;
+  status: ChatMessageStatusValue;
+};
+
+/** Poll response for a chat message (see `api.chatMessages.poll`). */
+export type ChatMessagePoll = {
+  id: number;
+  status: ChatMessageStatusValue;
+  content: string;
+  model: string | null;
+  context_snapshot: string | null;
+  ungrounded_claims: string[];
+  error: string | null;
 };
 
 export type CoachConversation = {
@@ -338,97 +372,17 @@ export const api = {
   health: () =>
     request<{ status: string; db: boolean; llm: boolean; version: string }>("/health"),
 
+  /** Stores the athlete's turn and returns immediately (202) — the reply
+   * generates in the background on the server (see backend/app/api/chat.py)
+   * and keeps going even if the page is navigated away from. Poll
+   * `api.chatMessages.poll(message_id)` for the result. */
   chat: (message: string, conversation_id?: number, include_context = true) =>
-    request<{
-      conversation_id: number;
-      reply: string;
-      model: string;
-      prompt_tokens?: number;
-      completion_tokens?: number;
-      context_snapshot: string | null;
-      ungrounded_claims: string[];
-    }>("/chat", {
+    request<ChatAccepted>("/chat", {
       method: "POST",
       body: JSON.stringify({ message, conversation_id, include_context }),
     }),
-  /** SSE variant of `api.chat`. Invokes callbacks as frames arrive instead
-   * of resolving once with the full reply. Pass `signal` to allow
-   * cancelling an in-flight request (e.g. a "Stop" button) — aborts the
-   * fetch, which the backend detects and cancels server-side too. */
-  chatStream: async (
-    message: string,
-    conversation_id: number | undefined,
-    include_context: boolean,
-    handlers: {
-      onStart?: (conversationId: number) => void;
-      onStatus?: (status: {
-        status: "trying" | "retrying";
-        model: string;
-        attempt?: number;
-        max_attempts?: number;
-        delay_seconds?: number;
-      }) => void;
-      onDelta?: (delta: string) => void;
-      onDone?: (frame: {
-        conversation_id: number;
-        reply: string;
-        model: string;
-        context_snapshot: string | null;
-        ungrounded_claims: string[];
-      }) => void;
-      onError?: (message: string) => void;
-    },
-    signal?: AbortSignal
-  ): Promise<void> => {
-    const res = await fetch(`${BASE}/chat/stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, conversation_id, include_context }),
-      signal,
-    });
-    if (!res.ok || !res.body) {
-      let detail = res.statusText;
-      try {
-        const data = await res.json();
-        detail = data.detail || JSON.stringify(data);
-      } catch {}
-      throw new Error(`${res.status}: ${detail}`);
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx: number;
-        while ((idx = buffer.indexOf("\n\n")) !== -1) {
-          const rawFrame = buffer.slice(0, idx);
-          buffer = buffer.slice(idx + 2);
-          const line = rawFrame.split("\n").find((l) => l.startsWith("data: "));
-          if (!line) continue;
-          const parsed = JSON.parse(line.slice("data: ".length));
-          if ("error" in parsed) {
-            handlers.onError?.(parsed.error);
-          } else if (parsed.done) {
-            handlers.onDone?.(parsed);
-          } else if ("status" in parsed) {
-            handlers.onStatus?.(parsed);
-          } else if ("delta" in parsed) {
-            handlers.onDelta?.(parsed.delta);
-          } else if ("conversation_id" in parsed) {
-            handlers.onStart?.(parsed.conversation_id);
-          }
-        }
-      }
-    } finally {
-      // Release the reader/stream immediately on cancel instead of
-      // waiting for GC — a no-op if the loop above already exited via
-      // `done`.
-      reader.cancel().catch(() => {});
-    }
+  chatMessages: {
+    poll: (messageId: number) => request<ChatMessagePoll>(`/chat/messages/${messageId}`),
   },
   chatConversations: {
     list: () => request<CoachConversationSummary[]>("/chat/conversations"),
@@ -479,12 +433,16 @@ export const api = {
   },
 
   nutrition: {
-    estimate: (text: string, signal?: AbortSignal) =>
-      request<NutritionEstimate>("/nutrition/estimate", {
+    /** Kicks off macro estimation and returns immediately (202) — the
+     * LLM call runs in the background on the server and keeps going
+     * even if the page is navigated away from. Poll
+     * `api.nutrition.pollEstimate(id)` for the result. */
+    estimate: (text: string) =>
+      request<NutritionEstimateAccepted>("/nutrition/estimate", {
         method: "POST",
         body: JSON.stringify({ text }),
-        signal,
       }),
+    pollEstimate: (id: number) => request<NutritionEstimate>(`/nutrition/estimate/${id}`),
     log: (entry: NutritionLogInput) =>
       request<NutritionLog>("/nutrition/log", {
         method: "POST",

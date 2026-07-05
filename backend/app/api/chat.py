@@ -1,38 +1,23 @@
 """Chat endpoints — PydanticAI agent with context injection.
-
-Stores user/assistant turns in `coach_conversations` and `coach_messages`.
-On each turn, we (optionally) inject a fresh `system` message containing
-the latest snapshot of Garmin/training/nutrition state via
-`build_context`. The snapshot is rebuilt every request so the coach
-always sees current data.
-
-Two response modes:
-- `POST /chat` — single JSON response (async, non-streaming).
-- `POST /chat/stream` — Server-Sent Events, text deltas as they're
-  generated, for a responsive typing-style UI.
-
-Both responses include `context_snapshot` ("what the coach saw" — the
-exact context text injected into the prompt) and `ungrounded_claims`
-(heuristic grounding check — see `services.grounding`) for transparency.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.agents.coach import run_coach_chat, stream_coach_chat
-from app.core.database import get_db
+from app.agents.coach import run_coach_chat
+from app.core.database import SessionLocal, get_db
 from app.models import CoachConversation, CoachMessage
 from app.schemas import (
+    ChatAccepted,
+    ChatMessageStatus,
     ChatRequest,
-    ChatResponse,
     CoachConversationOut,
     CoachConversationSummary,
     CoachMessageOut,
@@ -103,6 +88,7 @@ def get_conversation(
                 role=message.role,
                 content=message.content,
                 created_at=message.created_at,
+                status=message.status,
             )
             for message in messages
             if message.role in {"user", "assistant"}
@@ -159,121 +145,110 @@ def _history_for_agent(db: Session, conversation_id: int) -> list[CoachMessage]:
     return history_for_agent[-21:-1]
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("", response_model=ChatAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def chat(
     req: ChatRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-) -> ChatResponse:
+) -> ChatAccepted:
+    """Store the athlete's turn and hand the reply off to a background
+    job — see module docstring. Poll `GET /chat/messages/{message_id}`
+    (returned here) for the result."""
     conv = _get_or_create_conversation(db, req)
 
-    # Store user turn
+    # Store user turn.
     db.add(CoachMessage(conversation_id=conv.id, role="user", content=req.message))
     db.flush()
 
     history_for_agent = _history_for_agent(db, conv.id)
+    # Snapshot history as plain (role, content) pairs now — the ORM
+    # objects are bound to this request-scoped session, which is closed
+    # (see module docstring) before the background job runs.
+    history_snapshot = [(m.role, m.content) for m in history_for_agent]
     context_text = build_context(db) if req.include_context else ""
 
+    placeholder = CoachMessage(
+        conversation_id=conv.id, role="assistant", content="", status="pending"
+    )
+    db.add(placeholder)
+    # Commit now so both turns are durable even if the background job
+    # never gets to run (e.g. a restart before it starts).
+    db.commit()
+    db.refresh(placeholder)
+
+    background_tasks.add_task(
+        _generate_reply,
+        message_id=placeholder.id,
+        user_message=req.message,
+        context_text=context_text,
+        history_snapshot=history_snapshot,
+    )
+
+    return ChatAccepted(conversation_id=conv.id, message_id=placeholder.id)
+
+
+async def _generate_reply(
+    *,
+    message_id: int,
+    user_message: str,
+    context_text: str,
+    history_snapshot: list[tuple[str, str]],
+) -> None:
+    """Background job: runs the LLM call and writes the result back to
+    `message_id`, regardless of whether any client is still around to
+    see it happen live. Opens its own DB session — see module
+    docstring for why it can't reuse the request's."""
+    db = SessionLocal()
     try:
+        history_messages = [
+            SimpleNamespace(role=role, content=content) for role, content in history_snapshot
+        ]
         result = await run_coach_chat(
-            user_message=req.message,
+            user_message=user_message,
             db=db,
             context_text=context_text,
-            history_messages=history_for_agent if history_for_agent else None,
+            history_messages=history_messages or None,
         )
-    except TimeoutError as e:
-        raise HTTPException(
-            504,
-            "The LLM request timed out. This model is running in quality-first mode and can take a while.",
-        ) from e
-
-    db.add(
-        CoachMessage(
-            conversation_id=conv.id,
-            role="assistant",
-            content=result.reply,
-        )
-    )
-    db.commit()
-    db.refresh(conv)
-
-    return ChatResponse(
-        conversation_id=conv.id,
-        reply=result.reply,
-        model=result.model,
-        context_snapshot=context_text or None,
-        ungrounded_claims=result.ungrounded_claims,
-    )
+        msg = db.get(CoachMessage, message_id)
+        if msg is None:
+            return
+        msg.content = result.reply
+        msg.status = "done"
+        msg.meta = {
+            "model": result.model,
+            "context_snapshot": context_text or None,
+            "ungrounded_claims": result.ungrounded_claims,
+        }
+        db.commit()
+    except Exception as e:  # noqa: BLE001
+        log.exception("Coach reply generation failed for message %d", message_id)
+        msg = db.get(CoachMessage, message_id)
+        if msg is not None:
+            msg.status = "error"
+            msg.error = str(e)
+            db.commit()
+    finally:
+        db.close()
 
 
-@router.post("/stream")
-async def chat_stream(
-    req: ChatRequest,
+@router.get("/messages/{message_id}", response_model=ChatMessageStatus)
+def get_message_status(
+    message_id: int,
     db: Session = Depends(get_db),
-) -> StreamingResponse:
-    """Server-Sent Events variant of `POST /chat`.
-
-    Emits, in order: `data: {"conversation_id": ...}`, then zero or more
-    `data: {"status": "trying"|"retrying", "model": ..., ...}` frames (which
-    model is currently being attempted — see `stream_coach_chat`), then
-    `data: {"delta": "..."}` frames as the reply is generated, then a
-    terminal `data: {"done": true, "reply": ..., "model": ...,
-    "context_snapshot": ..., "ungrounded_claims": [...]}` frame.
-    On failure mid-stream, emits `data: {"error": "..."}` instead.
-    """
-    conv = _get_or_create_conversation(db, req)
-
-    db.add(CoachMessage(conversation_id=conv.id, role="user", content=req.message))
-    db.flush()
-    # Commit now so the user turn is durable even if the stream fails or
-    # the client disconnects before the assistant reply is saved.
-    db.commit()
-
-    conversation_id = conv.id
-    history_for_agent = _history_for_agent(db, conversation_id)
-    context_text = build_context(db) if req.include_context else ""
-
-    async def event_gen():
-        yield f"data: {json.dumps({'conversation_id': conversation_id})}\n\n"
-        try:
-            async for item in stream_coach_chat(
-                user_message=req.message,
-                db=db,
-                context_text=context_text,
-                history_messages=history_for_agent if history_for_agent else None,
-            ):
-                if item.get("done"):
-                    db.add(
-                        CoachMessage(
-                            conversation_id=conversation_id,
-                            role="assistant",
-                            content=item["reply"],
-                        )
-                    )
-                    db.commit()
-                    yield (
-                        "data: "
-                        + json.dumps(
-                            {
-                                "done": True,
-                                "conversation_id": conversation_id,
-                                "reply": item["reply"],
-                                "model": item["model"],
-                                "context_snapshot": context_text or None,
-                                "ungrounded_claims": item["ungrounded_claims"],
-                            }
-                        )
-                        + "\n\n"
-                    )
-                elif "status" in item:
-                    yield f"data: {json.dumps(item)}\n\n"
-                else:
-                    yield f"data: {json.dumps({'delta': item['delta']})}\n\n"
-        except Exception as e:  # noqa: BLE001
-            log.exception("Coach stream failed: %s", e)
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-
-    return StreamingResponse(
-        event_gen(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+) -> ChatMessageStatus:
+    """Poll the result of a `POST /chat` reply. `status` is `"pending"`
+    while the background job is still running, `"done"` with `content`
+    filled in once it finishes, or `"error"` with `error` set."""
+    msg = db.get(CoachMessage, message_id)
+    if msg is None:
+        raise HTTPException(404, "message not found")
+    meta = msg.meta or {}
+    return ChatMessageStatus(
+        id=msg.id,
+        status=msg.status,
+        content=msg.content,
+        model=meta.get("model"),
+        context_snapshot=meta.get("context_snapshot"),
+        ungrounded_claims=meta.get("ungrounded_claims", []),
+        error=msg.error,
     )

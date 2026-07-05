@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api, type CoachConversationSummary } from "@/lib/api";
+import { api, type ChatMessageStatusValue, type CoachConversationSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,30 +36,16 @@ import { Markdown } from "@/components/ui/markdown";
 type Msg = {
   role: "user" | "assistant";
   content: string;
+  status?: ChatMessageStatusValue;
   contextSnapshot?: string | null;
   ungroundedClaims?: string[];
 };
 
-type ChatStatus = {
-  status: "trying" | "retrying";
-  model: string;
-  attempt?: number;
-  max_attempts?: number;
-  delay_seconds?: number;
-};
-
-function shortModelName(model: string) {
-  return model.split("/").pop() ?? model;
-}
-
-function statusLabel(s: ChatStatus) {
-  const model = shortModelName(s.model);
-  if (s.status === "retrying") {
-    const attempt = s.attempt && s.max_attempts ? ` (attempt ${s.attempt}/${s.max_attempts})` : "";
-    return `Coach is busy, retrying with ${model}${attempt}…`;
-  }
-  return `Trying with ${model}…`;
-}
+// How often to poll for the reply's status while it's generating
+// server-side (see api.chatMessages.poll). The reply keeps generating
+// even if this page is closed/navigated away from — this is purely for
+// showing it live while the athlete stays put.
+const POLL_INTERVAL_MS = 1200;
 
 function conversationLabel(conversation: CoachConversationSummary) {
   return conversation.title?.trim() || conversation.last_message_preview?.trim() || "Untitled chat";
@@ -81,13 +67,12 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<CoachConversationSummary[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [chatStatus, setChatStatus] = useState<ChatStatus | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -103,7 +88,59 @@ export default function ChatPage() {
         send(pending);
       }
     })();
+    // Stop polling (client-side only) on unmount — the reply keeps
+    // generating server-side regardless; re-opening this conversation
+    // later resumes watching it (see openConversation below).
+    return () => stopPolling();
   }, []);
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  function refreshConversationSummaries() {
+    api.chatConversations.list().then(setConversations).catch(() => {});
+  }
+
+  /** Poll `GET /chat/messages/{id}` until the reply is done/errored,
+   * updating the trailing assistant message as it resolves. Safe to
+   * call again later (e.g. after re-opening the conversation) for a
+   * reply that was still generating when the athlete last left. */
+  function pollReply(messageId: number) {
+    stopPolling();
+    setBusy(true);
+    pollRef.current = setInterval(async () => {
+      try {
+        const poll = await api.chatMessages.poll(messageId);
+        if (poll.status === "pending") return;
+        stopPolling();
+        setBusy(false);
+        if (poll.status === "done") {
+          setMessages((current) => {
+            const next = [...current];
+            next[next.length - 1] = {
+              role: "assistant",
+              content: poll.content,
+              status: "done",
+              contextSnapshot: poll.context_snapshot,
+              ungroundedClaims: poll.ungrounded_claims,
+            };
+            return next;
+          });
+        } else {
+          setErr(poll.error ?? "Chat failed");
+          setMessages((current) => current.slice(0, -1));
+        }
+      } catch (e: any) {
+        stopPolling();
+        setBusy(false);
+        setErr(e?.message ?? "Chat failed");
+      }
+    }, POLL_INTERVAL_MS);
+  }
 
   async function loadConversations(selectId?: number) {
     setLoadingHistory(true);
@@ -129,19 +166,37 @@ export default function ChatPage() {
 
   async function openConversation(id: number, nextList = conversations) {
     setErr(null);
+    stopPolling();
     const conversation = await api.chatConversations.get(id);
     setConversationId(conversation.id);
-    setMessages(conversation.messages.map((message) => ({ role: message.role, content: message.content })));
+    setMessages(
+      conversation.messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+        status: message.status,
+      }))
+    );
     if (!nextList.some((entry) => entry.id === id)) {
       setConversations((current) => current);
+    }
+
+    // Resume watching if the last turn is still generating server-side
+    // (e.g. the athlete left mid-reply and came back).
+    const last = conversation.messages[conversation.messages.length - 1];
+    if (last?.role === "assistant" && last.status === "pending") {
+      pollReply(last.id);
+    } else {
+      setBusy(false);
     }
   }
 
   function startNewConversation() {
+    stopPolling();
     setConversationId(undefined);
     setMessages([]);
     setInput("");
     setErr(null);
+    setBusy(false);
     setHistoryOpen(false);
   }
 
@@ -152,88 +207,33 @@ export default function ChatPage() {
     setMessages((current) => [
       ...current,
       { role: "user", content },
-      { role: "assistant", content: "" },
+      { role: "assistant", content: "", status: "pending" },
     ]);
     setInput("");
     setBusy(true);
     setErr(null);
-    setChatStatus(null);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    let finalConversationId: number | undefined = conversationId;
 
     try {
-      await api.chatStream(
-        content,
-        conversationId,
-        true,
-        {
-          onStart: (convId) => {
-            finalConversationId = convId;
-            setConversationId(convId);
-          },
-          onStatus: (s) => {
-            setChatStatus(s);
-          },
-          onDelta: (delta) => {
-            setChatStatus(null);
-            setMessages((current) => {
-              const next = [...current];
-              const last = next[next.length - 1];
-              next[next.length - 1] = { ...last, content: last.content + delta };
-              return next;
-            });
-          },
-          onDone: (frame) => {
-            finalConversationId = frame.conversation_id;
-            setConversationId(frame.conversation_id);
-            setChatStatus(null);
-            setMessages((current) => {
-              const next = [...current];
-              next[next.length - 1] = {
-                role: "assistant",
-                content: frame.reply,
-                contextSnapshot: frame.context_snapshot,
-                ungroundedClaims: frame.ungrounded_claims,
-              };
-              return next;
-            });
-          },
-          onError: (message) => {
-            setChatStatus(null);
-            setErr(message);
-            setMessages((current) => current.slice(0, -1));
-          },
-        },
-        controller.signal
-      );
-      if (finalConversationId) await loadConversations(finalConversationId);
+      const accepted = await api.chat(content, conversationId, true);
+      setConversationId(accepted.conversation_id);
+      pollReply(accepted.message_id);
+      // Refresh the sidebar (title/preview/message_count) once accepted —
+      // the reply itself fills in via pollReply above.
+      refreshConversationSummaries();
     } catch (e: any) {
-      setChatStatus(null);
-      if (e?.name === "AbortError") {
-        // User-initiated cancel — keep whatever partial reply had
-        // already streamed in instead of rolling it back like a real
-        // error, and drop the empty placeholder if nothing arrived yet.
-        setMessages((current) => {
-          const last = current[current.length - 1];
-          if (last?.role === "assistant" && !last.content) return current.slice(0, -1);
-          return current;
-        });
-      } else {
-        setMessages((current) => current.slice(0, -2));
-        setInput(content);
-        setErr(e?.message ?? "Chat failed");
-      }
-    } finally {
-      abortRef.current = null;
+      setMessages((current) => current.slice(0, -2));
+      setInput(content);
+      setErr(e?.message ?? "Chat failed");
       setBusy(false);
     }
   }
 
-  function cancelSend() {
-    abortRef.current?.abort();
+  function stopWatching() {
+    // Client-side only: stop polling for the reply, but leave it
+    // generating server-side — re-opening this conversation resumes
+    // watching it (see openConversation).
+    stopPolling();
+    setBusy(false);
   }
 
   async function removeConversation(id: number) {
@@ -459,22 +459,11 @@ export default function ChatPage() {
                   <Sword className="h-4 w-4" />
                 </div>
                 <div className="border border-border px-4 py-3">
-                  {chatStatus ? (
-                    <p
-                      className={cn(
-                        "text-xs font-mono",
-                        chatStatus.status === "retrying" ? "text-amber-400" : "text-muted-foreground"
-                      )}
-                    >
-                      {statusLabel(chatStatus)}
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:150ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-pulse [animation-delay:300ms]" />
+                  </div>
                 </div>
               </div>
             )}
@@ -510,9 +499,10 @@ export default function ChatPage() {
                 type={busy ? "button" : "submit"}
                 size="icon"
                 disabled={!busy && !input.trim()}
-                onClick={busy ? cancelSend : undefined}
+                onClick={busy ? stopWatching : undefined}
                 className="shrink-0 h-11 w-11 sm:h-10 sm:w-10"
-                aria-label={busy ? "Stop generating" : "Send message"}
+                aria-label={busy ? "Stop watching (reply keeps generating)" : "Send message"}
+                title={busy ? "Reply keeps generating in the background — this just stops watching it here." : undefined}
               >
                 {busy ? <Square className="h-4 w-4" /> : <Send className="h-4 w-4" />}
               </Button>

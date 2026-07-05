@@ -1,19 +1,4 @@
 """Coach chat agent.
-
-Replaces `api/chat.py` direct LLM call with a PydanticAI agent:
-- Async (await agent.run()) for the chat endpoint
-- Streaming (agent.run_stream()) for the SSE chat endpoint
-- Full conversation history via message_history
-- Context injection via dynamic instructions
-- WebSearch capability for real-time lookups — attached ONLY when the
-  athlete's message explicitly asks for a web search (see
-  `_wants_web_search` below). Trusting the model's own judgment on when
-  to search proved unreliable (it would search for "hello"), so the
-  decision is made deterministically in code, not via prompt/tool
-  description alone.
-- Strips <think> tags (and withholds them live during streaming)
-- Heuristic grounding check flags replies that cite specific Garmin/health
-  numbers not present in the injected context snapshot
 """
 
 from __future__ import annotations
@@ -21,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import date as Date
 from typing import Any
@@ -40,7 +24,6 @@ from sqlalchemy.orm import Session
 
 from app.agents.deps import (
     CoachDeps,
-    ThinkTagStreamFilter,
     active_model_label,
     get_active_model,
     get_model,
@@ -172,7 +155,7 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
 
 # ── Tools ───────────────────────────────────────────────────────────────
 # Both tools mutate the database directly (via `ctx.deps.db`, a real
-# SQLAlchemy Session — see `run_coach_chat`/`stream_coach_chat` below).
+# SQLAlchemy Session — see `run_coach_chat` below).
 # Registered on both agent instances so they're available regardless of
 # whether web search was also attached for this turn.
 @coach_agent.tool
@@ -369,106 +352,3 @@ async def run_coach_chat(
         model=_model_name_used(result) or active_model_label(),
         ungrounded_claims=ungrounded,
     )
-
-
-async def stream_coach_chat(
-    user_message: str,
-    *,
-    db: Session,
-    context_text: str = "",
-    history_messages: list[Any] | None = None,
-) -> AsyncIterator[dict[str, Any]]:
-    """Stream the coach chat agent's reply as it's generated.
-
-    Yields, in order:
-    - `{"status": "trying", "model": ...}` once up front, and again before
-      each transient-error retry — lets the UI show which model is
-      currently being attempted (see `deps.get_active_model()`: in
-      "cloud" mode this may be a `FallbackModel` cascading between two
-      cloud tiers, and the switch itself happens inside a single attempt
-      and isn't individually observable, so this reports the active
-      provider's label for the attempt as a whole; which model actually
-      answered is only known once it succeeds, see `model` in the final
-      frame).
-    - `{"delta": str}` chunks (already filtered of any `<think>...
-      </think>` reasoning text) as they arrive.
-    - A single terminal `{"done": True, "reply": ..., "model": ...,
-      "ungrounded_claims": [...]}` once the stream completes, where
-      `model` is the model that actually produced the reply (primary or
-      fallback).
-    """
-    deps = CoachDeps(db=db, context_text=context_text)
-
-    message_history: list[ModelMessage] | None = None
-    if history_messages:
-        message_history = _db_messages_to_history(history_messages)
-
-    filt = ThinkTagStreamFilter()
-    chunks: list[str] = []
-    used_model: str | None = None
-
-    agent = coach_agent_search if _wants_web_search(user_message) else coach_agent
-
-    attempt = 0
-    while True:
-        yield {"status": "trying", "model": active_model_label()}
-        try:
-            async with _llm_slot():
-                async with agent.run_stream(
-                    user_message,
-                    deps=deps,
-                    message_history=message_history,
-                    model=get_active_model(),
-                ) as stream:
-                    async for delta in stream.stream_text(delta=True):
-                        visible = filt.feed(delta)
-                        if visible:
-                            chunks.append(visible)
-                            yield {"delta": visible}
-                    used_model = _model_name_used(stream)
-            break
-        except Exception as e:  # noqa: BLE001
-            # Only safe to retry if nothing has been streamed to the
-            # client yet — otherwise a retry would duplicate output. Also
-            # never retry once a tool has already committed a DB write
-            # during this attempt (see run_coach_chat for the same guard).
-            if (
-                chunks
-                or deps.side_effect_committed
-                or attempt >= _MAX_TRANSIENT_RETRIES
-                or not _is_transient_llm_error(e)
-            ):
-                raise
-            attempt += 1
-            delay = _backoff_delay(attempt)
-            log.warning(
-                "coach stream: transient LLM error (attempt %d/%d), retrying: %s",
-                attempt,
-                _MAX_TRANSIENT_RETRIES,
-                e,
-            )
-            yield {
-                "status": "retrying",
-                "model": active_model_label(),
-                "attempt": attempt,
-                "max_attempts": _MAX_TRANSIENT_RETRIES,
-                "delay_seconds": round(delay, 1),
-            }
-            await asyncio.sleep(delay)
-
-    tail = filt.flush()
-    if tail:
-        chunks.append(tail)
-        yield {"delta": tail}
-
-    reply = "".join(chunks).strip()
-    ungrounded = find_ungrounded_claims(reply, context_text)
-    if ungrounded:
-        log.warning("coach reply has possibly ungrounded claims: %s", ungrounded)
-
-    yield {
-        "done": True,
-        "reply": reply,
-        "model": used_model or active_model_label(),
-        "ungrounded_claims": ungrounded,
-    }

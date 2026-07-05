@@ -1,12 +1,4 @@
 """Nutrition estimation agent.
-
-Replaces `services/nutrition.py` LLM calls with a PydanticAI agent that:
-- Returns structured `NutritionEstimate` output via output_type
-- Uses USDA MCP tools (search_foods, get_food_details, ...) as primary
-  source — a local stdio MCP server (rpassafaro/usda-api-mcp) spawned as
-  a subprocess, see `_usda_mcp_available()` below
-- Falls back to WebSearch (DuckDuckGo) when MCP doesn't have the food
-- Strips <think> tags from reasoning models via result_validator
 """
 
 from __future__ import annotations
@@ -171,11 +163,12 @@ async def _strip_think(
 async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     """Estimate nutrition for free-text food description.
 
-    Async so the caller (`api/nutrition.py`) can cancel it early if the
-    client disconnects (see `app.core.cancellation.run_cancellable`) —
-    this is a real HTTP request to the LLM and can run for several
-    seconds, so a "Cancel" button on the nutrition page needs a genuine
-    cancellation point rather than a fire-and-forget background call.
+    Called from `api/nutrition.py`'s `_run_estimate` background job — the
+    request that triggers this returns a `202` immediately (see that
+    module's docstring), so there's nothing to cancel this early for
+    anymore; it always runs to completion and its result is persisted to
+    the triggering `NutritionEstimate` row regardless of whether the
+    athlete is still on the page.
 
     Args:
         text: Free-text food description.

@@ -7,17 +7,17 @@ from datetime import date as Date
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.agents.nutrition import estimate_nutrition
-from app.core.cancellation import run_cancellable
 from app.core.clock import athlete_today
-from app.core.database import get_db
-from app.models import NutritionLog
+from app.core.database import SessionLocal, get_db
+from app.models import NutritionEstimate, NutritionLog
 from app.schemas import (
     NutritionDayTotals,
+    NutritionEstimateAccepted,
     NutritionEstimateItemOut,
     NutritionEstimateOut,
     NutritionEstimateRequest,
@@ -31,39 +31,92 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/nutrition", tags=["nutrition"])
 
 
-@router.post("/estimate", response_model=NutritionEstimateOut)
-async def estimate(
-    body: NutritionEstimateRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-) -> NutritionEstimateOut:
-    """Estimate macros for a free-text food description. Does NOT persist —
-    review/edit the result, then confirm via `POST /nutrition/log`.
-
-    Cancellable: if the athlete cancels from the UI (aborting the fetch),
-    the in-flight LLM call is cancelled server-side too, rather than
-    running to completion for nothing — see `run_cancellable`.
-
-    Fails loudly (502) rather than ever returning a fabricated zero estimate.
-    """
-    try:
-        est = await run_cancellable(request, estimate_nutrition(body.text, db=db))
-    except HTTPException:
-        raise
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"Nutrition estimation failed: {e}") from e
-
+def _estimate_out(row: NutritionEstimate) -> NutritionEstimateOut:
     return NutritionEstimateOut(
-        kcal=est.kcal,
-        protein_g=est.protein_g,
-        carbs_g=est.carbs_g,
-        fat_g=est.fat_g,
-        fiber_g=est.fiber_g,
-        micros=est.micros.model_dump(),
-        items=[NutritionEstimateItemOut(**item.model_dump()) for item in est.items],
-        confidence=est.confidence,
-        notes=est.notes,
+        id=row.id,
+        status=row.status,
+        error=row.error,
+        kcal=row.kcal,
+        protein_g=row.protein_g,
+        carbs_g=row.carbs_g,
+        fat_g=row.fat_g,
+        fiber_g=row.fiber_g,
+        micros=row.micros or {},
+        items=[NutritionEstimateItemOut(**item) for item in (row.items or [])],
+        confidence=row.confidence,
+        notes=row.notes or "",
     )
+
+
+@router.post(
+    "/estimate",
+    response_model=NutritionEstimateAccepted,
+    status_code=202,
+)
+def estimate(
+    body: NutritionEstimateRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> NutritionEstimateAccepted:
+    """Kick off macro estimation for a free-text food description and
+    return immediately — the LLM call runs in the background (see
+    `_run_estimate`) and keeps going even if the athlete navigates away
+    from `/nutrition` before it finishes. Poll
+    `GET /nutrition/estimate/{id}` for the result.
+
+    Does NOT persist as a logged meal — review/edit the polled result,
+    then confirm via `POST /nutrition/log`.
+    """
+    row = NutritionEstimate(raw_text=body.text, status="pending")
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    background_tasks.add_task(_run_estimate, estimate_id=row.id, text=body.text)
+
+    return NutritionEstimateAccepted(id=row.id)
+
+
+async def _run_estimate(*, estimate_id: int, text: str) -> None:
+    """Background job: runs the LLM call and writes the result back to
+    `estimate_id`. Opens its own DB session — the request's session that
+    created the row above is already closed by the time this runs (see
+    `api/chat.py`'s module docstring for why)."""
+    db = SessionLocal()
+    try:
+        est = await estimate_nutrition(text, db=db)
+        row = db.get(NutritionEstimate, estimate_id)
+        if row is None:
+            return
+        row.status = "done"
+        row.kcal = est.kcal
+        row.protein_g = est.protein_g
+        row.carbs_g = est.carbs_g
+        row.fat_g = est.fat_g
+        row.fiber_g = est.fiber_g
+        row.micros = est.micros.model_dump()
+        row.items = [item.model_dump() for item in est.items]
+        row.confidence = est.confidence
+        row.notes = est.notes
+        db.commit()
+    except Exception as e:  # noqa: BLE001
+        log.exception("Nutrition estimation failed for estimate %d", estimate_id)
+        row = db.get(NutritionEstimate, estimate_id)
+        if row is not None:
+            row.status = "error"
+            row.error = str(e)
+            db.commit()
+    finally:
+        db.close()
+
+
+@router.get("/estimate/{estimate_id}", response_model=NutritionEstimateOut)
+def get_estimate(estimate_id: int, db: Session = Depends(get_db)) -> NutritionEstimateOut:
+    """Poll the result of `POST /nutrition/estimate`."""
+    row = db.get(NutritionEstimate, estimate_id)
+    if row is None:
+        raise HTTPException(404, "estimate not found")
+    return _estimate_out(row)
 
 
 @router.post("/log", response_model=NutritionLogOut)

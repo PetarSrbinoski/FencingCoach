@@ -16,19 +16,26 @@ class ChatRequest(BaseModel):
     include_context: bool = True
 
 
-class ChatResponse(BaseModel):
+class ChatAccepted(BaseModel):
+    """Returned immediately by `POST /chat` — the reply generates in the
+    background (see `app/core/background.py`) and is not in this
+    response. Poll `GET /chat/messages/{message_id}` for the result."""
+
     conversation_id: int
-    reply: str
-    model: str
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    # Transparency: the exact context snapshot injected into the coach's
-    # prompt for this turn ("what the coach saw"), and any sentences the
-    # heuristic grounding check flagged as citing a number not present in
-    # that snapshot (see services.grounding). Empty/None when
-    # include_context was False.
+    message_id: int
+    status: str = "pending"
+
+
+class ChatMessageStatus(BaseModel):
+    """Poll response for a (typically assistant) chat message."""
+
+    id: int
+    status: str = Field(pattern=r"^(pending|done|error)$")
+    content: str
+    model: str | None = None
     context_snapshot: str | None = None
     ungrounded_claims: list[str] = Field(default_factory=list)
+    error: str | None = None
 
 
 class CoachMessageOut(BaseModel):
@@ -36,6 +43,7 @@ class CoachMessageOut(BaseModel):
     role: str = Field(pattern=r"^(user|assistant)$")
     content: str
     created_at: datetime
+    status: str = "done"
 
 
 class CoachConversationSummary(BaseModel):
@@ -142,23 +150,36 @@ class NutritionEstimateRequest(BaseModel):
     text: str
 
 
+class NutritionEstimateAccepted(BaseModel):
+    """Returned immediately by `POST /nutrition/estimate` — the LLM call
+    runs in the background (see `app/core/background.py`). Poll
+    `GET /nutrition/estimate/{id}` for the result."""
+
+    id: int
+    status: str = "pending"
+
+
 class NutritionEstimateItemOut(BaseModel):
     name: str
     qty_g: float
 
 
 class NutritionEstimateOut(BaseModel):
-    """Result of `POST /nutrition/estimate` — not persisted. Confirm/edit,
-    then send to `POST /nutrition/log` to save."""
+    """Result of `POST /nutrition/estimate`, as of the last poll. Not
+    persisted as a logged meal — confirm/edit, then send to
+    `POST /nutrition/log` to save."""
 
-    kcal: float
-    protein_g: float
-    carbs_g: float
-    fat_g: float
+    id: int
+    status: str = Field(pattern=r"^(pending|done|error)$")
+    error: str | None = None
+    kcal: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fat_g: float | None = None
     fiber_g: float | None = None
     micros: dict[str, float] = Field(default_factory=dict)
     items: list[NutritionEstimateItemOut] = Field(default_factory=list)
-    confidence: str  # "low" | "medium" | "high"
+    confidence: str | None = None  # "low" | "medium" | "high"
     notes: str = ""
 
 

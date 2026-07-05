@@ -1,29 +1,35 @@
-"""API-level tests for the nutrition estimate/log split (confirm-before-save)."""
+"""API-level tests for the nutrition estimate/log split (confirm-before-save).
+
+`POST /nutrition/estimate` now returns `202` immediately and runs the LLM
+call in a background task (see `app/api/nutrition.py`) — poll
+`GET /nutrition/estimate/{id}` for the result.
+"""
 
 from __future__ import annotations
-
-import asyncio
 
 import pytest
 from app.agents.nutrition import NutritionEstimateOutput, NutritionMicros
 from app.core.database import get_db
 from app.main import app
 from app.models import NutritionLog
-from app.schemas import NutritionEstimateRequest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def client(db):
+def client(db, monkeypatch):
     app.dependency_overrides[get_db] = lambda: db
+    # The background job opens its own `SessionLocal()` (see
+    # api/nutrition.py) — in tests, point that at the same in-memory
+    # session the `db` fixture uses instead of the real module-level
+    # engine (which has no tables in the test environment).
+    monkeypatch.setattr("app.api.nutrition.SessionLocal", lambda: db)
     try:
         yield TestClient(app)
     finally:
         app.dependency_overrides.pop(get_db, None)
 
 
-def test_estimate_does_not_persist_anything(client, db, monkeypatch):
+def test_estimate_accepted_then_poll_returns_result_without_persisting_log(client, db, monkeypatch):
     fake_estimate = NutritionEstimateOutput(
         kcal=650,
         protein_g=45,
@@ -42,24 +48,43 @@ def test_estimate_does_not_persist_anything(client, db, monkeypatch):
     monkeypatch.setattr("app.api.nutrition.estimate_nutrition", fake)
 
     res = client.post("/nutrition/estimate", json={"text": "200g chicken, rice"})
-    assert res.status_code == 200
-    body = res.json()
+    assert res.status_code == 202
+    estimate_id = res.json()["id"]
+    assert res.json()["status"] == "pending"
+
+    # TestClient runs FastAPI BackgroundTasks synchronously before
+    # returning, so the job has already completed by this point.
+    poll = client.get(f"/nutrition/estimate/{estimate_id}")
+    assert poll.status_code == 200
+    body = poll.json()
+    assert body["status"] == "done"
     assert body["kcal"] == 650
     assert body["confidence"] == "high"
 
-    # Nothing should be written to the DB by /estimate
+    # Nothing should be written to nutrition_log by /estimate — only
+    # /nutrition/log (a separate, explicit confirm step) does that.
     assert db.query(NutritionLog).count() == 0
 
 
-def test_estimate_failure_returns_502_not_zeros(client, monkeypatch):
+def test_estimate_failure_marks_estimate_as_error(client, monkeypatch):
     async def fail(text, db=None):
         raise RuntimeError("nutrition estimation failed: upstream timeout")
 
     monkeypatch.setattr("app.api.nutrition.estimate_nutrition", fail)
 
     res = client.post("/nutrition/estimate", json={"text": "something"})
-    assert res.status_code == 502
-    assert "upstream timeout" in res.json()["detail"]
+    assert res.status_code == 202
+    estimate_id = res.json()["id"]
+
+    poll = client.get(f"/nutrition/estimate/{estimate_id}")
+    body = poll.json()
+    assert body["status"] == "error"
+    assert "upstream timeout" in body["error"]
+
+
+def test_get_estimate_404_for_unknown_id(client):
+    res = client.get("/nutrition/estimate/999999")
+    assert res.status_code == 404
 
 
 def test_log_persists_reviewed_values_without_calling_llm(client, db, monkeypatch):
@@ -109,37 +134,3 @@ def test_log_low_confidence_is_preserved_for_ui_flagging(client, db):
     assert res.status_code == 200
     row = db.query(NutritionLog).one()
     assert row.micros["confidence"] == "low"
-
-
-class _DisconnectingRequest:
-    """Fake Request that reports disconnected on the very first poll —
-    simulates the athlete cancelling from the UI mid-estimate."""
-
-    async def is_disconnected(self) -> bool:
-        return True
-
-
-def test_estimate_cancelled_when_client_disconnects(db, monkeypatch):
-    """Wire-level test: the /nutrition/estimate route must actually
-    cancel the in-flight estimate_nutrition() call (not just abandon it)
-    when the client disconnects, and surface HTTPException(499)."""
-    from app.api.nutrition import estimate as estimate_route
-
-    cancelled = {"flag": False}
-
-    async def slow_estimate(text, db=None):
-        try:
-            await asyncio.sleep(5)
-            return NutritionEstimateOutput(kcal=1, protein_g=1, carbs_g=1, fat_g=1)
-        except asyncio.CancelledError:
-            cancelled["flag"] = True
-            raise
-
-    monkeypatch.setattr("app.api.nutrition.estimate_nutrition", slow_estimate)
-
-    body = NutritionEstimateRequest(text="chicken breast")
-    with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(estimate_route(body, _DisconnectingRequest(), db))
-
-    assert exc_info.value.status_code == 499
-    assert cancelled["flag"] is True
