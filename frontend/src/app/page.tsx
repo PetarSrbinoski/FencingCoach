@@ -169,50 +169,36 @@ export default function Home() {
 
       <StaleDataBanner />
 
-      {/* ── Readiness gauge section ───────────────────────────────── */}
-      <section className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-12 lg:gap-16">
-        {/* Gauge */}
-        <div className="flex flex-col items-center lg:items-start gap-4">
-          {readiness ? (
-            <>
-              {readiness.score !== null ? (
-                <Gauge score={readiness.score} size={160} />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-40 w-40 border border-dashed border-border text-center px-4">
-                  <span className="text-xs text-muted-foreground uppercase tracking-widest">
-                    No Garmin reading
-                  </span>
-                </div>
-              )}
-              <BandPill band={readiness.band} />
-              <div className="grid grid-cols-1 gap-y-2 mt-2 w-full">
-                {Object.entries(readiness.advisories).map(([k, a]) => (
-                  <div key={k} className="text-xs">
-                    <span className="text-muted-foreground text-[10px] uppercase tracking-widest block">
-                      {k.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-foreground/80">{a.detail}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-4 py-6">
-              <Skeleton className="h-40 w-40" />
-              <Skeleton className="h-5 w-20" />
-            </div>
-          )}
-        </div>
-
-        {/* Simplified metric cards — value only, no graphs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 self-start auto-rows-fr">
-          <StatCard title="HRV" icon={<ActivityIcon className="h-4 w-4" />} series={hrv} unit="ms" />
-          <StatCard title="Resting HR" icon={<Heart className="h-4 w-4" />} series={rhr} unit="bpm" />
-          <StatCard title="Sleep Score" icon={<Star className="h-4 w-4" />} series={sleepScore} unit="" />
-          <StatCard title="Readiness" icon={<Target className="h-4 w-4" />} series={readinessSeries} unit="" />
-          <StatCard title="Calories" icon={<Flame className="h-4 w-4" />} series={calories} unit="kcal" />
+      {/* ── Stat cards ────────────────────────────────────────────── */}
+      <section>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+          <StatCard title="HRV" icon={<ActivityIcon className="h-3.5 w-3.5" />} series={hrv} unit="ms" />
+          <StatCard title="Resting HR" icon={<Heart className="h-3.5 w-3.5" />} series={rhr} unit="bpm" />
+          <StatCard title="Sleep Score" icon={<Star className="h-3.5 w-3.5" />} series={sleepScore} unit="" />
+          <StatCard title="Readiness" icon={<Target className="h-3.5 w-3.5" />} series={readinessSeries} unit="" />
+          <StatCard title="Calories" icon={<Flame className="h-3.5 w-3.5" />} series={calories} unit="kcal" />
         </div>
       </section>
+
+      {/* ── Readiness gauge ───────────────────────────────────────── */}
+      {readiness && readiness.score !== null && (
+        <section className="flex items-center gap-8 border-t border-border pt-10">
+          <Gauge score={readiness.score} size={120} />
+          <div className="flex flex-col gap-3 min-w-0">
+            <BandPill band={readiness.band} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+              {Object.entries(readiness.advisories).map(([k, a]) => (
+                <div key={k} className="flex items-baseline gap-2 text-xs">
+                  <span className="text-muted-foreground text-[10px] uppercase tracking-widest shrink-0">
+                    {k.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-foreground/80 truncate">{a.detail}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Brief + next competition ─────────────────────────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12 border-t border-border pt-16">
@@ -330,24 +316,24 @@ function StatCard({ title, icon, series, unit }: {
   const value = last?.value;
 
   return (
-    <div className="border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 min-h-[6.5rem] overflow-hidden transition-colors duration-150 hover:border-foreground/25">
-      <div className="flex items-start gap-2 min-w-0">
-        <span className="text-muted-foreground shrink-0">{icon}</span>
-        <span className="text-[11px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground leading-tight break-words min-w-0">
+    <div className="border border-border p-3 sm:p-4 flex flex-col items-center justify-center gap-1.5 min-h-[4.5rem] overflow-hidden transition-colors duration-150 hover:border-foreground/25">
+      <div className="flex items-center gap-1 text-muted-foreground/70">
+        {icon}
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground leading-tight whitespace-nowrap">
           {title}
         </span>
       </div>
       {series ? (
-        <span className="flex flex-wrap items-baseline gap-x-1 gap-y-0 font-mono font-bold tracking-tight tabular-nums leading-tight min-w-0">
-          <span className="text-2xl sm:text-3xl break-all">
+        <span className="flex items-baseline gap-1 font-mono font-bold tracking-tight tabular-nums leading-none">
+          <span className="text-xl sm:text-2xl">
             {value != null ? value.toFixed(value >= 100 ? 0 : 1) : "\u2014"}
           </span>
           {value != null && unit && (
-            <span className="text-[11px] text-muted-foreground font-sans font-medium">{unit}</span>
+            <span className="text-[10px] text-muted-foreground font-sans font-medium">{unit}</span>
           )}
         </span>
       ) : (
-        <Skeleton className="h-8 w-16" />
+        <Skeleton className="h-7 w-14" />
       )}
     </div>
   );
