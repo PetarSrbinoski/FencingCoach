@@ -1,9 +1,5 @@
 """Mental insight generation agent.
 
-Replaces `services/mental._generate_llm_insight()` with a PydanticAI agent:
-- Small, focused agent — returns plain text insight
-- No tools needed (just analysis of provided data)
-- Strips <think> tags
 """
 
 from __future__ import annotations

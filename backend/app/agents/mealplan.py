@@ -1,9 +1,4 @@
 """Meal-plan generation agent.
-
-Replaces `services/mealplan.py` LLM call with a PydanticAI agent that:
-- Returns structured meal plan JSON via output_type
-- Has access to USDA MCP + WebSearch for ingredient research
-- Receives targets/timing via the user prompt (same as before)
 """
 
 from __future__ import annotations

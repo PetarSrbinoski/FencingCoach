@@ -1,10 +1,4 @@
 """Daily brief generation agent.
-
-Replaces `services/brief.py` LLM call with a PydanticAI agent that:
-- Returns plain text (str output_type — the default)
-- Gets the full context snapshot via CoachDeps.context_text
-- Uses the same COACH + BRIEF prompt pattern
-- Strips <think> tags via result_validator
 """
 
 from __future__ import annotations

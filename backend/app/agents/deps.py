@@ -1,14 +1,3 @@
-"""Shared dependencies and model factory for all PydanticAI agents.
-
-Every agent receives a `CoachDeps` instance at run-time, providing
-database access and configuration. Which model actually answers a given
-run is decided by the athlete's manual local/cloud toggle
-(`get_active_model()`, backed by `services.llm_provider` + the
-`PUT /settings/llm-provider` endpoint) rather than automatic
-fallback-on-error between local and cloud — see `get_model_for_provider()`
-below for what each pool means.
-"""
-
 from __future__ import annotations
 
 import logging
