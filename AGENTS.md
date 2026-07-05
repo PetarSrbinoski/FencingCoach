@@ -72,11 +72,11 @@ Stop everything: `docker compose down` (add `-v` to also wipe the Postgres volum
 ## 5. Backend dev without Docker (optional)
 
 ```bash
-cd backend
-uv sync                       # or: pip install -r requirements.txt -r requirements-dev.txt
+uv sync                       # from repo root: installs runtime + dev deps from uv.lock
 # point DATABASE_URL at a reachable Postgres (e.g. localhost if you expose db's port)
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
+cd backend
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## 6. Frontend dev without Docker (optional)
@@ -89,12 +89,12 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 
 ## 7. Quality gates
 
-Run from the repo root:
+Run from the repo root (the uv project root):
 
 ```bash
-pytest                                       # backend tests
-ruff check backend/app backend/tests         # lint
-mypy backend/app backend/tests               # type check
+uv run pytest                              # backend tests
+uv run ruff check backend/app backend/tests  # lint
+uv run mypy backend/app backend/tests        # type check
 ```
 
 Frontend:

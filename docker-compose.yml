@@ -18,7 +18,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -34,7 +35,8 @@ services:
 
   garmin-sync:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -48,7 +50,8 @@ services:
 
   summarization:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -62,7 +65,8 @@ services:
 
   brief:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file: .env
     depends_on:
