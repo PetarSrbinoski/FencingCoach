@@ -60,7 +60,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
-mypy_path = "backend"
+mypy_path = ["backend", "."]
 explicit_package_bases = true
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
@@ -73,5 +73,6 @@ warn_redundant_casts = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
-# `app` package lives under backend/ — put it on sys.path so tests import it.
-pythonpath = ["backend"]
+# `app` lives under backend/, `llm` (prompts) at the repo root — put both on
+# sys.path so tests can import them.
+pythonpath = ["backend", "."]

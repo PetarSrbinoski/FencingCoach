@@ -1,14 +1,7 @@
 """Auto morning-brief worker.
 
-Run as: `python -m app.workers.brief`
-
-Schedules:
-- Daily at MORNING_BRIEF_HOUR, in the athlete's own timezone → generate
-  and persist today's brief, so it's already sitting there when the
-  athlete opens the dashboard instead of requiring a manual "Generate"
-  click first thing in the morning.
-
-Runs alongside the Garmin sync and summarization workers.
+Run as: `python -m app.workers.brief`. Daily at MORNING_BRIEF_HOUR (athlete
+timezone), so the brief is ready before they open the dashboard.
 """
 
 from __future__ import annotations
@@ -26,9 +19,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal
 
 log = logging.getLogger("brief_worker")
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
 
 def _run_brief() -> None:

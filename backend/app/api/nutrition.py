@@ -58,14 +58,9 @@ def estimate(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> NutritionEstimateAccepted:
-    """Kick off macro estimation for a free-text food description and
-    return immediately — the LLM call runs in the background (see
-    `_run_estimate`) and keeps going even if the athlete navigates away
-    from `/nutrition` before it finishes. Poll
-    `GET /nutrition/estimate/{id}` for the result.
-
-    Does NOT persist as a logged meal — review/edit the polled result,
-    then confirm via `POST /nutrition/log`.
+    """Kick off macro estimation and return immediately (runs in the
+    background, see `_run_estimate`); poll `GET /nutrition/estimate/{id}`.
+    Does NOT persist as a logged meal — confirm via `POST /nutrition/log`.
     """
     row = NutritionEstimate(raw_text=body.text, status="pending")
     db.add(row)

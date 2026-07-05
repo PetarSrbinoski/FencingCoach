@@ -1,23 +1,7 @@
-"""Readiness.
-
-Garmin `training_readiness` is the single source of truth for the daily
-readiness score — no custom composite scorer. Rationale: Garmin already
-fuses HRV, sleep, sleep history, Body Battery, training load, and stress
-into that one number using data (accelerometer, PPG, algorithms tuned per
-device) this app doesn't have direct access to; a home-grown composite
-from a subset of the same signals was redundant and never reconciled with
-it (see PLAN.md).
-
-If Garmin has no `training_readiness` reading for the day, we surface that
-honestly as `band="unknown"` / `score=None` — a **neutral** result that
-applies **no training modifier that day**, rather than guessing or padding
-in a fake mid-range number.
-
-Bands: red <40, amber 40-65, green >65 (matches Garmin's own convention).
-
-Acute:chronic training load and rest-day streak are still computed, but
-only as separate, non-scored advisories — informational text, not inputs
-to the band/modifier logic.
+"""Readiness — uses Garmin's own `training_readiness` as the single source
+of truth (no custom composite scorer). Missing data is surfaced honestly as
+`band="unknown"` rather than guessed; bands are red <40, amber 40-65, green
+>65, matching Garmin's convention.
 """
 
 from __future__ import annotations
@@ -118,9 +102,7 @@ def _advise_load(db: Session, day: date) -> Advisory:
     c_avg = c_sum / 28.0 if c_sum else 0.0
 
     if c_avg <= 0:
-        return Advisory(
-            detail="Insufficient load history to compute acute:chronic ratio"
-        )
+        return Advisory(detail="Insufficient load history to compute acute:chronic ratio")
     ratio = a_avg / c_avg
     if ratio > 1.5:
         note = "overreaching — acute load well above chronic average"
@@ -179,9 +161,7 @@ def compute_readiness(db: Session, day: date | None = None) -> Readiness:
     inputs = {
         "hrv_today": _last(_values(db, "hrv", day, day)),
         "sleep_h": _last(_values(db, "sleep", day, day)),
-        "body_battery_max": _last(
-            _values(db, "body_battery", day - timedelta(days=1), day)
-        ),
+        "body_battery_max": _last(_values(db, "body_battery", day - timedelta(days=1), day)),
         "rhr": _last(_values(db, "resting_hr", day, day)),
     }
     return Readiness(

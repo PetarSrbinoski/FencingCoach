@@ -1,26 +1,7 @@
-"""Dynamic periodization.
-
-Competitions are irregular for this athlete, so a fixed multi-mesocycle
-plan isn't a good fit. Instead, the *current phase* is computed every
-time as a function of the calendar:
-
-    days to next A-event       phase             intent
-    > 35                       general            base — capacity, hypertrophy/strength
-    22 – 35                    build              build — power conversion, intensification
-    14 – 21                    peak               peak — quality > volume, sharpness
-    7 – 13                     taper              taper — drop volume, keep intensity high
-    0 –  6                     comp_week          comp_week — minimal stimulus
-    < 0 (within 3d post)       recovery           recovery — active recovery, regen
-    no upcoming A-event        general            base
-
-B/C events are noted but don't trigger a taper. Multiple A-events are
-collapsed to the *next* one.
-
-The output is consumed by:
-- nutrition target engine (carbs ↑ near comp, protein ↑ in build)
-- training session generator (volume↓ in taper/peak, intensity↑ in build)
-- coach context packer (so the LLM knows current phase + days out)
-- daily brief
+"""Dynamic periodization — competitions are irregular, so the current phase
+(general/build/peak/taper/comp_week/recovery) is computed from days-to-next-
+A-event every time rather than a fixed mesocycle plan. Consumed by the
+nutrition engine, training generator, coach context, and daily brief.
 """
 
 from __future__ import annotations
@@ -52,9 +33,7 @@ class Phase:
             "days_to_event": self.days_to_event,
             "next_event_id": self.next_event_id,
             "next_event_name": self.next_event_name,
-            "next_event_date": self.next_event_date.isoformat()
-            if self.next_event_date
-            else None,
+            "next_event_date": self.next_event_date.isoformat() if self.next_event_date else None,
             "notes": self.notes,
         }
 

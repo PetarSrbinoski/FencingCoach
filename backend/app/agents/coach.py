@@ -1,5 +1,4 @@
-"""Coach chat agent.
-"""
+"""Coach chat agent."""
 
 from __future__ import annotations
 
@@ -44,8 +43,8 @@ from app.agents.retry import (
 from app.models import Competition
 from app.schemas import ExerciseOverrideIn
 from app.services.grounding import find_ungrounded_claims
-from app.services.prompts import COACH_SYSTEM_PROMPT
 from app.services.training import clear_workout_override, set_workout_override
+from llm.prompts.coach import COACH_SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
 
@@ -64,13 +63,9 @@ def _wants_web_search(message: str) -> bool:
     return bool(_SEARCH_INTENT_RE.search(message))
 
 
-# Transient-LLM-error classification + retry constants are shared with
-# nutrition.py/mealplan.py via app.agents.retry (see that module for the
-# full explanation of the two NVIDIA NIM failure shapes). This chat agent
-# keeps its own retry loop below rather than the generic
-# `call_with_transient_retry` helper because it needs an extra guard:
-# never retry once a tool has already committed a DB write this attempt
-# (see `CoachDeps.side_effect_committed`).
+# Retry constants/classification are shared with nutrition.py/mealplan.py
+# via app.agents.retry, but this agent keeps its own retry loop below since
+# it needs an extra guard: never retry after a tool has committed a DB write.
 
 
 def _last_model_name(messages: list[ModelMessage]) -> str | None:
@@ -82,15 +77,9 @@ def _last_model_name(messages: list[ModelMessage]) -> str | None:
 
 
 def _model_name_used(result: Any) -> str | None:
-    """Which model actually produced a run/stream result, if knowable.
-
-    When `get_active_model()` returns a `FallbackModel` (cloud mode), this
-    is how we find out (after the fact) whether the first or second cloud
-    tier answered — `ModelResponse.model_name` reflects whichever one it
-    was. Defensive about `result` not exposing `all_messages()` (e.g.
-    lightweight test doubles) since this is a best-effort UX nicety, not
-    load-bearing.
-    """
+    """Which model actually produced a run/stream result, if knowable —
+    resolves which `FallbackModel` tier answered. Best-effort UX nicety,
+    not load-bearing, so any lookup failure is swallowed."""
     all_messages = getattr(result, "all_messages", None)
     if not callable(all_messages):
         return None
@@ -290,19 +279,8 @@ async def run_coach_chat(
     context_text: str = "",
     history_messages: list[Any] | None = None,
 ) -> ChatResult:
-    """Run the coach chat agent asynchronously.
-
-    Args:
-        user_message: The user's message text.
-        db: SQLAlchemy session — passed through to any tool the agent calls
-            (e.g. `update_day_workout`, `add_competition`).
-        context_text: Pre-built context snapshot to inject.
-        history_messages: List of DB CoachMessage objects for conversation history.
-
-    Returns:
-        ChatResult with reply text, model name, and any heuristically
-        flagged ungrounded claims (see `services.grounding`).
-    """
+    """Run the coach chat agent asynchronously, returning the reply, model
+    used, and any heuristically flagged ungrounded claims."""
     deps = CoachDeps(db=db, context_text=context_text)
 
     # Convert DB message history to PydanticAI format

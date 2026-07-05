@@ -47,16 +47,9 @@ def strip_think_tags(text: str) -> str:
 
 
 class ThinkTagStreamFilter:
-    """Incremental variant of `strip_think_tags` for token-streaming.
-
-    `strip_think_tags` only works on a complete string. When streaming
-    deltas to a client in real time, reasoning-model output (`<think>...
-    </think>`) must be withheld from the live stream too, not just
-    stripped at the end — otherwise the client briefly sees raw
-    chain-of-thought text before it's removed. Feed each delta chunk in
-    and only the text outside `<think>` tags is returned, buffering
-    partial tag boundaries that straddle two chunks.
-    """
+    """Incremental `strip_think_tags` for token streaming — withholds
+    `<think>...</think>` reasoning output live instead of only at the end,
+    buffering partial tag boundaries split across chunks."""
 
     def __init__(self) -> None:
         self._buffer = ""
@@ -100,21 +93,9 @@ class ThinkTagStreamFilter:
 
 @dataclass
 class CoachDeps:
-    """Dependency container injected into every agent run.
-
-    Fields:
-        db: SQLAlchemy session for database access.
-        context_text: Pre-built context snapshot (from context.py) — optional,
-            used by brief/chat agents that need athlete state.
-        extra: Arbitrary extra data (targets dict, mental entries, etc.)
-            agents can pass through for tool/instruction use.
-        side_effect_committed: Set to True by any tool that commits a DB
-            write (e.g. `update_day_workout`, `add_competition`). Once
-            True, a transient LLM-provider error must NOT trigger a
-            whole-run retry — the side effect already happened, and
-            retrying risks silently duplicating it (e.g. a second
-            Competition row) or redundantly re-running it.
-    """
+    """Dependency container injected into every agent run. `side_effect_committed`
+    is set by any tool that commits a DB write, so a transient-error retry
+    never re-runs (and duplicates) that write."""
 
     db: Session
     context_text: str = ""
@@ -129,15 +110,9 @@ def _build_chat_model(
     base_url: str | None = None,
     api_key: str | None = None,
 ) -> OpenAIChatModel:
-    """Build a single OpenAI-compatible chat model from settings.
-
-    Shared by `get_model()` for both the primary (`LLM_MODEL`) and, if
-    configured, the fallback (`LLM_FALLBACK_MODEL`). Defaults to the
-    primary's connection details (`LLM_BASE_URL`/`LLM_API_KEY`) when
-    `base_url`/`api_key` aren't given, but the fallback can point at an
-    entirely different provider via `LLM_FALLBACK_BASE_URL`/
-    `LLM_FALLBACK_API_KEY`.
-    """
+    """Build a single OpenAI-compatible chat model. Shared by the primary and
+    fallback model builders; defaults to the primary's connection details
+    unless `base_url`/`api_key` override them."""
     from openai import AsyncOpenAI
     from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -170,23 +145,12 @@ def _build_chat_model(
 
 @lru_cache(maxsize=4)
 def get_model_for_provider(provider: str) -> Model:
-    """Build (and cache) the model for one provider pool: `"local"` or
-    `"cloud"`.
+    """Build (and cache) the model for one provider pool.
 
-    - `"local"`: just `LLM_MODEL` @ `LLM_BASE_URL`/`LLM_API_KEY` — no
-      fallback. If it fails, it fails; the athlete explicitly chose local.
-    - `"cloud"`: `LLM_FALLBACK_MODEL` @ `LLM_FALLBACK_BASE_URL`/
-      `LLM_FALLBACK_API_KEY`, cascading to `LLM_FALLBACK2_MODEL` (if
-      configured) on a *transient* provider error
-      (`agents.retry.is_transient_llm_error`) — both tiers here are
-      already "cloud", so that cascade is still useful (e.g. NIM capacity
-      errors), unlike an automatic local->cloud escalation.
-
-    Which pool is actually used for a given request is decided by
-    `get_active_model()` below, driven by the athlete's manual toggle
-    (`services.llm_provider`) — this function just builds either pool on
-    demand, cached so repeated calls (and repeated toggle flips back to a
-    pool already built) don't reconnect.
+    `"local"`: just `LLM_MODEL`, no fallback. `"cloud"`: `LLM_FALLBACK_MODEL`,
+    cascading to `LLM_FALLBACK2_MODEL` on a transient error. Which pool is
+    used is decided by `get_active_model()`, driven by the athlete's manual
+    toggle (`services.llm_provider`).
     """
     if provider == "local":
         model = _build_chat_model(settings.LLM_MODEL, MODEL_DEFAULT_SETTINGS)
@@ -273,12 +237,6 @@ def active_model_label() -> str:
 
 
 def get_model() -> Model:
-    """Backward-compatible placeholder model for `Agent(...)` construction
-    at import time (before the active provider is hydrated from the DB).
-
-    Every actual agent run passes `model=get_active_model()` explicitly
-    (see coach.py/nutrition.py/mealplan.py/mental.py/brief.py), which
-    overrides whatever was set here — so this only matters in that it must
-    be a validly constructible model, not that it's the "right" one.
-    """
+    """Placeholder model for `Agent(...)` construction at import time — every
+    real run passes `model=get_active_model()`, which overrides this."""
     return get_model_for_provider("local")

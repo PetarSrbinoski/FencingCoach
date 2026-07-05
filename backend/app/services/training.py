@@ -1,18 +1,6 @@
 """Adaptive gym session generator + progressive-overload tracking.
-
-Tuesdays = strength/unilateral block; Thursdays = power/explosive block.
-The session is *generated* deterministically from rules, not the LLM —
-it's a small, constrained domain and we want predictable progression.
-
-Inputs that move the prescription:
-  - phase (general|build|peak|taper|comp_week|recovery)
-  - readiness band (red|amber|green) — auto-deload on red
-  - last logged best for the same exercise (load/reps) → next prescription
-  - days to next A-event — short-circuits to deload near comp
-
-Output: a list of `ExerciseRx` objects (target sets/reps/load/RPE +
-notes). The frontend presents these and accepts logging back into
-`workout_log`. 1RM is estimated via Epley (reps ≤ 10).
+Deterministic rules (not LLM) driven by phase, readiness band, and last
+logged best per exercise; 1RM estimated via Epley (reps ≤ 10).
 """
 
 from __future__ import annotations

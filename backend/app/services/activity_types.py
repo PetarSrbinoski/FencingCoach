@@ -1,15 +1,6 @@
-"""Canonical Garmin activity-type -> training-category mapping.
-
-Garmin has no native "fencing" activity type. This athlete's épée sessions
-are logged under Garmin's MMA / martial-arts category (there is no fencing
-option in the Garmin Connect activity picker). Every part of the app that
-needs to know "was this a fencing session?" must go through this module —
-it is the single source of truth for that reconciliation, replacing the
-scattered/broken `"fencing" in activity_type` string checks that could
-never match real Garmin data.
-
-Reused by: day-type detection (services/targets.py), readiness/load scoring,
-context building (services/context.py), and fencing-session analysis.
+"""Canonical Garmin activity-type -> training-category mapping. Garmin has
+no "fencing" type, so épée sessions are logged as MMA/martial-arts — this
+module is the single source of truth for that reconciliation.
 """
 
 from __future__ import annotations

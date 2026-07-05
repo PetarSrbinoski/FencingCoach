@@ -489,17 +489,9 @@ def purge_old_detailed_data(
     *,
     cutoff: date | None = None,
 ) -> dict[str, int]:
-    """Delete detailed records older than RETENTION_DAYS that have been summarized.
-
-    INTENTIONALLY UNWIRED: not called by the summarization worker or any API
-    route. Per the reliability rework, raw data is kept indefinitely —
-    summaries are for fast trend queries, not a license to delete detail.
-    Retained here only in case a deliberate, manually-invoked cleanup is
-    ever needed; do not schedule or expose this without reconsidering that
-    decision first.
-
-    Only deletes data where a corresponding weekly summary exists.
-    Returns counts of deleted rows per domain.
+    """Delete summarized detailed records older than RETENTION_DAYS.
+    INTENTIONALLY UNWIRED — kept only for a deliberate manual cleanup; do not
+    schedule without reconsidering the keep-raw-data-indefinitely decision.
     """
     today = athlete_today()
     cutoff = cutoff or (today - timedelta(days=RETENTION_DAYS))

@@ -1,18 +1,9 @@
 """Background data summarization worker.
 
-Run as: `python -m app.workers.summarization`
-
-Schedules:
-- Daily at 04:00 UTC → generate weekly + monthly summaries
-
-Runs alongside the Garmin sync worker.
-
-NOTE: the destructive purge job (deleting detailed WorkoutLog/NutritionLog/
-MentalEntry rows once summarized) is intentionally NOT scheduled here.
-Per the reliability rework, we keep all raw data indefinitely — summaries
-are generated for fast querying/trend display, not as a prerequisite for
-deleting the underlying detail. See `services.summarization.
-purge_old_detailed_data`, which still exists but is unwired.
+Run as: `python -m app.workers.summarization`. Daily at 04:00 UTC, generates
+weekly + monthly summaries. The destructive purge job (deleting detailed
+rows once summarized) is intentionally not scheduled — see
+`services.summarization.purge_old_detailed_data`.
 """
 
 from __future__ import annotations
@@ -29,9 +20,7 @@ from app.core.database import SessionLocal
 from app.services import summarization
 
 log = logging.getLogger("summarization_worker")
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
 
 def _run_summaries() -> None:
@@ -65,9 +54,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
-    log.info(
-        "Summarization scheduler started. Summaries daily at 04:00 (purge disabled)."
-    )
+    log.info("Summarization scheduler started. Summaries daily at 04:00 (purge disabled).")
     time.sleep(2)
     sched.start()
 

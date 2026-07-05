@@ -72,12 +72,9 @@ class GarminMetric(Base):
     day: Mapped[date] = mapped_column(Date, nullable=False)
     value: Mapped[float | None] = mapped_column(Float)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    # Extraction outcome, always recorded (even on failure) so coverage/
-    # diagnostics can distinguish "never synced", "synced but Garmin had
-    # nothing", and "synced but value was implausible and rejected".
-    #   ok          — value extracted and passed plausibility checks
-    #   missing     — no value found at any known key-path
-    #   implausible — a value was found but rejected as out-of-range
+    # Extraction outcome, always recorded so diagnostics can distinguish
+    # "never synced" from "synced but missing/implausible". One of:
+    # ok | missing | implausible.
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ok")
     detail: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -124,14 +121,10 @@ class NutritionLog(Base):
 
 
 class NutritionEstimate(Base):
-    """A `POST /nutrition/estimate` request and its (async) LLM result.
-
-    Created with `status="pending"` immediately, before the LLM call
-    starts, so the request can return right away (202) and a detached
-    background job (see `app/core/background.py`) can fill in the result
-    whenever it finishes — surviving the athlete navigating away from
-    `/nutrition` while it's in flight. Confirming an estimate into a
-    logged meal is still a separate step (`POST /nutrition/log`)."""
+    """A `POST /nutrition/estimate` request and its (async) LLM result —
+    created `status="pending"` so the request can return a 202 immediately
+    and a background job fills in the result (see `app/core/background.py`).
+    """
 
     __tablename__ = "nutrition_estimates"
 
@@ -243,11 +236,9 @@ class CoachMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # For assistant messages: "pending" until the detached generation job
-    # (see app/core/background.py) fills in `content` and flips this to
-    # "done"/"error" — lets the reply keep generating server-side even if
-    # the athlete navigates away from /chat before it finishes. User
-    # messages are always "done" (there's nothing to wait for).
+    # For assistant messages: "pending" until the background generation job
+    # (app/core/background.py) fills `content` and flips to "done"/"error".
+    # User messages are always "done".
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="done")
     error: Mapped[str | None] = mapped_column(Text)
     # model used, context snapshot, ungrounded-claims list — set once the
@@ -304,13 +295,8 @@ class DayTypeOverride(Base):
 
 
 class WorkoutOverride(Base):
-    """Manual replacement of the auto-generated gym session for a given day.
-
-    `build_session()` (services/training.py) normally *computes* the
-    prescribed exercises from templates + phase + readiness. When a row
-    exists here for a day, it takes precedence over that computation
-    verbatim — used by the coach chat agent (or, in future, a UI form) to
-    change what's planned for a specific (usually upcoming) day.
+    """Manual replacement of the auto-generated gym session for a given day —
+    takes precedence over `build_session()`'s computed plan when present.
     """
 
     __tablename__ = "workout_overrides"
@@ -349,11 +335,8 @@ class USDAFood(Base):
     """Cached USDA FoodData Central item for nutrition cross-reference."""
 
     __tablename__ = "usda_foods"
-    # Real GIN trigram index (requires `pg_trgm` extension, created in the
-    # baseline migration) — matches the `.contains()` substring search used
-    # by `services/usda.search_foods`. Previously this was a plain btree
-    # index that couldn't accelerate `LIKE '%term%'` queries despite its
-    # "_trgm" name.
+    # GIN trigram index (requires `pg_trgm`) to accelerate the `.contains()`
+    # substring search in `services/usda.search_foods`.
     __table_args__ = (
         Index(
             "ix_usda_foods_description_trgm",
@@ -376,11 +359,9 @@ class USDAFood(Base):
 
 
 class AppSetting(Base):
-    """Generic single-row-per-key app-wide setting (single-user app, no
-    per-user scoping needed). Currently used for the manual LLM provider
-    toggle (`key="llm_provider"`, `value="local"|"cloud"` — see
-    `services/llm_provider.py`), but intentionally generic so future
-    simple global flags don't each need their own table + migration.
+    """Generic single-row-per-key app-wide setting (single-user, no scoping
+    needed) — currently used for the LLM provider toggle, kept generic for
+    future flags.
     """
 
     __tablename__ = "app_settings"

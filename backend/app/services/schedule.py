@@ -1,16 +1,6 @@
-"""Single source of truth for the athlete's default weekly training schedule.
-
-Configurable via `WEEKLY_SCHEDULE` in `.env`/config — a comma-separated list
-of 7 day-types, Monday first (e.g. "fencing,gym,fencing,gym,fencing,fencing,rest").
-
-This default pattern is overridden per-day by explicit `DayTypeOverride`
-rows and by competitions (see `services.targets.detect_day_type`), and
-reconciled against logged activities via `services.activity_types`.
-
-Previously this pattern was hardcoded independently in three places
-(`services/targets.py`, `services/training.py`, `services/prompts.py`)
-that could silently drift out of sync; this module is now the only place
-it's defined.
+"""Single source of truth for the athlete's default weekly training schedule
+(`WEEKLY_SCHEDULE` config), overridden per-day by `DayTypeOverride` rows,
+competitions, and logged activities.
 """
 
 from __future__ import annotations

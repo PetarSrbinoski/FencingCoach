@@ -1,21 +1,6 @@
-"""Context packer.
-
-Builds a compact, token-budget-aware text snapshot of the athlete's
-current state to inject as a `system` (or appended `user`) message
-before the LLM call.
-
-Priority order (highest first):
-    1. Readiness today + components
-    2. Last 7 days of metrics (HRV, sleep, RHR, BB, load)
-    3. This week's activities (fencing + gym)
-    4. This week's nutrition compliance
-    5. Upcoming competitions (next 90 days)
-    6. Active training plan / phase
-    7. 28-day trend summary
-
-Token budget defaults to 25% of LLM_CONTEXT_TOKENS, leaving room for
-chat history + response. We use tiktoken for an approximate token count
-(it's fine for non-OpenAI models since we only need a rough budget).
+"""Context packer — builds a compact, token-budget-aware text snapshot of
+the athlete's current state (readiness, metrics, activities, nutrition,
+competitions, plan, trends) to inject before the LLM call.
 """
 
 from __future__ import annotations
@@ -114,12 +99,8 @@ def _metrics_section(db: Session, today: date, days: int = 7) -> str:
 
 
 def _activities_section(db: Session, today: date, days: int = 7) -> str:
-    start = datetime.combine(
-        today - timedelta(days=days - 1), datetime.min.time(), tzinfo=UTC
-    )
-    end = datetime.combine(
-        today + timedelta(days=1), datetime.min.time(), tzinfo=UTC
-    )
+    start = datetime.combine(today - timedelta(days=days - 1), datetime.min.time(), tzinfo=UTC)
+    end = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
     acts = db.scalars(
         select(Activity)
         .where(and_(Activity.start_time >= start, Activity.start_time < end))
@@ -218,8 +199,7 @@ def _phase_section(db: Session, today: date) -> str:
     lines = [f"## Phase — {p.name}"]
     if p.next_event_name:
         lines.append(
-            f"  next A-event: {p.next_event_name} on {p.next_event_date} "
-            f"(T-{p.days_to_event}d)"
+            f"  next A-event: {p.next_event_name} on {p.next_event_date} (T-{p.days_to_event}d)"
         )
     else:
         lines.append("  no upcoming A-event")

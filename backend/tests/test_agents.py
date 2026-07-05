@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 from types import SimpleNamespace
+from typing import Any, cast
 
 # Override DATABASE_URL before any app imports
 os.environ.setdefault("DATABASE_URL", "sqlite://")
@@ -39,7 +40,7 @@ from app.agents.nutrition import (
     nutrition_agent,
     nutrition_fallback_agent,
 )
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.mcp import MCPServerStdio
 
@@ -217,7 +218,7 @@ class TestNutritionAgent:
         calls = {"n": 0}
 
         good_output = NutritionEstimateOutput(
-            kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="high"
+            kcal=500, protein_g=40, carbs_g=50, fat_g=15, fiber_g=None, confidence="high", notes=""
         )
 
         async def flaky_primary(text, deps, model=None):
@@ -262,7 +263,13 @@ class TestNutritionAgent:
             )
 
         fallback_output = NutritionEstimateOutput(
-            kcal=500, protein_g=40, carbs_g=50, fat_g=15, confidence="medium"
+            kcal=500,
+            protein_g=40,
+            carbs_g=50,
+            fat_g=15,
+            fiber_g=None,
+            confidence="medium",
+            notes="",
         )
 
         async def succeed_fallback(text, deps, model=None):
@@ -430,10 +437,10 @@ class TestCoachAgent:
 
 
 # ── coach tools (update_day_workout / add_competition) ──────────────────
-def _ctx(db) -> SimpleNamespace:
+def _ctx(db: Any) -> RunContext[CoachDeps]:
     """Minimal stand-in for RunContext[CoachDeps] — the tools only ever
     touch `ctx.deps.db`."""
-    return SimpleNamespace(deps=CoachDeps(db=db))
+    return cast("RunContext[CoachDeps]", SimpleNamespace(deps=CoachDeps(db=db)))
 
 
 class TestCoachWorkoutTool:

@@ -1,5 +1,4 @@
-"""Nutrition estimation agent.
-"""
+"""Nutrition estimation agent."""
 
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ from pydantic_ai.mcp import MCPServerStdio
 from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
 from app.agents.retry import acall_with_transient_retry
 from app.core.config import settings
+from llm.prompts.nutrition import NUTRITION_FALLBACK_INSTRUCTIONS, NUTRITION_INSTRUCTIONS
 
 log = logging.getLogger(__name__)
 
@@ -56,53 +56,6 @@ def _clean_output(result: NutritionEstimateOutput) -> NutritionEstimateOutput:
 
 
 # ── Agent definition ──────────────────────────────────────────────────
-NUTRITION_INSTRUCTIONS = """\
-You are a precise sports-nutrition macro estimator for an elite épée fencer.
-
-Given a free-text food description, estimate its nutritional content.
-
-Strategy:
-1. FIRST try the USDA MCP tools (search_foods, get_food_details,
-   get_food_nutrients) to look up actual USDA data for each food item.
-   This is your most reliable source.
-2. If USDA MCP doesn't have the food or returns no results, use web search
-   to find nutritional information from reliable sources.
-3. Combine the data into a single estimate.
-
-Rules:
-- Use USDA reference values when available. Round kcal to nearest 5,
-  macros to 0.5g, micros to 1 unit.
-- If a quantity is missing, assume an athlete-sized portion (e.g. 200g
-  protein source, 150g cooked rice, 1 medium fruit) and note the
-  assumption in notes.
-- Never refuse. Always produce numbers; lower confidence if uncertain.
-- Break compound meals into individual items with estimated weights."""
-
-
-NUTRITION_FALLBACK_INSTRUCTIONS = """\
-You are a precise sports-nutrition macro estimator for an elite épée fencer.
-
-The USDA lookup service is unavailable for this request.
-
-Given a free-text food description, estimate its nutritional content.
-
-Strategy:
-1. Use web search to find nutritional information from reliable sources such as
-   USDA pages, major nutrition databases, or reputable food brands/restaurants.
-2. Prefer sources that match the described preparation or serving size.
-3. Combine the data into a single estimate.
-
-Rules:
-- Round kcal to nearest 5, macros to 0.5g, micros to 1 unit.
-- If a quantity is missing, assume an athlete-sized portion (e.g. 200g
-  protein source, 150g cooked rice, 1 medium fruit) and note the
-  assumption in notes.
-- Never refuse. Always produce numbers; lower confidence if uncertain.
-- Break compound meals into individual items with estimated weights.
-- Mention in notes that the estimate used web research because USDA MCP was
-  unavailable."""
-
-
 def _usda_mcp_available() -> bool:
     """Whether the local USDA MCP subprocess script is present."""
     return bool(settings.USDA_MCP_SCRIPT) and os.path.isfile(settings.USDA_MCP_SCRIPT)
@@ -161,26 +114,10 @@ async def _strip_think(
 
 # ── Public API (async) ──────────────────────────────────────────────────
 async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
-    """Estimate nutrition for free-text food description.
-
-    Called from `api/nutrition.py`'s `_run_estimate` background job — the
-    request that triggers this returns a `202` immediately (see that
-    module's docstring), so there's nothing to cancel this early for
-    anymore; it always runs to completion and its result is persisted to
-    the triggering `NutritionEstimate` row regardless of whether the
-    athlete is still on the page.
-
-    Args:
-        text: Free-text food description.
-        db: Optional SQLAlchemy session (for future use in tools).
-
-    Raises:
-        ValueError: If text is empty.
-        RuntimeError: If estimation fails (USDA + fallback agent both
-            failed, or no USDA is configured and the single attempt
-            failed). Callers must surface this loudly — never silently
-            persist a zeroed-out estimate.
-    """
+    """Estimate nutrition for free-text food description. Runs to completion
+    regardless of client disconnects (called from a `202`-accepted
+    background job — see `api/nutrition.py`). Raises RuntimeError on
+    failure rather than silently persisting a zeroed-out estimate."""
     if not text.strip():
         raise ValueError("empty food description")
 

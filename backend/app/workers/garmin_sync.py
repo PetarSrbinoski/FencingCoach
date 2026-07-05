@@ -1,13 +1,8 @@
 """Background Garmin sync worker.
 
-Run as: `python -m app.workers.garmin_sync`
-
-Schedules:
-- Every GARMIN_RECENT_SYNC_MINUTES → recent sync (last GARMIN_RECENT_SYNC_DAYS days)
-- Daily at GARMIN_FULL_SYNC_HOUR    → full sync (last GARMIN_FULL_SYNC_DAYS days)
-
-Gracefully no-ops if Garmin credentials aren't set yet or if auth fails.
-Implements exponential backoff on auth failures to avoid Garmin rate-limits.
+Run as: `python -m app.workers.garmin_sync`. Recent sync every
+GARMIN_RECENT_SYNC_MINUTES, full sync daily at GARMIN_FULL_SYNC_HOUR. No-ops
+without credentials; backs off exponentially on auth failure.
 """
 
 from __future__ import annotations
@@ -27,9 +22,7 @@ from app.core.database import SessionLocal
 from app.services.garmin import GarminService
 
 log = logging.getLogger("garmin_sync")
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
 # Backoff state: skip syncs for a period after auth failures.
 _backoff_until: datetime | None = None
@@ -56,9 +49,7 @@ def _record_auth_failure() -> None:
     _consecutive_failures += 1
     # Exponential backoff: 5, 15, 30, 60, 60 min...
     minutes = min(60, 5 * (2 ** (_consecutive_failures - 1)))
-    _backoff_until = datetime.now(UTC) + __import__("datetime").timedelta(
-        minutes=minutes
-    )
+    _backoff_until = datetime.now(UTC) + __import__("datetime").timedelta(minutes=minutes)
     log.warning(
         "Garmin auth failed (#%d). Backing off for %d minutes.",
         _consecutive_failures,

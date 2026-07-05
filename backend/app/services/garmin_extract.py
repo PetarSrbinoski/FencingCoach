@@ -1,22 +1,8 @@
-"""Pure Garmin payload -> metric extraction.
-
-Garmin's unofficial API has no schema guarantee: field names drift across
-library versions and device/account variants, and endpoints can silently
-return partial or empty payloads. This module is defensive on both axes:
-
-  1. Multi-key-path fallbacks — each value is looked up via several known
-     candidate locations before giving up.
-  2. Plausibility validation — every value is checked against a sane range
-     before being trusted (e.g. HRV of 0 or sleep of 20h is rejected, not
-     silently persisted).
-
-Every extraction reports its outcome (`ok` / `missing` / `implausible`)
-rather than just returning `None`, so callers can log a structured warning
-and build a per-day extraction-coverage record instead of silently losing
-data provenance.
-
-Pure functions only — no DB, no network — so this is fully unit-testable
-with synthetic Garmin-shaped payloads.
+"""Pure Garmin payload -> metric extraction. Garmin's unofficial API has no
+schema guarantee, so each value is looked up via multiple candidate key
+paths and validated against a plausible range before being trusted. Every
+extraction reports its outcome (`ok`/`missing`/`implausible`) instead of
+just returning `None`. Pure functions only — no DB, no network.
 """
 
 from __future__ import annotations
@@ -71,15 +57,11 @@ def _first(d: Any, *paths: tuple[str, ...]) -> Any:
 
 def _build(kind: str, raw_value: Any, payload: Any) -> ExtractedMetric:
     if raw_value is None:
-        return ExtractedMetric(
-            None, payload, "missing", "no value at any known key-path"
-        )
+        return ExtractedMetric(None, payload, "missing", "no value at any known key-path")
     try:
         value = float(raw_value)
     except (TypeError, ValueError):
-        return ExtractedMetric(
-            None, payload, "missing", f"non-numeric value: {raw_value!r}"
-        )
+        return ExtractedMetric(None, payload, "missing", f"non-numeric value: {raw_value!r}")
     bounds = PLAUSIBLE_RANGES.get(kind)
     if bounds is not None and not (bounds[0] <= value <= bounds[1]):
         return ExtractedMetric(
@@ -135,9 +117,7 @@ def extract_body_battery(raw: dict[str, Any]) -> ExtractedMetric:
     value = _first(stats, ("bodyBatteryMostRecentValue",))
     if value is None and isinstance(bb, list):
         for entry in reversed(bb):
-            arr = (
-                entry.get("bodyBatteryValuesArray") if isinstance(entry, dict) else None
-            )
+            arr = entry.get("bodyBatteryValuesArray") if isinstance(entry, dict) else None
             if not arr:
                 continue
             for point in reversed(arr):
@@ -202,17 +182,13 @@ def extract_vo2max(raw: dict[str, Any]) -> ExtractedMetric:
 def extract_training_status(raw: dict[str, Any]) -> ExtractedMetric:
     payload = raw.get("training_status")
     status = "missing" if payload is None else "ok"
-    return ExtractedMetric(
-        None, payload, status, None if payload else "no data returned"
-    )
+    return ExtractedMetric(None, payload, status, None if payload else "no data returned")
 
 
 def extract_intensity_minutes(raw: dict[str, Any]) -> ExtractedMetric:
     payload = raw.get("intensity_minutes")
     status = "missing" if payload is None else "ok"
-    return ExtractedMetric(
-        None, payload, status, None if payload else "no data returned"
-    )
+    return ExtractedMetric(None, payload, status, None if payload else "no data returned")
 
 
 EXTRACTORS: dict[str, Any] = {

@@ -1,22 +1,7 @@
-"""Heuristic grounding check for coach replies.
-
-The coach is instructed (see `services.prompts.COACH_SYSTEM_PROMPT`, rule 8)
-to never fabricate a number when citing the athlete's own data (HRV, sleep,
-RHR, Body Battery, readiness, VO2max, training load, weight, kcal/macros).
-This module provides a lightweight, best-effort check: it flags sentences
-that reference one of those metrics alongside a number that doesn't appear
-anywhere in the context snapshot the model was given.
-
-This is intentionally narrow and heuristic, not a general fact-checker:
-- It only looks at sentences containing a recognized metric keyword, so it
-  does not (and should not) flag the coach's own prescriptive numbers
-  (sets/reps/%1RM/target macros) — those are legitimate recommendations,
-  not claims about existing data.
-- It's a plain substring/number match, so it can both miss real
-  fabrications (if the number happens to coincidentally appear elsewhere
-  in context) and produce false positives (e.g. a rounded or re-derived
-  number). Treat its output as a "double-check this" signal for the UI/
-  logs, not a hard block.
+"""Heuristic grounding check for coach replies — flags sentences that cite
+a data metric (HRV, sleep, RHR, etc.) alongside a number not present in the
+context snapshot. Best-effort substring match, not a general fact-checker;
+treat its output as a "double-check this" signal, not a hard block.
 """
 
 from __future__ import annotations

@@ -76,7 +76,7 @@ uv sync                       # from repo root: installs runtime + dev deps from
 # point DATABASE_URL at a reachable Postgres (e.g. localhost if you expose db's port)
 cd backend
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8000
+PYTHONPATH=.. uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## 6. Frontend dev without Docker (optional)
@@ -92,9 +92,9 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 Run from the repo root (the uv project root):
 
 ```bash
-uv run pytest                              # backend tests
-uv run ruff check backend/app backend/tests  # lint
-uv run mypy backend/app backend/tests        # type check
+uv run pytest                                # backend tests
+uv run ruff check backend/app backend/tests llm  # lint
+uv run mypy backend/app backend/tests llm        # type check
 ```
 
 Frontend:
@@ -115,6 +115,7 @@ backend/app/services/     Business logic (readiness, targets, periodization, gar
 backend/app/models/       SQLAlchemy models
 backend/alembic/          Migrations
 backend/tests/            Pytest suite
+llm/prompts/              LLM prompt text, imported by backend/app/agents/*.py
 
 frontend/src/app/         Next.js App Router pages — one folder per route (page.tsx = entry)
 frontend/src/lib/api.ts   Typed API client, single source of truth for backend endpoints

@@ -1,14 +1,7 @@
-"""Manual LLM provider toggle (local vs cloud).
-
-Replaces the old automatic "primary fails -> silently escalate to cloud
-fallback" behavior for the local/cloud split specifically: the athlete
-explicitly picks which pool of models to use (see the sidebar toggle),
-persisted in `app_settings` and cached in-process (`app.agents.deps`) so
-it takes effect immediately without a backend restart.
-
-Within the "cloud" pool, `LLM_FALLBACK_MODEL` -> `LLM_FALLBACK2_MODEL`
-still cascade automatically on transient errors (capacity/rate-limit) —
-that's unrelated to this toggle, both tiers are already "cloud".
+"""Manual LLM provider toggle (local vs cloud) — the athlete explicitly
+picks which pool of models to use, persisted in `app_settings` and cached
+in-process (`app.agents.deps`). Distinct from the automatic
+`LLM_FALLBACK_MODEL` -> `LLM_FALLBACK2_MODEL` cascade within the cloud pool.
 """
 
 from __future__ import annotations

@@ -4,20 +4,13 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
-// Shared renderer for AI-generated prose (coach chat replies, daily brief,
-// mental-training insight, nutrition notes, etc). Backend prompts ask the
-// model for structure (headings, bullet lists, bold labels) but the raw
-// text was previously dumped verbatim — this parses it as Markdown and
-// styles it to match the app's sharp-corner, hairline-border aesthetic
-// instead of pulling in the Tailwind typography plugin.
+// Shared renderer for AI-generated prose (coach chat, brief, insights, etc.)
+// — parses Markdown and restyles it to match the app's aesthetic instead of
+// dumping raw text or pulling in the Tailwind typography plugin.
 const components: Components = {
-  // `white-space: pre-line` matters here: a single `\n` inside a
-  // CommonMark paragraph is a "soft break" — remark keeps it as a
-  // literal newline character in the text node (it does NOT collapse it
-  // to a space), but default HTML whitespace handling then collapses it
-  // visually. Prompts like DAILY_BRIEF_PROMPT rely on single-newline
-  // separated labeled lines (READINESS:/TODAY:/etc.) actually rendering
-  // as separate lines, not one run-on paragraph.
+  // `white-space: pre-line`: CommonMark keeps a single `\n` as a literal
+  // soft break, so labeled prompt output (READINESS:/TODAY:/etc.) renders
+  // as separate lines instead of one run-on paragraph.
   p: ({ children }) => <p className="mb-3 whitespace-pre-line last:mb-0">{children}</p>,
   ul: ({ children }) => <ul className="mb-3 last:mb-0 list-disc space-y-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="mb-3 last:mb-0 list-decimal space-y-1 pl-5">{children}</ol>,

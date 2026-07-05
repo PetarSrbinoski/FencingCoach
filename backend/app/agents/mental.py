@@ -1,6 +1,4 @@
-"""Mental insight generation agent.
-
-"""
+"""Mental insight generation agent."""
 
 from __future__ import annotations
 
@@ -11,18 +9,12 @@ from pydantic_ai import Agent, RunContext
 
 from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
 from app.models import MentalEntry
+from llm.prompts.mental import MENTAL_INSTRUCTIONS
 
 log = logging.getLogger(__name__)
 
 
 # ── Agent definition ──────────────────────────────────────────────────
-MENTAL_INSTRUCTIONS = """\
-You are a sports psychologist for an elite fencer.
-Given recent mental check-in data (mood, energy, focus, confidence scores
-and journal reflections), write a concise 2-3 sentence insight summary.
-Highlight patterns, notable shifts, and one actionable suggestion.
-Be direct and specific. No preamble."""
-
 mental_agent = Agent(
     get_model(),
     output_type=str,

@@ -30,6 +30,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 RUN git clone --depth 1 https://github.com/rpassafaro/usda-api-mcp.git /opt/usda-api-mcp
 
 COPY backend/ ./
+COPY llm/ ./llm/
 
 EXPOSE 8000
 

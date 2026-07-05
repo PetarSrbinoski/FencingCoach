@@ -1,27 +1,6 @@
-"""Periodized nutrition target engine.
-
-Computes daily kcal + macro + micro targets from:
-  - athlete weight (default 89 kg if profile not set)
-  - day type (rest / gym / fencing / double / competition)
-  - phase (general / build / peak / taper / comp_week / recovery)
-  - body-comp goal (lean / maintain / gain) — slight kcal dial
-
-Maintenance calories are the rolling average of Garmin-measured total daily
-expenditure (kind="calories", `status="ok"` only) when enough recent days
-are available; otherwise falls back to a 38 kcal/kg formula estimate.
-Measured expenditure is preferred because it reflects the athlete's actual
-activity level rather than a population-average multiplier.
-
-Carbs are the periodized lever. Protein stays in 2.0-2.4 g/kg. Fat fills
-the energy gap with a 1 g/kg floor.
-
-Day-type detection uses the athlete's default weekly pattern:
-    Mon/Wed/Fri/Sat → fencing
-    Tue/Thu         → gym
-    Sun             → rest
-…overridden by competitions on that day, and overridden by activities
-already logged for the day if they imply something different (e.g. an
-unscheduled gym session).
+"""Periodized nutrition target engine — computes daily kcal/macro/micro
+targets from athlete weight, day type, phase, and body-comp goal, preferring
+measured Garmin expenditure over a formula estimate for maintenance kcal.
 """
 
 from __future__ import annotations
@@ -166,9 +145,7 @@ VALID_DAY_TYPES = _VALID_DAY_TYPES  # re-exported for backward compat (app.api.t
 def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     """Heuristic. Returns (day_type, source) where source is 'auto' or 'manual'."""
     # Check for manual override first
-    override = db.scalar(
-        select(DayTypeOverride).where(DayTypeOverride.day == day).limit(1)
-    )
+    override = db.scalar(select(DayTypeOverride).where(DayTypeOverride.day == day).limit(1))
     if override is not None and override.override_type in VALID_DAY_TYPES:
         return override.override_type, "manual"
 
@@ -184,9 +161,7 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     start = datetime.combine(day, time.min, tzinfo=UTC)
     end = start + timedelta(days=1)
     rows = db.scalars(
-        select(Activity).where(
-            and_(Activity.start_time >= start, Activity.start_time < end)
-        )
+        select(Activity).where(and_(Activity.start_time >= start, Activity.start_time < end))
     ).all()
     if not rows:
         return default, "auto"

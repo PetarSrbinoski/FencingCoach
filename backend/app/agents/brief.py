@@ -1,5 +1,4 @@
-"""Daily brief generation agent.
-"""
+"""Daily brief generation agent."""
 
 from __future__ import annotations
 
@@ -21,8 +20,9 @@ from app.agents.deps import (
 from app.core.clock import athlete_today
 from app.models import DailyBrief
 from app.services.context import build_context
-from app.services.prompts import COACH_SYSTEM_PROMPT, DAILY_BRIEF_PROMPT
 from app.services.readiness import compute_readiness
+from llm.prompts.brief import DAILY_BRIEF_PROMPT
+from llm.prompts.coach import COACH_SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
 

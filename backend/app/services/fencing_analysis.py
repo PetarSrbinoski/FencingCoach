@@ -1,16 +1,7 @@
-"""Fencing-session analysis.
-
-Per-session HR-zone characterization, duration, and training-load trends
-for fencing (épée) sessions — Garmin activities mapped via
-`services.activity_types.is_fencing` (Garmin logs fencing as MMA/martial_arts).
-
-Garmin's activity-list endpoint (all this app fetches — see
-`services.garmin.fetch_recent_activities`) only returns session-level
-avg_hr/max_hr, not a per-minute time-in-zone breakdown; that requires a
-separate, rate-limit-sensitive per-activity Garmin API call this app
-doesn't make. Rather than fabricate a "time in zone" figure we don't have,
-this module honestly characterizes each session by which HR zone its
-*average* and *max* HR fall into.
+"""Fencing-session analysis — per-session HR-zone characterization and
+training-load trends. Garmin only returns session-level avg/max HR (no
+per-minute breakdown), so sessions are zoned by avg/max rather than a
+fabricated time-in-zone figure.
 """
 
 from __future__ import annotations
@@ -63,14 +54,10 @@ class FencingAnalysis:
     avg_duration_min: float | None
     avg_training_load: float | None
     weekly_session_counts: dict[str, int]  # ISO week-start date -> session count
-    training_load_trend: (
-        str  # "increasing" | "decreasing" | "stable" | "insufficient_data"
-    )
+    training_load_trend: str  # "increasing" | "decreasing" | "stable" | "insufficient_data"
 
 
-def _estimate_max_hr(
-    db: Session, fencing_activities: list[Activity]
-) -> tuple[float | None, str]:
+def _estimate_max_hr(db: Session, fencing_activities: list[Activity]) -> tuple[float | None, str]:
     """Best-effort max HR estimate, plus how it was derived (for transparency)."""
     profile = db.scalar(select(AthleteProfile).limit(1))
     if profile and profile.age:
@@ -122,9 +109,7 @@ def analyze_fencing_sessions(
         datetime.min.time(),
         tzinfo=UTC,
     )
-    end = datetime.combine(
-        today + timedelta(days=1), datetime.min.time(), tzinfo=UTC
-    )
+    end = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
 
     rows = db.scalars(
         select(Activity)
@@ -165,9 +150,7 @@ def analyze_fencing_sessions(
         max_hr_estimate=max_hr,
         max_hr_source=max_hr_source,
         sessions=sessions,
-        avg_duration_min=round(sum(durations) / len(durations), 1)
-        if durations
-        else None,
+        avg_duration_min=round(sum(durations) / len(durations), 1) if durations else None,
         avg_training_load=round(sum(loads) / len(loads), 1) if loads else None,
         weekly_session_counts=weekly_counts,
         training_load_trend=_trend(loads),
