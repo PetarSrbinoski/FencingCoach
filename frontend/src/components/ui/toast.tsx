@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
-import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
+import * as React from "react";
 
 type ToastVariant = "default" | "success" | "destructive";
 
@@ -38,7 +38,7 @@ const VARIANT_BORDER: Record<ToastVariant, string> = {
 
 const VARIANT_ICON_COLOR: Record<ToastVariant, string> = {
   default: "text-muted-foreground",
-  success: "text-emerald-400",
+  success: "text-success",
   destructive: "text-accent",
 };
 
@@ -54,10 +54,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const toast = React.useCallback(
     ({ title, description, variant = "default" }: ToastInput) => {
       const id = ++idCounter;
-      setToasts((current) => [...current, { id, title, description, variant }]);
-      window.setTimeout(() => dismiss(id), DISMISS_AFTER_MS);
+      setToasts((current) => [
+        ...current.slice(-2),
+        { id, title, description, variant },
+      ]);
+      if (variant !== "destructive")
+        window.setTimeout(() => dismiss(id), DISMISS_AFTER_MS);
     },
-    [dismiss]
+    [dismiss],
   );
 
   return (
@@ -65,7 +69,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:bottom-4 z-[100] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4"
+        className="pointer-events-none fixed inset-x-4 bottom-[calc(var(--dock-space)+var(--keyboard-inset,0px))] lg:bottom-4 z-[100] flex flex-col items-end gap-2 sm:inset-x-auto sm:right-4"
       >
         {toasts.map((t) => {
           const Icon = VARIANT_ICON[t.variant ?? "default"];
@@ -74,20 +78,27 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               key={t.id}
               role="status"
               className={cn(
-                "pointer-events-auto flex w-full max-w-sm items-start gap-2.5 border bg-card px-4 py-3 shadow-md animate-in fade-in-0 slide-in-from-bottom-2",
-                VARIANT_BORDER[t.variant ?? "default"]
+                "pointer-events-auto flex w-full max-w-sm items-start gap-2.5 border bg-card rounded-xl px-4 py-3 shadow-md animate-in fade-in-0 slide-in-from-bottom-2",
+                VARIANT_BORDER[t.variant ?? "default"],
               )}
             >
-              <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", VARIANT_ICON_COLOR[t.variant ?? "default"])} />
+              <Icon
+                className={cn(
+                  "h-4 w-4 mt-0.5 shrink-0",
+                  VARIANT_ICON_COLOR[t.variant ?? "default"],
+                )}
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{t.title}</p>
                 {t.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t.description}
+                  </p>
                 )}
               </div>
               <button
                 onClick={() => dismiss(t.id)}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 aria-label="Dismiss notification"
               >
                 <X className="h-3.5 w-3.5" />

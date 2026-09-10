@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96%;
+    --background: 42 24% 95%;
     --foreground: 0 0% 4%;
-    --card: 0 0% 100%;
+    --card: 40 30% 98%;
     --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
@@ -14,16 +14,18 @@
     --primary-foreground: 0 0% 96%;
     --secondary: 0 0% 90%;
     --secondary-foreground: 0 0% 4%;
-    --muted: 0 0% 92%;
+    --muted: 40 12% 90%;
     --muted-foreground: 0 0% 40%;
+    --success: 158 74% 25%;
+    --warning: 32 95% 28%;
     --accent: 14 90% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 42%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 82%;
+    --border: 35 10% 79%;
     --input: 0 0% 92%;
     --ring: 14 90% 40%;
-    --radius: 0px;
+    --radius: 4px;
   }
 
   .dark {
@@ -39,14 +41,16 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 10%;
     --muted-foreground: 0 0% 63%;
+    --success: 158 65% 60%;
+    --warning: 43 96% 65%;
     --accent: 14 100% 50%;
     --accent-foreground: 0 0% 4%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 4%;
     --border: 0 0% 15%;
     --input: 0 0% 10%;
     --ring: 14 100% 50%;
-    --radius: 0px;
+    --radius: 4px;
   }
 }
 
@@ -62,6 +66,13 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: inherit;
   }
 
   /* Subtle noise grain texture overlay */
@@ -94,5 +105,248 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --dock-space: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 1024px) {
+    :root {
+      --dock-space: 1rem;
+    }
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  summary {
+    min-height: 44px;
+    cursor: pointer;
+    padding-block: 10px;
+  }
+  input[type="date"],
+  input[type="time"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+  input[type="range"] {
+    min-height: 44px;
+  }
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: hsl(var(--accent));
+  }
+  html[data-keyboard="true"] [data-mobile-dock] {
+    display: none;
+  }
+  html[data-keyboard="true"] {
+    --dock-space: 0px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Athletic editorial system: paper, ink, orange, and piste markings. */
+@layer components {
+  .eyebrow {
+    @apply font-sans text-xs font-medium uppercase tracking-wider;
+  }
+  .page-heading {
+    position: relative;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .page-heading::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    width: 3rem;
+    height: 3px;
+    background: hsl(var(--accent));
+  }
+  .page-title {
+    min-width: 0;
+    font-size: clamp(3.25rem, 12vw, 5.5rem);
+    font-weight: 750;
+    letter-spacing: -0.065em;
+    line-height: 1.04;
+    overflow-wrap: anywhere;
+  }
+  .page-heading .eyebrow {
+    color: hsl(var(--muted-foreground));
+  }
+  .fencing-illustration {
+    display: none;
+    pointer-events: none;
+  }
+  @media (min-width: 640px) {
+    .fencing-illustration {
+      display: block;
+      position: absolute;
+      right: 2rem;
+      top: 1.5rem;
+      width: 200px;
+      height: 120px;
+      color: hsl(var(--accent));
+      opacity: 0.7;
+    }
+    .performance-overview {
+      padding-right: 220px;
+    }
+  }
+  .piste-mark {
+    display: flex;
+    align-items: end;
+    gap: 5px;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    padding: 0 7px 4px 0;
+  }
+  .piste-mark i {
+    display: block;
+    width: 5px;
+    height: 100%;
+    transform: skew(-24deg);
+    background: hsl(var(--accent));
+  }
+  .piste-mark i:nth-child(2) {
+    height: 72%;
+  }
+  .piste-mark i:nth-child(3) {
+    height: 44%;
+  }
+  .performance-panel {
+    --background: 220 12% 9%;
+    --foreground: 40 25% 96%;
+    --card: 220 12% 9%;
+    --card-foreground: 40 25% 96%;
+    --muted: 220 8% 22%;
+    --muted-foreground: 40 8% 73%;
+    --border: 220 7% 30%;
+    --accent: 18 100% 64%;
+    --accent-foreground: 220 12% 9%;
+    --success: 158 65% 65%;
+    --warning: 43 96% 68%;
+    position: relative;
+    border-radius: 6px;
+    border-top: 3px solid hsl(var(--accent));
+    padding: 1.25rem;
+    background: linear-gradient(115deg, hsl(220 12% 9%) 55%, hsl(220 10% 16%));
+    color: hsl(var(--foreground));
+  }
+  .dashboard-editorial {
+    display: grid;
+    align-items: start;
+    gap: 2rem;
+  }
+  .dashboard-section {
+    min-width: 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    padding: 1.25rem;
+    background: hsl(var(--card));
+  }
+  .dashboard-section-heading {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .competition-feature {
+    --border: 20 27% 69%;
+    --muted-foreground: 20 18% 31%;
+    position: relative;
+    min-width: 0;
+    padding: 1.25rem;
+    background: hsl(25 62% 87%);
+    color: hsl(20 24% 13%);
+    border: 1px solid hsl(var(--border));
+    border-radius: 4px;
+  }
+  .competition-feature::after {
+    content: "";
+    position: absolute;
+    right: 1.25rem;
+    top: 1.25rem;
+    width: 2.5rem;
+    height: 3px;
+    background: hsl(14 90% 40%);
+    box-shadow:
+      0 6px hsl(14 90% 40%),
+      0 12px hsl(14 90% 40%);
+  }
+  .competition-feature > h2 {
+    padding-right: 3rem;
+  }
+  .competition-feature a,
+  .competition-feature [data-slot="badge"] {
+    color: inherit;
+  }
+  .competition-feature a:hover {
+    background: hsl(25 45% 82%);
+  }
+  .competition-countdown {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .countdown-number {
+    font-size: 4.5rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.07em;
+    font-variant-numeric: tabular-nums;
+  }
+  .editorial-card {
+    border-top-color: hsl(var(--foreground) / 0.45);
+  }
+  .event-card {
+    border-left: 3px solid hsl(var(--accent));
+  }
+  .training-session {
+    border-top: 3px solid hsl(var(--accent));
+  }
+  .nutrition-intake,
+  .weekly-summary {
+    border-top: 3px solid hsl(var(--accent));
+    background: linear-gradient(
+      120deg,
+      hsl(var(--accent) / 0.06),
+      hsl(var(--card)) 65%
+    );
+  }
+  .weekly-summary .text-2xl {
+    font-size: 2.5rem;
+    letter-spacing: -0.06em;
+  }
+  @media (min-width: 768px) {
+    .dashboard-editorial {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+    .dashboard-section,
+    .competition-feature {
+      padding: 1.5rem;
+    }
+    .performance-panel {
+      padding: 1.5rem;
+    }
+  }
+  @media (max-width: 374px) {
+    .piste-mark {
+      display: none;
+    }
   }
 }

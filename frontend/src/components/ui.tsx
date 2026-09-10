@@ -1,13 +1,13 @@
 "use client";
 
-import React from "react";
-import { cn } from "@/lib/utils";
 import {
-  Card as ShadCard,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
+  Card as ShadCard,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 /**
  * Application-level Card wrapper — minimal editorial styling.
@@ -29,10 +29,15 @@ export function Card({
   bordered?: boolean;
 }) {
   return (
-    <ShadCard className={cn(!bordered && "border-transparent hover:border-transparent", className)}>
+    <ShadCard
+      className={cn(
+        !bordered && "border-transparent hover:border-transparent",
+        className,
+      )}
+    >
       {title && (
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <CardTitle className="flex items-center gap-2">
               {icon && <span className="text-accent">{icon}</span>}
               {title}
@@ -51,17 +56,26 @@ export function Card({
   );
 }
 
-export function BandPill({ band }: { band: "red" | "amber" | "green" | string }) {
+export function BandPill({
+  band,
+}: {
+  band: "red" | "amber" | "green" | string;
+}) {
   const colorClass =
     band === "green"
-      ? "border-emerald-500 text-emerald-400"
+      ? "border-emerald-500 text-success"
       : band === "amber"
-        ? "border-amber-500 text-amber-400"
+        ? "border-amber-500 text-warning"
         : band === "red"
           ? "border-accent text-accent"
           : "border-muted-foreground text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest", colorClass)}>
+    <span
+      className={cn(
+        "inline-flex items-center border px-2 py-0.5 text-sm font-medium",
+        colorClass,
+      )}
+    >
       {band}
     </span>
   );
@@ -77,11 +91,13 @@ export function StatRow({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between text-sm py-2.5 border-b border-border last:border-0">
-      <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">{label}</span>
-      <span className="font-mono text-foreground font-medium text-sm">
+    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm py-2.5 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-sm font-medium">{label}</span>
+      <span className="font-sans text-foreground font-medium text-sm">
         {value}
-        {hint && <span className="text-muted-foreground text-xs ml-1.5">{hint}</span>}
+        {hint && (
+          <span className="text-muted-foreground text-xs ml-1.5">{hint}</span>
+        )}
       </span>
     </div>
   );
