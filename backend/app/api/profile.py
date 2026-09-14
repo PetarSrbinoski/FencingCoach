@@ -8,17 +8,21 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models import AthleteProfile
 from app.schemas import ProfileOut, ProfileUpdate
+from app.services.transactions import lock_meal_inputs, lock_nutrition_inputs
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 
-def _get_or_create(db: Session) -> AthleteProfile:
+def _get_or_create(db: Session, *, commit: bool = True) -> AthleteProfile:
     """Return the single AthleteProfile row, creating one if none exists."""
     profile = db.query(AthleteProfile).first()
     if profile is None:
         profile = AthleteProfile()
         db.add(profile)
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
         db.refresh(profile)
     return profile
 
@@ -39,6 +43,7 @@ def get_profile(db: Session = Depends(get_db)) -> ProfileOut:
         weaknesses=p.weaknesses,
         body_comp_goal=p.body_comp_goal,
         dietary_restrictions=p.dietary_restrictions,
+        food_preferences=p.food_preferences,
         food_budget=p.food_budget,
         supplements=p.supplements,
         notes=p.notes,
@@ -50,7 +55,9 @@ def update_profile(
     body: ProfileUpdate,
     db: Session = Depends(get_db),
 ) -> ProfileOut:
-    p = _get_or_create(db)
+    lock_nutrition_inputs(db)
+    lock_meal_inputs(db)
+    p = _get_or_create(db, commit=False)
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(p, field, value)
@@ -69,6 +76,7 @@ def update_profile(
         weaknesses=p.weaknesses,
         body_comp_goal=p.body_comp_goal,
         dietary_restrictions=p.dietary_restrictions,
+        food_preferences=p.food_preferences,
         food_budget=p.food_budget,
         supplements=p.supplements,
         notes=p.notes,

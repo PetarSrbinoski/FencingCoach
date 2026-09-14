@@ -27,6 +27,8 @@ router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 def generate_today(db: Session = Depends(get_db)) -> MealPlanOut:
     try:
         plan = generate_meal_plan(db, athlete_today())
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"meal plan generation failed: {e}") from e
     return MealPlanOut(
@@ -49,6 +51,8 @@ def generate_week(
         d = start + timedelta(days=i)
         try:
             plan = generate_meal_plan(db, d)
+        except ValueError as e:
+            raise HTTPException(409, str(e)) from e
         except Exception as e:  # noqa: BLE001
             raise HTTPException(502, f"week generation failed at {d}: {e}") from e
         out.append(
@@ -68,6 +72,8 @@ def generate(
 ) -> MealPlanOut:
     try:
         plan = generate_meal_plan(db, day)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"meal plan generation failed: {e}") from e
     return MealPlanOut(

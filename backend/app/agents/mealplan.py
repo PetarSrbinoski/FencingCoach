@@ -24,8 +24,10 @@ from app.agents.deps import (
 from app.agents.retry import call_with_transient_retry
 from app.core.clock import athlete_today
 from app.core.config import settings
-from app.models import NutritionPlan
-from app.services.targets import NutritionTargets, compute_targets
+from app.models import AthleteProfile, NutritionPlan
+from app.services.dietary_rules import ingredient_conflicts, resolved_rules
+from app.services.mealplan import plan_meals
+from app.services.targets import NutritionTargets, resolve_effective_targets
 from llm.prompts.mealplan import MEALPLAN_INSTRUCTIONS
 
 log = logging.getLogger(__name__)
@@ -44,18 +46,18 @@ class Meal(BaseModel):
     time: str = Field(description="HH:MM format")
     name: str
     ingredients: list[MealIngredient] = Field(default_factory=list)
-    kcal: float = 0
-    protein_g: float = 0
-    carbs_g: float = 0
-    fat_g: float = 0
+    kcal: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fat_g: float | None = None
     notes: str = ""
 
 
 class MealPlanTotals(BaseModel):
-    kcal: float = 0
-    protein_g: float = 0
-    carbs_g: float = 0
-    fat_g: float = 0
+    kcal: float | None = None
+    protein_g: float | None = None
+    carbs_g: float | None = None
+    fat_g: float | None = None
 
 
 class MealPlanOutput(BaseModel):
@@ -113,7 +115,12 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
     Drop-in replacement for `services/mealplan.generate_day_plan()`.
     """
     day = day or athlete_today()
-    targets: NutritionTargets = compute_targets(db, day)
+    targets: NutritionTargets = resolve_effective_targets(db, day)
+    profile = db.scalar(select(AthleteProfile).limit(1))
+    restrictions = (profile.dietary_restrictions or "").strip() if profile else ""
+    preferences = (profile.food_preferences or "").strip() if profile else ""
+    budget = (profile.food_budget or "unspecified").strip() if profile else "unspecified"
+    rules = resolved_rules(restrictions)
 
     user_msg = (
         f"Date: {day.isoformat()} ({day.strftime('%A')})\n"
@@ -134,24 +141,40 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
             if targets.day_type == "rest"
             else "competition day"
         )
-        + ".\nGenerate the meal plan."
+        + f".\nHard dietary exclusions: {restrictions or 'none'}; resolved rules: {', '.join(rules) or 'none'}. "
+        + f"Soft food preferences: {preferences or 'none'}. Budget: {budget}. "
+        + "Hard exclusions take priority over budget and numerical targets. "
+        + "List every ingredient in grams. Ingredient-name screening cannot verify packaged allergens or cross-contact.\nGenerate the meal plan."
     )
 
     deps = CoachDeps(db=db)
 
-    try:
-        result = call_with_transient_retry(
-            lambda: mealplan_agent.run_sync(user_msg, deps=deps, model=get_active_model()),
-            label="mealplan agent",
-        )
-        plan_data = result.output.model_dump()
-    except Exception as e:
-        log.warning("Meal-plan agent failed: %s", e)
-        plan_data = {"meals": [], "totals": {}, "rationale": f"agent-failed: {e}"}
+    plan_data: dict = {}
+    conflicts: list[str] = []
+    for _ in range(2):
+        try:
+            result = call_with_transient_retry(
+                lambda: mealplan_agent.run_sync(user_msg, deps=deps, model=get_active_model()),
+                label="mealplan agent",
+            )
+            plan_data = result.output.model_dump()
+        except Exception as e:
+            log.warning("Meal-plan agent failed: %s", e)
+            raise RuntimeError("Meal-plan provider failed; the previous plan is preserved") from e
+        conflicts = ingredient_conflicts(plan_data, rules)
+        if plan_meals(plan_data) and not conflicts:
+            break
+        user_msg += f"\nThe proposed plan was rejected: {', '.join(conflicts) or 'no usable meals'}. Replace it fully."
+    else:
+        raise ValueError(f"Meal plan could not satisfy restrictions: {', '.join(conflicts) or 'no usable meals'}; previous plan preserved")
+
+    context = {"restrictions": restrictions, "preferences": preferences, "budget": budget, "resolved_rules": rules}
+    plan_data["rationale"] = (plan_data.get("rationale") or "") + f" Budget: {budget}; preferences: {preferences or 'none'}."
 
     payload = {
         "plan": plan_data,
         "model": active_model_label(),
+        "profile_context": context,
     }
     targets_payload = targets.to_dict()
 

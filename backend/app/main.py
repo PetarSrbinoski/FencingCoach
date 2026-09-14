@@ -13,6 +13,8 @@ from app.api import (
     activities,
     brief,
     chat,
+    competition_meals,
+    competition_nutrition,
     competitions,
     diagnostics,
     fencing,
@@ -102,6 +104,8 @@ app.include_router(mealplan.router)
 app.include_router(mealplan.shopping_router)
 app.include_router(training.router)
 app.include_router(competitions.router)
+app.include_router(competition_nutrition.router)
+app.include_router(competition_meals.router)
 app.include_router(profile.router)
 app.include_router(mental.router)
 app.include_router(usda.router)
