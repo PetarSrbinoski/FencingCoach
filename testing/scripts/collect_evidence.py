@@ -43,6 +43,20 @@ def suite_hash() -> str:
     return digest.hexdigest()
 
 
+def source_hash() -> str:
+    """Identify the tested application tree even when the worktree is dirty."""
+    paths = [ROOT / "frontend/package.json", ROOT / "frontend/package-lock.json"]
+    for directory in ("backend/app", "backend/alembic", "llm", "frontend/src"):
+        paths.extend(path for path in (ROOT / directory).rglob("*") if path.is_file())
+    digest = hashlib.sha256()
+    for path in sorted(paths):
+        if "__pycache__" in path.parts or path.suffix == ".pyc":
+            continue
+        digest.update(str(path.relative_to(ROOT)).encode())
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifact-dir", type=Path, required=True)
@@ -71,6 +85,7 @@ def main() -> None:
 
     details = {
         "source_revision": command_output("git", "rev-parse", "HEAD"),
+        "source_tree_sha256": source_hash(),
         "suite_sha256": suite_hash(),
         "working_tree_status": command_output("git", "status", "--short"),
         "started_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(args.started_at)),

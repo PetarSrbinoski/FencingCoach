@@ -49,8 +49,8 @@ def test_today() -> date:
 
 # Routers and services import athlete_today directly. Replace each consuming
 # binding after the application has loaded, as well as the source function.
-for module in tuple(sys.modules.values()):
-    if getattr(module, "athlete_today", None) is original_today:
+for module_name, module in tuple(sys.modules.items()):
+    if module_name.startswith("app.") and getattr(module, "athlete_today", None) is original_today:
         setattr(module, "athlete_today", test_today)
 clock.athlete_today = test_today
 
