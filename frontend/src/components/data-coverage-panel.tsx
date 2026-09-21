@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
-import { api, Diagnostics, MetricDiagnostic } from "@/lib/api";
 import { Card } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { api, Diagnostics, MetricDiagnostic } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const KIND_LABELS: Record<string, string> = {
   sleep: "Sleep",
@@ -28,30 +29,48 @@ function label(kind: string): string {
 
 function staleMessage(m: MetricDiagnostic): string {
   if (m.last_ok_day === null) {
-    return `${label(m.kind)} has never parsed successfully`;
+    return `${label(m.kind)} has no usable reading yet`;
   }
   const days = m.days_since_ok ?? 0;
   if (days === 0) return `${label(m.kind)} is up to date`;
-  return `${label(m.kind)} hasn't parsed in ${days} day${days === 1 ? "" : "s"}`;
+  return `${label(m.kind)} has no new usable reading in ${days} day${days === 1 ? "" : "s"}`;
 }
 
 /** Surfaces Garmin extraction gaps instead of letting them silently degrade
  * readiness/targets/coach context. See GET /diagnostics. */
-export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) {
+export function DataCoveragePanel({
+  windowDays = 30,
+  revision = 0,
+}: {
+  windowDays?: number;
+  revision?: number;
+}) {
   const [data, setData] = useState<Diagnostics | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setErr(null);
     api.diagnostics
       .get(windowDays)
       .then(setData)
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
-  }, [windowDays]);
+      .catch((e: unknown) =>
+        setErr(e instanceof Error ? e.message : String(e)),
+      );
+  }, [windowDays, revision, retry]);
 
   if (err) {
     return (
       <Card title="Data coverage">
-        <p className="text-sm text-accent">{err}</p>
+        <p role="alert" className="text-sm text-destructive">
+          {err}
+        </p>
+        <Button
+          onClick={() => setRetry((value) => value + 1)}
+          variant="outline"
+        >
+          Retry
+        </Button>
       </Card>
     );
   }
@@ -72,34 +91,41 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
 
   return (
     <Card title="Data coverage" className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Extraction coverage over the last {data.window_days} days.
+      <p className="text-sm text-muted-foreground">
+        Available readings over the last {data.window_days} days.
       </p>
 
       {stale.length > 0 && (
-        <ul className="space-y-2">
-          {stale.map((m) => (
-            <li
-              key={m.kind}
-              className="flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2"
-            >
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-400 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-amber-400">{staleMessage(m)}</p>
-                <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
-                  coverage {m.coverage_days}/{m.window_days}d
-                  {m.last_ok_day && ` · last ok ${m.last_ok_day}`}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <details>
+          <summary className="font-medium text-warning">
+            {stale.length} metrics need attention
+          </summary>
+          <ul className="space-y-2">
+            {stale.map((m) => (
+              <li
+                key={m.kind}
+                className="flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-warning">
+                    {staleMessage(m)}
+                  </p>
+                  <p className="text-sm text-muted-foreground font-sans mt-0.5">
+                    coverage {m.coverage_days}/{m.window_days}d
+                    {m.last_ok_day && ` · last ok ${m.last_ok_day}`}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {healthy.length > 0 && (
         <details className="group">
-          <summary className="text-xs text-muted-foreground cursor-pointer select-none flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+          <summary className="text-sm text-muted-foreground cursor-pointer select-none flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             {healthy.length} metric{healthy.length === 1 ? "" : "s"} up to date
           </summary>
           <ul className="mt-2 space-y-1">
@@ -107,11 +133,11 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
               <li
                 key={m.kind}
                 className={cn(
-                  "flex items-center justify-between text-xs py-1 border-b border-border last:border-0"
+                  "flex items-center justify-between text-sm py-1 border-b border-border last:border-0",
                 )}
               >
                 <span className="text-muted-foreground">{label(m.kind)}</span>
-                <span className="font-mono text-foreground/80">
+                <span className="font-sans text-foreground/80">
                   {m.last_ok_value ?? "—"} · {m.coverage_days}/{m.window_days}d
                 </span>
               </li>
@@ -125,26 +151,47 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
 
 /** Slim, dashboard-friendly variant: renders nothing when all metrics are
  * healthy, otherwise a compact warning list. */
-export function StaleDataBanner({ windowDays = 30 }: { windowDays?: number }) {
+export function StaleDataBanner({
+  windowDays = 30,
+  revision = 0,
+}: {
+  windowDays?: number;
+  revision?: number;
+}) {
   const [data, setData] = useState<Diagnostics | null>(null);
 
   useEffect(() => {
-    api.diagnostics.get(windowDays).then(setData).catch(() => {});
-  }, [windowDays]);
+    api.diagnostics
+      .get(windowDays)
+      .then(setData)
+      .catch(() => {});
+  }, [windowDays, revision]);
 
   // Only surface metrics that were working and went stale (actionable sync
   // gap) — metrics that never parsed at all are unsupported-metric noise.
-  const stale = data?.metrics.filter((m) => m.stale && m.last_ok_day !== null) ?? [];
+  const stale =
+    data?.metrics.filter((m) => m.stale && m.last_ok_day !== null) ?? [];
   if (stale.length === 0) return null;
 
   return (
-    <div className="border border-amber-500/30 bg-amber-500/5 px-4 py-3 space-y-1.5">
-      {stale.map((m) => (
-        <p key={m.kind} className="flex items-center gap-2 text-xs text-amber-400">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          {staleMessage(m)}
-        </p>
-      ))}
-    </div>
+    <details className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+      <summary className="text-sm text-warning">
+        {stale.length} recovery metrics need a refresh
+      </summary>
+      <div className="space-y-2">
+        {stale.map((m) => (
+          <p
+            key={m.kind}
+            className="flex items-center gap-2 text-sm text-warning"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            {staleMessage(m)}
+          </p>
+        ))}
+        <Button size="sm" variant="outline" asChild>
+          <a href="/garmin">Review Garmin data</a>
+        </Button>
+      </div>
+    </details>
   );
 }

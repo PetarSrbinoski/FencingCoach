@@ -34,6 +34,7 @@ class Readiness:
     source: str  # "garmin" | "neutral" (no reading available)
     advisories: dict[str, Advisory]
     inputs: dict[str, Any]
+    reading_fetched_at: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,6 +44,7 @@ class Readiness:
             "source": self.source,
             "advisories": {k: asdict(v) for k, v in self.advisories.items()},
             "inputs": self.inputs,
+            "reading_fetched_at": self.reading_fetched_at,
         }
 
 
@@ -53,6 +55,7 @@ def _values(db: Session, kind: str, start: date, end: date) -> list[tuple[date, 
         .where(
             and_(
                 GarminMetric.kind == kind,
+                GarminMetric.status == "ok",
                 GarminMetric.day >= start,
                 GarminMetric.day <= end,
                 GarminMetric.value.is_not(None),
@@ -148,8 +151,12 @@ def _advise_rest(db: Session, day: date) -> Advisory:
 def compute_readiness(db: Session, day: date | None = None) -> Readiness:
     day = day or athlete_today()
 
-    raw = _last(_values(db, "training_readiness", day, day))
-    if raw is None:
+    metric = db.scalar(select(GarminMetric).where(
+        GarminMetric.kind == "training_readiness", GarminMetric.day == day,
+        GarminMetric.status == "ok",
+    ))
+    raw = metric.value if metric is not None else None
+    if raw is None or not 0 <= raw <= 100:
         score, band, source = None, "unknown", "neutral"
     else:
         score, band, source = raw, band_for_score(raw), "garmin"
@@ -171,4 +178,5 @@ def compute_readiness(db: Session, day: date | None = None) -> Readiness:
         source=source,
         advisories=advisories,
         inputs=inputs,
+        reading_fetched_at=metric.fetched_at.isoformat() if metric and score is not None and metric.fetched_at else None,
     )
