@@ -99,7 +99,10 @@ def main() -> None:
             "browser": "Chromium",
         },
         "command": "bash testing/scripts/run_e2e.sh",
-        "scope": ["testing/integration/test_smoke_api.py", "frontend/e2e/nutrition-smoke.spec.ts"],
+        "scope": {
+            "api": sorted(str(p.relative_to(ROOT)) for p in (ROOT / "testing/integration").glob("test_*.py")),
+            "browser": sorted(str(p.relative_to(ROOT)) for p in (ROOT / "frontend/e2e").glob("*.spec.ts")),
+        },
         "settings": {
             "athlete_day": os.environ.get("TEST_ATHLETE_DAY"),
             "backend_port": os.environ.get("TEST_BACKEND_PORT"),
