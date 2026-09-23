@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, Profile } from "@/lib/api";
+import { PageHeading } from "@/components/page-heading";
+
+import { ErrorNotice, UnsavedChangesGuard } from "@/components/mobile-ui";
 import { Card } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,8 +14,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { Save, Loader2, Dumbbell, Target, AlertCircle } from "lucide-react";
+import { api, Profile } from "@/lib/api";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useState,
+} from "react";
 
 const BODY_COMP_GOALS = [
   { value: "performance", label: "Performance" },
@@ -77,15 +86,30 @@ export default function ProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
+  function loadProfile() {
+    setErr(null);
     api.profile
       .get()
       .then((p) => {
         setProfile(p);
-        setForm(p);
+        const saved = sessionStorage.getItem("profileDraft");
+        try {
+          setForm(saved ? { ...p, ...JSON.parse(saved) } : p);
+        } catch {
+          setForm(p);
+        }
       })
       .catch((e) => setErr(e?.message ?? String(e)));
-  }, []);
+  }
+  useEffect(loadProfile, []);
+
+  const dirty =
+    profile !== null && JSON.stringify(form) !== JSON.stringify(profile);
+
+  useEffect(() => {
+    if (dirty) sessionStorage.setItem("profileDraft", JSON.stringify(form));
+    else if (profile) sessionStorage.removeItem("profileDraft");
+  }, [dirty, form, profile]);
 
   function update(field: string, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -98,7 +122,12 @@ export default function ProfilePage() {
       const updated = await api.profile.update(form);
       setProfile(updated);
       setForm(updated);
-      toast({ title: "Profile saved", description: "Your changes have been saved.", variant: "success" });
+      sessionStorage.removeItem("profileDraft");
+      toast({
+        title: "Profile saved",
+        description: "Your changes have been saved.",
+        variant: "success",
+      });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -108,44 +137,39 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-16 md:space-y-20">
+    <div className="space-y-6 lg:space-y-8">
       {/* Header */}
-      <header className="relative">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-              Athlete identity
-            </p>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
-              Profile
-            </h1>
-            <p className="mt-4 text-sm text-muted-foreground font-mono">
-              Your details and coaching preferences
-            </p>
-            <div className="h-1 w-16 bg-accent mt-6" />
-          </div>
-          {profile && (
-            <Button onClick={save} disabled={saving} size="lg" className="shrink-0">
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
+      <PageHeading title="Profile" eyebrow="Athlete identity" />
+
+      <UnsavedChangesGuard dirty={dirty} />
+      {err && (
+        <ErrorNotice message={err} retry={!profile ? loadProfile : undefined} />
+      )}
+      {dirty && (
+        <div className="fixed inset-x-4 bottom-[calc(var(--dock-space)+var(--keyboard-inset,0px))] lg:left-auto lg:right-8 lg:max-w-lg z-40 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <span className="text-sm text-muted-foreground">Unsaved changes</span>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setForm(profile!);
+                sessionStorage.removeItem("profileDraft");
+              }}
+            >
+              Discard changes
+            </Button>
+            <Button onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save changes"}
             </Button>
+          </div>
+          {err && (
+            <p role="alert" className="w-full text-sm text-destructive">
+              {err}
+            </p>
           )}
         </div>
-      </header>
-
-      {/* Messages */}
-      {err && (
-        <div className="flex items-center gap-2 px-5 py-4 border border-accent/30 bg-accent/5">
-          <AlertCircle className="h-4 w-4 text-accent shrink-0" />
-          <p className="text-accent text-sm">{err}</p>
-        </div>
       )}
-
-      {!profile ? (
+      {!profile && !err ? (
         <Card>
           <div className="space-y-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -153,13 +177,18 @@ export default function ProfilePage() {
             ))}
           </div>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      ) : profile ? (
+        <div className="space-y-3 pb-32">
           {/* Basic info */}
-          <Card title="Athlete info" icon={<Dumbbell className="h-4 w-4" />}>
+          <details
+            open
+            className="rounded-2xl border border-border bg-card p-4"
+          >
+            <summary className="font-semibold text-lg">Athlete basics</summary>
             <div className="space-y-4">
               <Field label="Name">
                 <Input
+                  autoComplete="name"
                   value={form.name ?? ""}
                   onChange={(e) => update("name", e.target.value)}
                   placeholder="Your name"
@@ -168,9 +197,14 @@ export default function ProfilePage() {
               <Field label="Age">
                 <Input
                   type="number"
+                  min="0"
+                  inputMode="decimal"
                   value={form.age ?? ""}
                   onChange={(e) =>
-                    update("age", e.target.value ? parseInt(e.target.value) : null)
+                    update(
+                      "age",
+                      e.target.value ? parseInt(e.target.value) : null,
+                    )
                   }
                   placeholder="e.g. 28"
                 />
@@ -178,29 +212,41 @@ export default function ProfilePage() {
               <Field label="Height (cm)">
                 <Input
                   type="number"
+                  min="0"
+                  inputMode="decimal"
                   step="0.1"
                   value={form.height_cm ?? ""}
                   onChange={(e) =>
-                    update("height_cm", e.target.value ? parseFloat(e.target.value) : null)
+                    update(
+                      "height_cm",
+                      e.target.value ? parseFloat(e.target.value) : null,
+                    )
                   }
                   placeholder="e.g. 180"
                 />
                 <FieldNote>
-                  Saved in your profile and shown in coach context. It does not currently drive calculations.
+                  Saved in your profile and shown in coach context. It does not
+                  currently drive calculations.
                 </FieldNote>
               </Field>
               <Field label="Weight (kg)">
                 <Input
                   type="number"
+                  min="0"
+                  inputMode="decimal"
                   step="0.1"
                   value={form.weight_kg ?? ""}
                   onChange={(e) =>
-                    update("weight_kg", e.target.value ? parseFloat(e.target.value) : null)
+                    update(
+                      "weight_kg",
+                      e.target.value ? parseFloat(e.target.value) : null,
+                    )
                   }
                   placeholder="e.g. 75"
                 />
                 <FieldNote>
-                  Directly affects daily calorie and macro targets through the nutrition target engine.
+                  Directly affects daily calorie and macro targets through the
+                  nutrition target engine.
                 </FieldNote>
               </Field>
               <Field label="Sport">
@@ -227,6 +273,11 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
               </Field>
+            </div>
+          </details>
+          <details className="rounded-2xl border border-border bg-card p-4">
+            <summary className="font-semibold text-lg">Training goals</summary>
+            <div className="space-y-4 pt-3">
               <Field label="Fencing style">
                 <Select
                   value={form.fencing_style ?? "distance_control"}
@@ -244,70 +295,9 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <FieldNote>
-                  Stored in your profile and included in coach context for training and tactical advice.
+                  Stored in your profile and included in coach context for
+                  training and tactical advice.
                 </FieldNote>
-              </Field>
-            </div>
-          </Card>
-
-          {/* Goals & Nutrition */}
-          <Card title="Goals & nutrition" icon={<Target className="h-4 w-4" />}>
-            <div className="space-y-4">
-              <Field label="Body composition goal">
-                <Select
-                  value={form.body_comp_goal ?? "performance"}
-                  onValueChange={(v) => update("body_comp_goal", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BODY_COMP_GOALS.map((g) => (
-                      <SelectItem key={g.value} value={g.value}>
-                        {g.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldNote>
-                  Directly affects calorie targets. Cutting/lean lowers calories; maintain keeps them neutral; gain raises them.
-                </FieldNote>
-              </Field>
-              <Field label="Food budget">
-                <Select
-                  value={form.food_budget ?? "moderate"}
-                  onValueChange={(v) => update("food_budget", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FOOD_BUDGETS.map((budget) => (
-                      <SelectItem key={budget.value} value={budget.value}>
-                        {budget.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldNote>
-                  Currently saved only. It does not yet change meal-plan generation logic.
-                </FieldNote>
-              </Field>
-              <Field label="Dietary restrictions">
-                <Textarea
-                  value={form.dietary_restrictions ?? ""}
-                  onChange={(e) => update("dietary_restrictions", e.target.value)}
-                  placeholder="e.g. lactose intolerant, no pork"
-                  rows={2}
-                />
-              </Field>
-              <Field label="Supplements">
-                <Textarea
-                  value={form.supplements ?? ""}
-                  onChange={(e) => update("supplements", e.target.value)}
-                  placeholder="e.g. creatine 5g, whey protein"
-                  rows={2}
-                />
               </Field>
               <Field label="Goals">
                 <Select
@@ -326,7 +316,8 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <FieldNote>
-                  Saved to your profile and injected into coach context. It does not directly change targets by code.
+                  Saved to your profile and injected into coach context. It does
+                  not directly change targets by code.
                 </FieldNote>
               </Field>
               <Field label="Weaknesses">
@@ -346,9 +337,105 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <FieldNote>
-                  Saved to your profile and injected into coach context. It does not directly change targets by code.
+                  Saved to your profile and injected into coach context. It does
+                  not directly change targets by code.
                 </FieldNote>
               </Field>
+            </div>
+          </details>
+
+          {/* Goals & Nutrition */}
+          <details className="rounded-2xl border border-border bg-card p-4">
+            <summary className="font-semibold text-lg">
+              Nutrition preferences
+            </summary>
+            <div className="space-y-4">
+              <Field label="Body composition goal">
+                <Select
+                  value={form.body_comp_goal ?? "performance"}
+                  onValueChange={(v) => update("body_comp_goal", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BODY_COMP_GOALS.map((g) => (
+                      <SelectItem key={g.value} value={g.value}>
+                        {g.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldNote>
+                  Performance and maintain use maintenance energy; cutting
+                  requests 5% less, lean bulk 5% more, and recomposition uses
+                  maintenance with higher protein. Macro bounds can take
+                  priority when they conflict with the energy request.
+                </FieldNote>
+              </Field>
+              <Field label="Food budget">
+                <Select
+                  value={form.food_budget ?? "moderate"}
+                  onValueChange={(v) => update("food_budget", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOOD_BUDGETS.map((budget) => (
+                      <SelectItem key={budget.value} value={budget.value}>
+                        {budget.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldNote>
+                  Used to shape meal-plan choices; no verified price estimate is
+                  made.
+                </FieldNote>
+              </Field>
+              <Field label="Dietary restrictions and hard exclusions">
+                <Textarea
+                  value={form.dietary_restrictions ?? ""}
+                  onChange={(e) =>
+                    update("dietary_restrictions", e.target.value)
+                  }
+                  placeholder="e.g. lactose intolerant, no pork"
+                  rows={2}
+                />
+                <FieldNote>
+                  Supported examples: no peanuts, dairy-free, gluten-free,
+                  vegetarian, vegan, no pork. Unknown wording will require
+                  clarification before a new plan can be saved. Ingredient-name
+                  checks cannot guarantee packaged-product allergen safety or
+                  cross-contact.
+                </FieldNote>
+              </Field>
+              <Field label="Food preferences (soft)">
+                <Textarea
+                  value={form.food_preferences ?? ""}
+                  onChange={(event) =>
+                    update("food_preferences", event.target.value)
+                  }
+                  placeholder="e.g. quick meals, dislike mushrooms"
+                  rows={2}
+                />
+              </Field>
+              <Field label="Supplements">
+                <Textarea
+                  value={form.supplements ?? ""}
+                  onChange={(e) => update("supplements", e.target.value)}
+                  placeholder="e.g. creatine 5g, whey protein"
+                  rows={2}
+                />
+              </Field>
+            </div>
+          </details>
+          <details className="rounded-2xl border border-border bg-card p-4">
+            <summary className="font-semibold text-lg">
+              Additional notes
+            </summary>
+            <div className="space-y-4 pt-3">
               <Field label="Notes">
                 <Textarea
                   value={form.notes ?? ""}
@@ -358,9 +445,9 @@ export default function ProfilePage() {
                 />
               </Field>
             </div>
-          </Card>
+          </details>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -372,14 +459,37 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</label>
-      {children}
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
+      </label>
+      {Children.map(children, (child) => {
+        if (!isValidElement<{ id?: string; children?: React.ReactNode }>(child))
+          return child;
+        if (child.type === Input || child.type === Textarea)
+          return cloneElement(child, { id });
+        if (child.type === Select)
+          return cloneElement(child, {
+            children: Children.map(child.props.children, (nested) =>
+              isValidElement<{ id?: string }>(nested) &&
+              nested.type === SelectTrigger
+                ? cloneElement(nested, { id })
+                : nested,
+            ),
+          });
+        return child;
+      })}
     </div>
   );
 }
 
 function FieldNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[11px] leading-relaxed text-muted-foreground/70 mt-1">{children}</p>;
+  return (
+    <details className="text-sm text-muted-foreground">
+      <summary>How this is used</summary>
+      <p className="leading-relaxed">{children}</p>
+    </details>
+  );
 }
