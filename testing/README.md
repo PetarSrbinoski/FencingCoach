@@ -24,7 +24,7 @@ orchestration, not live model or external-provider quality.
 Project collection is separate from the repository suite:
 
 ```bash
-cd testing && uv run --project .. --frozen pytest -c ../pytest.project.ini --collect-only -q
+(cd testing && uv run --project .. --frozen pytest -c ../pytest.project.ini --collect-only -q)
 uv run pytest  # unchanged repository regression suite
 ```
 
@@ -35,6 +35,8 @@ tests in `backend/tests/`. The workflow runner saves collection and test output
 locally under ignored `testing/.artifacts/`, plus a compact JSON evidence file
 in `docs/testing/evidence/`. A failed browser run keeps a trace, screenshot,
 HTML report, and Compose logs in the local artifact directory.
+Backend stage runners retain JUnit, coverage JSON, branch-coverage XML and
+browser-readable coverage HTML beside their compact evidence record.
 
 ## Completed project stages
 
@@ -50,10 +52,10 @@ bash testing/scripts/run_e2e.sh
 ```
 
 `baseline` selects only `testing/baseline/` (24 pytest cases). `expanded`
-selects those frozen files plus `testing/properties/` (36 pytest cases): four
-schedule, five Garmin and three nutrition property functions. Their repeatable
+selects those frozen files plus `testing/properties/` (37 pytest cases): four
+schedule, six Garmin and three nutrition property functions. Their repeatable
 settings use 100 generated examples for each pure property and 20/15/15 for
-DB properties, a configured maximum of 950 examples distinct from pytest case
+DB properties, a configured maximum of 1,050 examples distinct from pytest case
 count. Each generated DB example resets committed rows inside its own body.
 No generated failure was found in the reported run. For wider exploration,
 increase the per-test `max_examples` and retain that run separately; a

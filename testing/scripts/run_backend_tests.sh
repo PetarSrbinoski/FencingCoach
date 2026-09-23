@@ -34,11 +34,15 @@ finish() {
     fi
     "${COMPOSE[@]}" down --volumes --remove-orphans || true
   fi
-  for retained in junit.xml coverage.json collection.txt pytest.txt; do
+  for retained in junit.xml coverage.json coverage.xml collection.txt pytest.txt; do
     if [[ -f "$artifact_dir/$retained" ]]; then
       cp "$artifact_dir/$retained" "$REPO_ROOT/docs/testing/evidence/$stage-$run_id-$retained"
     fi
   done
+  if [[ -d "$artifact_dir/coverage-html" ]]; then
+    cp -a "$artifact_dir/coverage-html" "$REPO_ROOT/docs/testing/evidence/$stage-$run_id-coverage-html"
+    rm -f "$REPO_ROOT/docs/testing/evidence/$stage-$run_id-coverage-html/.gitignore"
+  fi
   uv run --project "$REPO_ROOT" --frozen python "$REPO_ROOT/testing/scripts/collect_stage.py" \
     "$stage" "$started_at" "$result" "$artifact_dir" "$evidence_file" || true
   echo "Evidence: $evidence_file"
@@ -65,4 +69,6 @@ uv run --project "$REPO_ROOT" --frozen pytest -c "$REPO_ROOT/pytest.project.ini"
   --cov=app.services.schedule --cov=app.services.garmin_extract \
   --cov=app.services.targets --cov-branch \
   --cov-report="json:$artifact_dir/coverage.json" \
+  --cov-report="xml:$artifact_dir/coverage.xml" \
+  --cov-report="html:$artifact_dir/coverage-html" \
   --cov-report=term | tee "$artifact_dir/pytest.txt"

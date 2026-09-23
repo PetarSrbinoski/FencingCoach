@@ -15,6 +15,53 @@ from hypothesis import strategies as st
 
 scalars = st.one_of(st.none(), st.integers(min_value=-10, max_value=100_010), st.sampled_from(("bad", "40", "0")))
 
+# These are the shapes accepted by the extractors, including absent optional
+# paths and short bounded lists. Unknown arbitrary JSON is outside this contract.
+point = st.tuples(st.integers(min_value=0, max_value=100), scalars).map(list)
+payloads = st.fixed_dictionaries(
+    {},
+    optional={
+        "stats": st.fixed_dictionaries(
+            {}, optional={"totalSteps": scalars, "totalKilocalories": scalars,
+                          "bodyBatteryMostRecentValue": scalars}
+        ),
+        "hrv": st.fixed_dictionaries(
+            {}, optional={"hrvSummary": st.fixed_dictionaries(
+                {}, optional={"lastNightAvg": scalars, "weeklyAvg": scalars}
+            )}
+        ),
+        "body_battery": st.lists(
+            st.fixed_dictionaries({}, optional={"bodyBatteryValuesArray": st.lists(point, max_size=3)}),
+            max_size=3,
+        ),
+        "training_readiness": st.one_of(
+            st.fixed_dictionaries({}, optional={"score": scalars}),
+            st.lists(st.fixed_dictionaries({}, optional={"score": scalars}), max_size=3),
+        ),
+        "max_metrics": st.lists(
+            st.fixed_dictionaries({}, optional={"generic": st.fixed_dictionaries(
+                {}, optional={"vo2MaxValue": scalars}
+            )}), max_size=3,
+        ),
+    },
+)
+
+
+@pytest.mark.property
+@settings(max_examples=100, derandomize=True)
+@given(payloads)
+def test_supported_optional_and_list_shapes_never_trust_out_of_range_values(raw: dict[str, Any]) -> None:
+    for kind, metric in extract_all(raw).items():
+        if kind not in PLAUSIBLE_RANGES:
+            continue
+        if metric.status == "ok":
+            assert metric.value is not None
+            assert math.isfinite(metric.value)
+            low, high = PLAUSIBLE_RANGES[kind]
+            assert low <= metric.value <= high
+        else:
+            assert metric.value is None
+
 
 @pytest.mark.property
 @settings(max_examples=100, derandomize=True)
