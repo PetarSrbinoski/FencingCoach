@@ -41,7 +41,7 @@ table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 7pt
         font-size: 9.1pt; line-height: 1.24; text-align: left; }
 th, td { border: 1px solid #cbd5df; padding: 4.5pt 5.5pt; vertical-align: top;
          overflow-wrap: anywhere; }
-th { background: #1d3553; color: white; font-weight: bold; text-align: center; }
+th { background: #1d3553; color: white; font-weight: normal; text-align: center; }
 tbody tr:nth-child(even) { background: #eef6fc; }
 tr { break-inside: avoid; }
 .contents-table th:first-child, .contents-table td:first-child { width: 19%; text-align: center; }
@@ -49,6 +49,8 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f2f4f6;
       padding: 7pt; font-size: 8.5pt; break-inside: avoid; }
 code { font-family: 'DejaVu Sans Mono', monospace; font-size: 8.2pt; }
 a { color: #1b57a1; text-decoration: underline; }
+h1, h2, h3, h4, h5, h6, strong, b, th { font-weight: normal !important; }
+.cover strong { font-weight: bold !important; }
 """
 
 

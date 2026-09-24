@@ -1,5 +1,3 @@
-"""NUT-01..04/DAY-02 generated examples; reset committed DB per example."""
-
 from datetime import date, timedelta
 
 import pytest
