@@ -487,10 +487,11 @@ export default function NutritionPage() {
                 ] as const
               ).map(([key, label]) => (
                 <div key={key} className="space-y-1">
-                  <label className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block">
+                  <label htmlFor={`nutrition-review-${key}`} className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground block">
                     {label}
                   </label>
                   <Input
+                    id={`nutrition-review-${key}`}
                     value={draft[key]}
                     onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
                     inputMode="decimal"
@@ -540,7 +541,7 @@ export default function NutritionPage() {
                 {targets.override_source === "manual" ? "manual" : "auto"}
               </Badge>
               <Select value={dayTypeOverride} onValueChange={handleDayTypeChange}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectTrigger aria-label="Day type" className="w-[140px] h-8 text-xs">
                   <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                   <SelectValue />
                 </SelectTrigger>

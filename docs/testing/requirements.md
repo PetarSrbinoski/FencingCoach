@@ -4,24 +4,24 @@ This ledger separates planned behavior from what source inspection suggests and
 from what a test has actually shown. Existing `backend/tests/` are prior repository tests,
 not evidence for the independent project baseline.
 
-| ID | Requirement from plan | Project evidence at issue 01 |
+| ID | Requirement from plan | Project evidence |
 | --- | --- | --- |
-| SCH-01 | Seven recognized weekly day types | Pending issue 02 |
-| SCH-02 | Normalize case/space and preserve weekday order | Pending issue 02 |
-| DAY-01 | Manual day type precedes automatic selection | Pending issue 09 |
-| DAY-02 | Replacing/clearing affects only the selected day | Pending issue 09 |
-| NUT-01 | Calories and macros agree within rounding tolerance | Pending issue 04 |
-| NUT-02 | Maintenance needs enough usable history | Pending issue 04 |
-| NUT-03 | Maintenance uses the preceding 14 days | Pending issue 04 |
-| NUT-04 | Profile, phase, and day type affect targets | Pending issue 04 |
-| GAR-01 | Distinguish missing, invalid, and valid readings | Pending issue 03 |
-| GAR-02 | Scalar plausibility bounds are inclusive | Pending issue 03 |
-| GAR-03 | Supported fallback paths preserve meaning | Pending issue 03 |
-| API-01 | Day-type overrides persist and replace per date | Pending issue 09 |
-| API-02 | Workout override replaces and clears | Pending issue 12 |
-| API-03 | Estimate creates a job without saving a meal | Isolated API/database smoke in issue 01; fuller cases pending issue 10 |
-| API-04 | Reviewed values save, total, and delete correctly | Pending issue 10 |
-| API-05 | Estimate failures terminate and unknown IDs return 404 | Pending issue 11 |
+| SCH-01 | Seven recognized weekly day types | `testing/baseline/test_schedule.py`; generated schedule properties |
+| SCH-02 | Normalize case/space and preserve weekday order | Schedule baseline and properties |
+| DAY-01 | Manual day type precedes automatic selection | Target baseline and API/browser day-type workflow |
+| DAY-02 | Replacing/clearing affects only selected day | Target property and API/browser day-type workflow |
+| NUT-01 | Calories and macros agree within rounding tolerance | Target baseline and weight/type property |
+| NUT-02 | Maintenance needs enough usable history | Target 4/5-day baseline |
+| NUT-03 | Maintenance uses preceding 14 days | Target window baseline and history property |
+| NUT-04 | Profile, phase, and day type affect targets | Target baseline and generated weight/type property |
+| GAR-01 | Distinguish missing, invalid, valid readings | Garmin baseline/properties and retained-payload regression |
+| GAR-02 | Scalar plausibility bounds are inclusive | Garmin baseline and bounded properties |
+| GAR-03 | Supported fallback paths preserve meaning | Garmin baseline/properties and sleep/body-battery regressions |
+| API-01 | Day-type overrides persist and replace per date | `testing/integration/test_workflows_api.py` and Chromium day-type flow |
+| API-02 | Workout override replaces and clears | Workout API integration test |
+| API-03 | Estimate creates a job without saving a meal | Smoke plus reviewed-meal API/browser checks |
+| API-04 | Reviewed values save, total, delete correctly | Reviewed-meal API/browser checks |
+| API-05 | Estimate failures terminate and unknown IDs return 404 | Failure/recovery API/browser checks |
 
 Issue 01 also establishes infrastructure requirements: a disposable migrated
 PostgreSQL 16 database, controlled external boundaries, a real nutrition page

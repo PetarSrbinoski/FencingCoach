@@ -24,3 +24,28 @@
   start the backend. This is a production migration defect discovered while
   creating the isolated smoke environment, not an application calculation
   finding or a mutation result.
+
+## UI-01: nutrition controls lacked accessible names
+
+- **Requirement:** DAY-01/02 and API-03/04 browser workflows should identify
+  the day-type selector and editable review fields by their visible names.
+- **Source revision:** local base `d24a34d750fc31ca96438c082934f608fd108497`
+  with the browser workflow tests added; the tested tree is identified by
+  `source_tree_sha256` in the [red evidence](evidence/20260925T100120Z-50988.json).
+- **Minimal reproduction:** `bash testing/scripts/run_e2e.sh` with the page's
+  original unlabelled selector and review inputs. The day-type scenario waits
+  for `getByRole('combobox', { name: 'Day type' })`; the meal scenario waits for
+  `getByRole('textbox', { name: 'Kcal' })`. The [failed Playwright JSON](evidence/accessibility-red-20260925/playwright.json)
+  and [trace/screenshot](evidence/accessibility-red-20260925/) are retained.
+- **Expected / actual:** The visible Day type, Kcal, and Protein g controls
+  should have accessible names; both role/name lookups timed out after 30 s.
+  The estimate failure/recovery browser scenario and API cases passed, so the
+  issue was localized to naming rather than persistence.
+- **Fix:** Add `aria-label="Day type"` to the select trigger and associate each
+  review label with its input via `htmlFor`/`id`. The [green rerun](evidence/20260925T100425Z-52708.json)
+  passed all five API and four Chromium tests with no retries; TypeScript also
+  passed. This improves assistive-technology identification and gives the
+  browser tests stable semantic locators.
+- **Impact:** Visual use remained possible, but assistive technology could not
+  identify these controls by the text shown on screen. This is a frontend
+  accessibility finding, not a mutation result.

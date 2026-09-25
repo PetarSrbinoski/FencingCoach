@@ -1,0 +1,19 @@
+{
+  "stage": "B",
+  "source_revision": "d24a34d750fc31ca96438c082934f608fd108497",
+  "mutation_source_sha256": "8fb68ea0a8a4bc021d9489ad76dbcf795622fffee9511a97df5a8467ba31ff34",
+  "source_allowlist": [
+    "app/services/schedule.py",
+    "app/services/garmin_extract.py"
+  ],
+  "selected_tests": [
+    "test_schedule.py",
+    "test_garmin.py",
+    "test_schedule_properties.py",
+    "test_garmin_properties.py"
+  ],
+  "excluded": "nutrition-target examples/properties, API, browser, legacy tests",
+  "tool": "mutmut==3.8.0",
+  "workspace": "/home/petar/projects/CoachApp/testing/.artifacts/mutation-B-20260925T100521Z-53548",
+  "suite_sha256": "ea97d5b9eb80cbc8f3b31fb0f37fbc0f7d1c0ece88c6a77631e2c7a1a064ba01"
+}

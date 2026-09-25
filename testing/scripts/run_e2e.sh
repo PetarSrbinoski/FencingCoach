@@ -24,6 +24,11 @@ finish() {
     fi
     "${COMPOSE[@]}" down --volumes --remove-orphans || true
   fi
+  for retained in backend-smoke.xml playwright.json collection.txt; do
+    if [[ -f "$TEST_ARTIFACT_DIR/$retained" ]]; then
+      cp "$TEST_ARTIFACT_DIR/$retained" "$evidence_dir/$run_id-$retained"
+    fi
+  done
   uv run --frozen python "$REPO_ROOT/testing/scripts/collect_evidence.py" \
     --artifact-dir "$TEST_ARTIFACT_DIR" \
     --output "$evidence_dir/$run_id.json" \
@@ -56,15 +61,16 @@ wait_for() {
 wait_for "http://127.0.0.1:$TEST_BACKEND_PORT/docs"
 wait_for "http://localhost:$TEST_FRONTEND_PORT/nutrition"
 
-uv run --frozen pytest -c pytest.project.ini --collect-only -q >"$TEST_ARTIFACT_DIR/collection.txt"
+cd "$REPO_ROOT/testing"
+uv run --project "$REPO_ROOT" --frozen pytest -c "$REPO_ROOT/pytest.project.ini" --collect-only -q >"$TEST_ARTIFACT_DIR/collection.txt"
 if grep -q 'backend/tests/' "$TEST_ARTIFACT_DIR/collection.txt"; then
   echo "Legacy tests leaked into project collection" >&2
   exit 1
 fi
 
-bash testing/scripts/reset_db.sh
-uv run --frozen pytest -c pytest.project.ini testing/integration/test_smoke_api.py \
+bash "$REPO_ROOT/testing/scripts/reset_db.sh"
+uv run --project "$REPO_ROOT" --frozen pytest -c "$REPO_ROOT/pytest.project.ini" "$REPO_ROOT/testing/integration" \
   -q --junitxml="$TEST_ARTIFACT_DIR/backend-smoke.xml"
 
-cd frontend
-npx playwright test --config=playwright.config.ts nutrition-smoke.spec.ts
+cd "$REPO_ROOT/frontend"
+npx playwright test --config=playwright.config.ts

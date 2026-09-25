@@ -1,0 +1,49 @@
+{
+  "stage": "expanded",
+  "source_revision": "d24a34d750fc31ca96438c082934f608fd108497",
+  "source_sha256": "3f362233279f486b2d323afd45eef775a766fec1816667a6ff1116deee841f3e",
+  "suite_sha256": "d7428c2e6955ed6548d5e5c233c7ee4b2f0afcc5b9baee036d977682e2222ab1",
+  "selected_files": [
+    "testing/baseline/test_garmin.py",
+    "testing/baseline/test_schedule.py",
+    "testing/baseline/test_targets.py",
+    "testing/properties/test_schedule_properties.py",
+    "testing/properties/test_targets_properties.py",
+    "testing/properties/test_garmin_properties.py"
+  ],
+  "excluded": "backend/tests and API/browser cases",
+  "runtime_seconds": 41.12,
+  "exit_code": 0,
+  "junit": {
+    "tests": "36",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "23.856"
+  },
+  "coverage_totals": {
+    "covered_lines": 224,
+    "num_statements": 240,
+    "percent_covered": 89.33333333333333,
+    "percent_covered_display": "89",
+    "missing_lines": 16,
+    "excluded_lines": 0,
+    "percent_statements_covered": 93.33333333333333,
+    "percent_statements_covered_display": "93",
+    "num_branches": 60,
+    "num_partial_branches": 10,
+    "covered_branches": 44,
+    "missing_branches": 16,
+    "percent_branches_covered": 73.33333333333333,
+    "percent_branches_covered_display": "73"
+  },
+  "tool_versions": {
+    "pytest": "8.3.4",
+    "pytest_cov": "7.1.0",
+    "coverage": "7.16.1",
+    "hypothesis": "6.168.1",
+    "mutmut": "3.8.0"
+  },
+  "artifact_dir": "testing/.artifacts/expanded-20260925T095932Z-50271",
+  "command": "bash testing/scripts/run_backend_tests.sh expanded"
+}
