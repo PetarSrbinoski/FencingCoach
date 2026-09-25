@@ -1,7 +1,0 @@
-[tool.mutmut]
-source_paths = ["app/services/schedule.py", "app/services/garmin_extract.py"]
-also_copy = ["app", "tests", "pytest.ini"]
-pytest_add_cli_args = ["-c", "pytest.ini", "-q"]
-pytest_add_cli_args_test_selection = ["tests"]
-max_stack_depth = 8
-on_dependency_change = "rerun"

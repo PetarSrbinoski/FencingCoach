@@ -1,5 +1,3 @@
-"""SCH-01/02 generated behavior with 100 examples per pure property."""
-
 import pytest
 from app.core.config import settings
 from app.services.schedule import day_type_for_weekday, schedule_description, weekly_schedule

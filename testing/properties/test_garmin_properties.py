@@ -1,5 +1,3 @@
-"""GAR-01/02/03 generated supported payloads and malformed robustness cases."""
-
 import math
 from typing import Any
 
@@ -15,8 +13,6 @@ from hypothesis import strategies as st
 
 scalars = st.one_of(st.none(), st.integers(min_value=-10, max_value=100_010), st.sampled_from(("bad", "40", "0")))
 
-# These are the shapes accepted by the extractors, including absent optional
-# paths and short bounded lists. Unknown arbitrary JSON is outside this contract.
 point = st.tuples(st.integers(min_value=0, max_value=100), scalars).map(list)
 payloads = st.fixed_dictionaries(
     {},

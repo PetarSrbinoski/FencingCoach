@@ -28,3 +28,5 @@ garmin_tokens/
 .idea/
 .DS_Store
 Thumbs.db
+
+.scratch/
