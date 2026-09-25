@@ -1,0 +1,301 @@
+{
+  "config": {
+    "argv": [
+      "/home/petar/.nvm/versions/node/v22.20.0/bin/node",
+      "/home/petar/projects/CoachApp/frontend/node_modules/.bin/playwright",
+      "test",
+      "--config=playwright.config.ts"
+    ],
+    "configFile": "/home/petar/projects/CoachApp/frontend/playwright.config.ts",
+    "rootDir": "/home/petar/projects/CoachApp/frontend/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/home/petar/projects/CoachApp/frontend/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/playwright.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/html",
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "nutrition-smoke.spec.ts",
+      "file": "nutrition-smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "nutrition page loads real targets and reviews a controlled estimate",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4550,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T10:02:44.188Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d8a010cbf02abca376f4-f83b19a8506c36ad78e3",
+          "file": "nutrition-smoke.spec.ts",
+          "line": 16,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "nutrition-workflows.spec.ts",
+      "file": "nutrition-workflows.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "manual day type updates targets, persists after reload, and Auto restores selection",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 30274,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/home/petar/projects/CoachApp/frontend/e2e/nutrition-workflows.spec.ts",
+                        "column": 58,
+                        "line": 21
+                      },
+                      "message": "Error: locator.click: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('combobox', { name: 'Day type' })\u001b[22m\n\n\n  19 |   const selected = original.day_type === \"rest\" ? \"Competition\" : \"Rest\";\n  20 |\n> 21 |   await page.getByRole(\"combobox\", { name: \"Day type\" }).click();\n     |                                                          ^\n  22 |   await page.getByRole(\"option\", { name: selected }).click();\n  23 |   await expect(page.getByText(new RegExp(`^Targets vs intake — ${selected.toLowerCase()} day`))).toBeVisible();\n  24 |   await expect(page.getByText(\"manual\", { exact: true })).toBeVisible();\n    at /home/petar/projects/CoachApp/frontend/e2e/nutrition-workflows.spec.ts:21:58"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T10:02:48.977Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-manual-2654c-and-Auto-restores-selection/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-manual-2654c-and-Auto-restores-selection/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-manual-2654c-and-Auto-restores-selection/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1b5a3b451944dea71bd4-3d3524374bafa22e1993",
+          "file": "nutrition-workflows.spec.ts",
+          "line": 15,
+          "column": 5
+        },
+        {
+          "title": "reviewed edits create one meal and totals, then deletion persists",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 30270,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/home/petar/projects/CoachApp/frontend/e2e/nutrition-workflows.spec.ts",
+                        "column": 53,
+                        "line": 47
+                      },
+                      "message": "Error: locator.fill: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('textbox', { name: 'Kcal' })\u001b[22m\n\n\n  45 |   expect(await (await page.request.get(`${backend}/nutrition/log`)).json()).toEqual([]);\n  46 |\n> 47 |   await page.getByRole(\"textbox\", { name: \"Kcal\" }).fill(\"510\");\n     |                                                     ^\n  48 |   await page.getByRole(\"textbox\", { name: \"Protein g\" }).fill(\"33\");\n  49 |   await page.getByRole(\"button\", { name: \"Confirm & log\" }).click();\n  50 |   await expect(page.getByText(\"synthetic review meal\")).toBeVisible();\n    at /home/petar/projects/CoachApp/frontend/e2e/nutrition-workflows.spec.ts:47:53"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T10:03:19.742Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-review-6f62e-tals-then-deletion-persists/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-review-6f62e-tals-then-deletion-persists/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/home/petar/projects/CoachApp/testing/.artifacts/20260925T100120Z-50988/test-results/nutrition-workflows-review-6f62e-tals-then-deletion-persists/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "1b5a3b451944dea71bd4-248a54ab82f82564c86e",
+          "file": "nutrition-workflows.spec.ts",
+          "line": 39,
+          "column": 5
+        },
+        {
+          "title": "estimate failure ends busy state and another estimate reaches review",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5739,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T10:03:50.589Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1b5a3b451944dea71bd4-542c03ccd0aaf1a4d6a3",
+          "file": "nutrition-workflows.spec.ts",
+          "line": 67,
+          "column": 5
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-25T10:02:43.738Z",
+    "duration": 72712.603,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

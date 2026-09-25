@@ -1,0 +1,94 @@
+{
+  "source_revision": "d24a34d750fc31ca96438c082934f608fd108497",
+  "source_tree_sha256": "286607c1a0a46be13ef9faa158de08af71f1ecf045b7dab58858217a19dbd81d",
+  "suite_sha256": "bee628020c5a3cb59c9e75726c2e34410a1df28aab4358736954159a3b055a30",
+  "working_tree_status": "M .gitignore\n M frontend/src/app/nutrition/page.tsx\n M frontend/tsconfig.tsbuildinfo\n M testing/scripts/collect_evidence.py\n M testing/scripts/run_e2e.sh\n?? PLAN.md\n?? SPEC.md\n?? docs/testing/evidence/20260925T100120Z-50988.json\n?? docs/testing/evidence/expanded-20260925T095932Z-50271-collection.txt\n?? docs/testing/evidence/expanded-20260925T095932Z-50271-coverage.json\n?? docs/testing/evidence/expanded-20260925T095932Z-50271-junit.xml\n?? docs/testing/evidence/expanded-20260925T095932Z-50271-pytest.txt\n?? docs/testing/evidence/expanded-20260925T095932Z-50271.json\n?? docs/testing/evidence/mutation-A-20260925T100433Z-52813/\n?? docs/testing/evidence/mutation-B-20260925T100521Z-53548/\n?? frontend/e2e/nutrition-workflows.spec.ts\n?? testing/.coverage\n?? testing/integration/test_workflows_api.py\n?? testing/properties/\n?? testing/scripts/prepare_mutation.py\n?? testing/scripts/run_mutation_stage.sh",
+  "started_at_utc": "2026-09-25T10:04:25Z",
+  "duration_seconds": 97,
+  "environment": {
+    "os": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "docker_compose": "Docker Compose version v2.34.0-desktop.1",
+    "playwright": "1.63.0",
+    "postgres_image": "postgres:16-alpine",
+    "browser": "Chromium"
+  },
+  "command": "bash testing/scripts/run_e2e.sh",
+  "scope": {
+    "api": [
+      "testing/integration/test_smoke_api.py",
+      "testing/integration/test_workflows_api.py"
+    ],
+    "browser": [
+      "frontend/e2e/nutrition-smoke.spec.ts",
+      "frontend/e2e/nutrition-workflows.spec.ts"
+    ]
+  },
+  "settings": {
+    "athlete_day": "2026-09-25",
+    "backend_port": "18000",
+    "frontend_port": "13000",
+    "db_port": "15432",
+    "database": "coachapp_testing"
+  },
+  "collected_tests": [
+    "testing/baseline/test_garmin.py::test_absent_and_null_candidates_are_missing",
+    "testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload0-missing-None]",
+    "testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload1-ok-1.0]",
+    "testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload2-ok-300.0]",
+    "testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload3-implausible-None]",
+    "testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload4-implausible-None]",
+    "testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[0-ok-0.0]",
+    "testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[100000-ok-100000.0]",
+    "testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[-1-implausible-None]",
+    "testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[100001-implausible-None]",
+    "testing/baseline/test_garmin.py::test_supported_fallback_paths_and_preferred_candidate",
+    "testing/baseline/test_garmin.py::test_present_invalid_preferred_value_does_not_fall_through",
+    "testing/baseline/test_garmin.py::test_payload_only_metrics_have_no_scalar_even_when_present",
+    "testing/baseline/test_schedule.py::test_all_supported_types_keep_monday_to_sunday_order",
+    "testing/baseline/test_schedule.py::test_case_and_surrounding_space_do_not_change_schedule",
+    "testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[-exactly 7]",
+    "testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest-exactly 7]",
+    "testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest,gym,rest-exactly 7]",
+    "testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest,-invalid day type]",
+    "testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,unknown,competition,rest,gym-invalid day type]",
+    "testing/baseline/test_targets.py::test_missing_profile_fallback_and_two_profile_weights",
+    "testing/baseline/test_targets.py::test_phase_and_day_type_change_targets",
+    "testing/baseline/test_targets.py::test_four_vs_five_usable_history_days_and_window_endpoints",
+    "testing/baseline/test_targets.py::test_manual_selection_precedes_competition_and_activity_only_on_its_day",
+    "testing/integration/test_smoke_api.py::test_estimate_job_uses_migrated_test_database_without_logging_a_meal",
+    "testing/integration/test_workflows_api.py::test_day_type_replace_is_date_scoped_and_clear_restores_auto",
+    "testing/integration/test_workflows_api.py::test_estimate_reviewed_meal_totals_filter_and_delete",
+    "testing/integration/test_workflows_api.py::test_failed_estimate_and_unknown_id_do_not_block_next_job",
+    "testing/integration/test_workflows_api.py::test_workout_override_replaces_persists_validates_and_clears",
+    "testing/properties/test_garmin_properties.py::test_trusted_scalar_results_are_finite_and_in_range",
+    "testing/properties/test_garmin_properties.py::test_hrv_precedence_distinguishes_absent_and_present_invalid",
+    "testing/properties/test_garmin_properties.py::test_unrelated_keys_do_not_change_semantic_extraction",
+    "testing/properties/test_garmin_properties.py::test_allowed_zero_and_immediate_step_boundaries",
+    "testing/properties/test_garmin_properties.py::test_non_json_floats_are_never_trusted",
+    "testing/properties/test_schedule_properties.py::test_every_valid_week_preserves_order",
+    "testing/properties/test_schedule_properties.py::test_supported_case_and_space_changes_preserve_lookup",
+    "testing/properties/test_schedule_properties.py::test_generated_invalid_token_is_rejected",
+    "testing/properties/test_schedule_properties.py::test_generated_wrong_lengths_are_rejected",
+    "testing/properties/test_targets_properties.py::test_valid_weights_and_types_keep_outputs_finite_and_monotone",
+    "testing/properties/test_targets_properties.py::test_irrelevant_history_and_row_order_leave_maintenance_unchanged",
+    "testing/properties/test_targets_properties.py::test_unrelated_date_override_does_not_change_selected_day"
+  ],
+  "legacy_tests_collected": false,
+  "backend": {
+    "tests": "5",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "10.450"
+  },
+  "browser": {
+    "startTime": "2026-09-25T10:05:37.336Z",
+    "duration": 19649.462,
+    "expected": 4,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "exit_code": 0
+}
