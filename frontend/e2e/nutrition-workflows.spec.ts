@@ -54,6 +54,12 @@ test("reviewed edits create one meal and totals, then deletion persists", async 
 
   await page.reload();
   await expect(page.getByText("synthetic review meal")).toBeVisible();
+  const todayCard = page.getByText(`Today (${day})`).locator("xpath=../../..");
+  await expect(todayCard.getByText("510 kcal", { exact: true })).toBeVisible();
+  await expect(todayCard.getByText("33 g", { exact: true })).toBeVisible();
+  await expect(todayCard.getByText("1", { exact: true })).toBeVisible();
+  const reloadedTotals = await (await page.request.get(`${backend}/nutrition/totals/${day}`)).json();
+  expect([reloadedTotals.entry_count, reloadedTotals.kcal, reloadedTotals.protein_g]).toEqual([1, 510, 33]);
   const logs = await (await page.request.get(`${backend}/nutrition/log`)).json();
   expect(logs).toHaveLength(1);
   expect([logs[0].kcal, logs[0].protein_g]).toEqual([510, 33]);
