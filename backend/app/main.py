@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     not just after the next toggle flip."""
     from app.agents.deps import set_active_provider
     from app.core.database import SessionLocal
+    from app.services.generation import fail_interrupted_generations
     from app.services.llm_provider import get_llm_provider
 
     db = SessionLocal()
@@ -68,6 +69,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logging.getLogger(__name__).warning("Failed to hydrate LLM provider setting: %s", e)
     finally:
         db.close()
+
+    with SessionLocal() as recovery_db:
+        fail_interrupted_generations(recovery_db)
 
     yield
 

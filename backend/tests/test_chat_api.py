@@ -7,16 +7,14 @@ from app.core.database import get_db
 from app.main import app
 from app.models import CoachConversation, CoachMessage
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture
 def client(db, monkeypatch):
     app.dependency_overrides[get_db] = lambda: db
-    # The background job opens its own `SessionLocal()` (see
-    # api/chat.py's module docstring) — in tests, point that at the same
-    # in-memory session the `db` fixture uses instead of the real
-    # module-level engine (which has no tables in the test environment).
-    monkeypatch.setattr("app.api.chat.SessionLocal", lambda: db)
+    # Jobs use distinct sessions against the same test database.
+    monkeypatch.setattr("app.services.generation.SessionLocal", sessionmaker(bind=db.get_bind()))
     try:
         yield TestClient(app)
     finally:

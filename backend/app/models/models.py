@@ -123,7 +123,7 @@ class NutritionLog(Base):
 class NutritionEstimate(Base):
     """A `POST /nutrition/estimate` request and its (async) LLM result —
     created `status="pending"` so the request can return a 202 immediately
-    and a background job fills in the result (see `app/core/background.py`).
+    and a background job fills in the result (see `app/services/generation.py`).
     """
 
     __tablename__ = "nutrition_estimates"
@@ -237,12 +237,12 @@ class CoachMessage(Base):
     tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # For assistant messages: "pending" until the background generation job
-    # (app/core/background.py) fills `content` and flips to "done"/"error".
+    # (app/services/generation.py) fills `content` and flips to "done"/"error".
     # User messages are always "done".
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="done")
     error: Mapped[str | None] = mapped_column(Text)
     # model used, context snapshot, ungrounded-claims list — set once the
-    # background job finishes (see api/chat.py:_generate_reply). Mirrors
+    # background job finishes (see api/chat.py:_reply_values). Mirrors
     # what the old synchronous response used to return inline.
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 

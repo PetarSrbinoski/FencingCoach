@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date as Date
 from datetime import timedelta
+from functools import partial
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -13,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.nutrition import estimate_nutrition
 from app.core.clock import athlete_today
-from app.core.database import SessionLocal, get_db
+from app.core.database import get_db
 from app.models import NutritionEstimate, NutritionLog
 from app.schemas import (
     NutritionDayTotals,
@@ -25,6 +26,7 @@ from app.schemas import (
     NutritionLogOut,
 )
 from app.services import usda as usda_service
+from app.services.generation import submit_generation
 
 log = logging.getLogger(__name__)
 
@@ -59,50 +61,28 @@ def estimate(
     db: Session = Depends(get_db),
 ) -> NutritionEstimateAccepted:
     """Kick off macro estimation and return immediately (runs in the
-    background, see `_run_estimate`); poll `GET /nutrition/estimate/{id}`.
+    background); poll `GET /nutrition/estimate/{id}`.
     Does NOT persist as a logged meal — confirm via `POST /nutrition/log`.
     """
     row = NutritionEstimate(raw_text=body.text, status="pending")
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-
-    background_tasks.add_task(_run_estimate, estimate_id=row.id, text=body.text)
+    submit_generation(db, background_tasks, row, partial(_estimate_values, text=body.text))
 
     return NutritionEstimateAccepted(id=row.id)
 
 
-async def _run_estimate(*, estimate_id: int, text: str) -> None:
-    """Background job: runs the LLM call and writes the result back to
-    `estimate_id`. Opens its own DB session — the request's session that
-    created the row above is already closed by the time this runs (see
-    `api/chat.py`'s module docstring for why)."""
-    db = SessionLocal()
-    try:
-        est = await estimate_nutrition(text, db=db)
-        row = db.get(NutritionEstimate, estimate_id)
-        if row is None:
-            return
-        row.status = "done"
-        row.kcal = est.kcal
-        row.protein_g = est.protein_g
-        row.carbs_g = est.carbs_g
-        row.fat_g = est.fat_g
-        row.fiber_g = est.fiber_g
-        row.micros = est.micros.model_dump()
-        row.items = [item.model_dump() for item in est.items]
-        row.confidence = est.confidence
-        row.notes = est.notes
-        db.commit()
-    except Exception as e:  # noqa: BLE001
-        log.exception("Nutrition estimation failed for estimate %d", estimate_id)
-        row = db.get(NutritionEstimate, estimate_id)
-        if row is not None:
-            row.status = "error"
-            row.error = str(e)
-            db.commit()
-    finally:
-        db.close()
+async def _estimate_values(db: Session, *, text: str) -> dict[str, Any]:
+    est = await estimate_nutrition(text, db=db)
+    return {
+        "kcal": est.kcal,
+        "protein_g": est.protein_g,
+        "carbs_g": est.carbs_g,
+        "fat_g": est.fat_g,
+        "fiber_g": est.fiber_g,
+        "micros": est.micros.model_dump(),
+        "items": [item.model_dump() for item in est.items],
+        "confidence": est.confidence,
+        "notes": est.notes,
+    }
 
 
 @router.get("/estimate/{estimate_id}", response_model=NutritionEstimateOut)
