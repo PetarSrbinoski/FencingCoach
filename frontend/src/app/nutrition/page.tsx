@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createJobObserver, type JobObservation } from "@/lib/job-observer";
 import {
   api,
   MealPlan,
@@ -105,7 +106,7 @@ export default function NutritionPage() {
     fiber_g: "",
   });
   const [confirming, setConfirming] = useState(false);
-  const estimatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const estimateObserver = useRef(createJobObserver());
 
   // Resume watching an estimate that was still generating server-side
   // last time this page was open (e.g. the athlete navigated away or
@@ -114,10 +115,12 @@ export default function NutritionPage() {
     const raw = sessionStorage.getItem("pendingNutritionEstimate");
     if (raw) {
       try {
-        const saved = JSON.parse(raw) as { id: number; text: string };
+        const saved = JSON.parse(raw) as { id?: number; text: string; submission?: string };
         setText(saved.text);
-        setBusy(true);
-        pollEstimateResult(saved.id);
+        if (typeof saved.id === "number") {
+          setBusy(true);
+          pollEstimateResult(saved.id);
+        }
       } catch {
         sessionStorage.removeItem("pendingNutritionEstimate");
       }
@@ -157,22 +160,13 @@ export default function NutritionPage() {
   }
 
   function stopEstimatePolling() {
-    if (estimatePollRef.current) {
-      clearInterval(estimatePollRef.current);
-      estimatePollRef.current = null;
-    }
+    estimateObserver.current.stop();
   }
 
-  /** Poll `GET /nutrition/estimate/{id}` until the LLM call finishes —
-   * it keeps running server-side (see `api.nutrition.estimate`) even if
-   * this page is closed/navigated away from before it resolves. */
-  function pollEstimateResult(id: number) {
-    stopEstimatePolling();
-    estimatePollRef.current = setInterval(async () => {
-      try {
-        const est = await api.nutrition.pollEstimate(id);
-        if (est.status === "pending") return;
-        stopEstimatePolling();
+  function pollEstimateResult(id: number, observation: JobObservation = estimateObserver.current.begin()) {
+    observation.poll(
+      () => api.nutrition.pollEstimate(id),
+      (est) => {
         setBusy(false);
         sessionStorage.removeItem("pendingNutritionEstimate");
         if (est.status === "done") {
@@ -187,28 +181,40 @@ export default function NutritionPage() {
         } else {
           setErr(est.error ?? "Nutrition estimation failed");
         }
-      } catch (e: any) {
-        stopEstimatePolling();
+      },
+      (error) => {
         setBusy(false);
-        sessionStorage.removeItem("pendingNutritionEstimate");
-        setErr(e?.message ?? String(e));
-      }
-    }, 1200);
+        // Keep the job reference: a connection failure is not a failed job.
+        setErr(error instanceof Error ? error.message : String(error));
+      },
+    );
   }
 
   async function requestEstimate() {
     if (!text.trim() || busy) return;
+    const observation = estimateObserver.current.begin();
+    const pending = JSON.stringify({ text: text.trim(), submission: Math.random().toString(36) });
     setBusy(true);
     setErr(null);
 
     try {
+      sessionStorage.setItem("pendingNutritionEstimate", pending);
       const accepted = await api.nutrition.estimate(text.trim());
-      sessionStorage.setItem(
-        "pendingNutritionEstimate",
-        JSON.stringify({ id: accepted.id, text: text.trim() })
-      );
-      pollEstimateResult(accepted.id);
+      // Preserve resumability even if the page closed before acceptance, but
+      // never overwrite a newer submission's saved reference.
+      if (sessionStorage.getItem("pendingNutritionEstimate") === pending) {
+        sessionStorage.setItem(
+          "pendingNutritionEstimate",
+          JSON.stringify({ id: accepted.id, text: text.trim() })
+        );
+      }
+      if (!observation.isCurrent()) return;
+      pollEstimateResult(accepted.id, observation);
     } catch (e: any) {
+      if (sessionStorage.getItem("pendingNutritionEstimate") === pending) {
+        sessionStorage.removeItem("pendingNutritionEstimate");
+      }
+      if (!observation.isCurrent()) return;
       setBusy(false);
       setErr(e?.message ?? String(e));
     }

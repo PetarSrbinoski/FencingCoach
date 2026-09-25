@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createJobObserver, type JobObservation } from "@/lib/job-observer";
 import { api, type ChatMessageStatusValue, type CoachConversationSummary } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,18 +35,13 @@ import { cn } from "@/lib/utils";
 import { Markdown } from "@/components/ui/markdown";
 
 type Msg = {
+  id?: number;
   role: "user" | "assistant";
   content: string;
   status?: ChatMessageStatusValue;
   contextSnapshot?: string | null;
   ungroundedClaims?: string[];
 };
-
-// How often to poll for the reply's status while it's generating
-// server-side (see api.chatMessages.poll). The reply keeps generating
-// even if this page is closed/navigated away from — this is purely for
-// showing it live while the athlete stays put.
-const POLL_INTERVAL_MS = 1200;
 
 function conversationLabel(conversation: CoachConversationSummary) {
   return conversation.title?.trim() || conversation.last_message_preview?.trim() || "Untitled chat";
@@ -72,18 +68,19 @@ export default function ChatPage() {
   const [err, setErr] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const observer = useRef(createJobObserver());
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy]);
 
   useEffect(() => {
+    let active = true;
     const pending = sessionStorage.getItem("pendingChatMessage");
     if (pending) sessionStorage.removeItem("pendingChatMessage");
     (async () => {
       await loadConversations();
-      if (pending) {
+      if (active && pending) {
         startNewConversation();
         send(pending);
       }
@@ -91,86 +88,90 @@ export default function ChatPage() {
     // Stop polling (client-side only) on unmount — the reply keeps
     // generating server-side regardless; re-opening this conversation
     // later resumes watching it (see openConversation below).
-    return () => stopPolling();
+    return () => {
+      active = false;
+      stopPolling();
+    };
   }, []);
 
   function stopPolling() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+    observer.current.stop();
   }
 
   function refreshConversationSummaries() {
     api.chatConversations.list().then(setConversations).catch(() => {});
   }
 
-  /** Poll `GET /chat/messages/{id}` until the reply is done/errored,
-   * updating the trailing assistant message as it resolves. Safe to
-   * call again later (e.g. after re-opening the conversation) for a
-   * reply that was still generating when the athlete last left. */
-  function pollReply(messageId: number) {
-    stopPolling();
+  function pollReply(messageId: number, observation: JobObservation) {
     setBusy(true);
-    pollRef.current = setInterval(async () => {
-      try {
-        const poll = await api.chatMessages.poll(messageId);
-        if (poll.status === "pending") return;
-        stopPolling();
+    observation.poll(
+      () => api.chatMessages.poll(messageId),
+      (poll) => {
         setBusy(false);
-        if (poll.status === "done") {
-          setMessages((current) => {
-            const next = [...current];
-            next[next.length - 1] = {
-              role: "assistant",
-              content: poll.content,
-              status: "done",
-              contextSnapshot: poll.context_snapshot,
-              ungroundedClaims: poll.ungrounded_claims,
-            };
-            return next;
-          });
-        } else {
-          setErr(poll.error ?? "Chat failed");
-          setMessages((current) => current.slice(0, -1));
-        }
-      } catch (e: any) {
-        stopPolling();
+        setMessages((current) => current.map((message) => message.id === messageId ? {
+          ...message,
+          content: poll.content,
+          status: poll.status,
+          contextSnapshot: poll.context_snapshot,
+          ungroundedClaims: poll.ungrounded_claims,
+        } : message));
+        if (poll.status === "error") setErr(poll.error ?? "Chat failed");
+      },
+      (error) => {
         setBusy(false);
-        setErr(e?.message ?? "Chat failed");
-      }
-    }, POLL_INTERVAL_MS);
+        setErr(error instanceof Error ? error.message : "Chat failed");
+      },
+    );
   }
 
   async function loadConversations(selectId?: number) {
+    const observation = observer.current.begin();
     setLoadingHistory(true);
     setHistoryError(null);
     try {
       const list = await api.chatConversations.list();
+      if (!observation.isCurrent()) return;
       setConversations(list);
 
       const targetId = selectId ?? conversationId;
       if (targetId && list.some((conversation) => conversation.id === targetId)) {
-        await openConversation(targetId, list);
+        await openConversation(targetId, list, observation);
       } else if (!targetId && list.length > 0) {
-        await openConversation(list[0].id, list);
+        await openConversation(list[0].id, list, observation);
       } else if (list.length === 0) {
         startNewConversation();
       }
     } catch (e: any) {
-      setHistoryError(e?.message ?? "Failed to load chat history");
+      if (observation.isCurrent()) setHistoryError(e?.message ?? "Failed to load chat history");
     } finally {
-      setLoadingHistory(false);
+      if (observation.isCurrent()) setLoadingHistory(false);
     }
   }
 
-  async function openConversation(id: number, nextList = conversations) {
+  async function openConversation(
+    id: number,
+    nextList = conversations,
+    observation = observer.current.begin(),
+  ) {
     setErr(null);
-    stopPolling();
-    const conversation = await api.chatConversations.get(id);
+    setBusy(true);
+    let conversation;
+    try {
+      conversation = await api.chatConversations.get(id);
+    } catch (error) {
+      if (observation.isCurrent()) {
+        setBusy(false);
+        setLoadingHistory(false);
+        setErr(error instanceof Error ? error.message : "Failed to load conversation");
+      }
+      return;
+    }
+    if (!observation.isCurrent()) return;
+    setLoadingHistory(false);
     setConversationId(conversation.id);
     setMessages(
       conversation.messages.map((message) => ({
+        id: message.id,
         role: message.role,
         content: message.content,
         status: message.status,
@@ -184,7 +185,7 @@ export default function ChatPage() {
     // (e.g. the athlete left mid-reply and came back).
     const last = conversation.messages[conversation.messages.length - 1];
     if (last?.role === "assistant" && last.status === "pending") {
-      pollReply(last.id);
+      pollReply(last.id, observation);
     } else {
       setBusy(false);
     }
@@ -192,6 +193,7 @@ export default function ChatPage() {
 
   function startNewConversation() {
     stopPolling();
+    setLoadingHistory(false);
     setConversationId(undefined);
     setMessages([]);
     setInput("");
@@ -204,10 +206,12 @@ export default function ChatPage() {
     const content = (overrideText ?? input).trim();
     if (!content || busy) return;
 
+    const observation = observer.current.begin();
+    const placeholder: Msg = { role: "assistant", content: "", status: "pending" };
     setMessages((current) => [
       ...current,
       { role: "user", content },
-      { role: "assistant", content: "", status: "pending" },
+      placeholder,
     ]);
     setInput("");
     setBusy(true);
@@ -215,12 +219,17 @@ export default function ChatPage() {
 
     try {
       const accepted = await api.chat(content, conversationId, true);
+      if (!observation.isCurrent()) return;
       setConversationId(accepted.conversation_id);
-      pollReply(accepted.message_id);
+      setMessages((current) => current.map((message) =>
+        message === placeholder ? { ...message, id: accepted.message_id } : message
+      ));
+      pollReply(accepted.message_id, observation);
       // Refresh the sidebar (title/preview/message_count) once accepted —
       // the reply itself fills in via pollReply above.
       refreshConversationSummaries();
     } catch (e: any) {
+      if (!observation.isCurrent()) return;
       setMessages((current) => current.slice(0, -2));
       setInput(content);
       setErr(e?.message ?? "Chat failed");
@@ -421,7 +430,11 @@ export default function ChatPage() {
                           : "bg-transparent border-border text-foreground"
                       )}
                     >
-                      {isUser ? m.content : <Markdown>{m.content}</Markdown>}
+                      {isUser ? m.content : m.status === "error" ? (
+                        <p role="status" className="text-muted-foreground">
+                          Reply failed or was interrupted. Send a new message to try again.
+                        </p>
+                      ) : <Markdown>{m.content}</Markdown>}
                     </div>
                   </div>
 

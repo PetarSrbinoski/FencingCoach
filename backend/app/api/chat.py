@@ -3,16 +3,17 @@
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
+from functools import partial
 from types import SimpleNamespace
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.coach import run_coach_chat
-from app.core.database import SessionLocal, get_db
+from app.core.database import get_db
 from app.models import CoachConversation, CoachMessage
 from app.schemas import (
     ChatAccepted,
@@ -23,8 +24,7 @@ from app.schemas import (
     CoachMessageOut,
 )
 from app.services.context import build_context
-
-log = logging.getLogger(__name__)
+from app.services.generation import submit_generation
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -151,9 +151,7 @@ async def chat(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> ChatAccepted:
-    """Store the athlete's turn and hand the reply off to a background
-    job — see module docstring. Poll `GET /chat/messages/{message_id}`
-    (returned here) for the result."""
+    """Store the athlete's turn and start generation; poll the returned message ID."""
     conv = _get_or_create_conversation(db, req)
 
     # Store user turn.
@@ -161,74 +159,52 @@ async def chat(
     db.flush()
 
     history_for_agent = _history_for_agent(db, conv.id)
-    # Snapshot history as plain (role, content) pairs now — the ORM
-    # objects are bound to this request-scoped session, which is closed
-    # (see module docstring) before the background job runs.
+    # Pass plain values to the job, which owns a separate session.
     history_snapshot = [(m.role, m.content) for m in history_for_agent]
     context_text = build_context(db) if req.include_context else ""
 
     placeholder = CoachMessage(
         conversation_id=conv.id, role="assistant", content="", status="pending"
     )
-    db.add(placeholder)
-    # Commit now so both turns are durable even if the background job
-    # never gets to run (e.g. a restart before it starts).
-    db.commit()
-    db.refresh(placeholder)
-
-    background_tasks.add_task(
-        _generate_reply,
-        message_id=placeholder.id,
-        user_message=req.message,
-        context_text=context_text,
-        history_snapshot=history_snapshot,
+    submit_generation(
+        db,
+        background_tasks,
+        placeholder,
+        partial(
+            _reply_values,
+            user_message=req.message,
+            context_text=context_text,
+            history_snapshot=history_snapshot,
+        ),
     )
 
     return ChatAccepted(conversation_id=conv.id, message_id=placeholder.id)
 
 
-async def _generate_reply(
+async def _reply_values(
+    db: Session,
     *,
-    message_id: int,
     user_message: str,
     context_text: str,
     history_snapshot: list[tuple[str, str]],
-) -> None:
-    """Background job: runs the LLM call and writes the result back to
-    `message_id`, regardless of whether any client is still around to
-    see it happen live. Opens its own DB session — see module
-    docstring for why it can't reuse the request's."""
-    db = SessionLocal()
-    try:
-        history_messages = [
-            SimpleNamespace(role=role, content=content) for role, content in history_snapshot
-        ]
-        result = await run_coach_chat(
-            user_message=user_message,
-            db=db,
-            context_text=context_text,
-            history_messages=history_messages or None,
-        )
-        msg = db.get(CoachMessage, message_id)
-        if msg is None:
-            return
-        msg.content = result.reply
-        msg.status = "done"
-        msg.meta = {
+) -> dict[str, Any]:
+    history_messages = [
+        SimpleNamespace(role=role, content=content) for role, content in history_snapshot
+    ]
+    result = await run_coach_chat(
+        user_message=user_message,
+        db=db,
+        context_text=context_text,
+        history_messages=history_messages or None,
+    )
+    return {
+        "content": result.reply,
+        "meta": {
             "model": result.model,
             "context_snapshot": context_text or None,
             "ungrounded_claims": result.ungrounded_claims,
-        }
-        db.commit()
-    except Exception as e:  # noqa: BLE001
-        log.exception("Coach reply generation failed for message %d", message_id)
-        msg = db.get(CoachMessage, message_id)
-        if msg is not None:
-            msg.status = "error"
-            msg.error = str(e)
-            db.commit()
-    finally:
-        db.close()
+        },
+    }
 
 
 @router.get("/messages/{message_id}", response_model=ChatMessageStatus)
