@@ -1,0 +1,47 @@
+{
+  "source_revision": "b981e64a3712cb415eaf176d3cfa53c7765fe2fc",
+  "suite_sha256": "1727882e2ff98e6e20b647e2eb0d4004e0324997494895054054fc1723c1c99b",
+  "working_tree_status": "M .dockerignore\n M .gitignore\n M backend/alembic/env.py\n M backend/alembic/versions/0005_async_chat_and_nutrition_jobs.py\n M frontend/package-lock.json\n M frontend/package.json\n?? PLAN.md\n?? SPEC.md\n?? compose.testing.yml\n?? docs/testing/\n?? frontend/.dockerignore\n?? frontend/e2e/\n?? frontend/playwright.config.ts\n?? pytest.project.ini\n?? testing/",
+  "started_at_utc": "2026-09-25T09:18:01Z",
+  "duration_seconds": 60,
+  "environment": {
+    "os": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "docker_compose": "Docker Compose version v2.34.0-desktop.1",
+    "playwright": "1.63.0",
+    "postgres_image": "postgres:16-alpine",
+    "browser": "Chromium"
+  },
+  "command": "bash testing/scripts/run_e2e.sh",
+  "scope": [
+    "testing/integration/test_smoke_api.py",
+    "frontend/e2e/nutrition-smoke.spec.ts"
+  ],
+  "settings": {
+    "athlete_day": "2026-09-25",
+    "backend_port": "18000",
+    "frontend_port": "13000",
+    "db_port": "15432",
+    "database": "coachapp_testing"
+  },
+  "collected_tests": [
+    "testing/integration/test_smoke_api.py::test_estimate_job_uses_migrated_test_database_without_logging_a_meal"
+  ],
+  "legacy_tests_collected": false,
+  "backend": {
+    "tests": "1",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "0.478"
+  },
+  "browser": {
+    "startTime": "2026-09-25T09:18:46.615Z",
+    "duration": 8879.346,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "exit_code": 0
+}

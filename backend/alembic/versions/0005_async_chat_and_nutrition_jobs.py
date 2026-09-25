@@ -18,7 +18,7 @@ Create Date: 2026-07-05 00:00:00.000000
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
@@ -27,12 +27,21 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = "0005_async_chat_and_nutrition_jobs"
-down_revision: Union[str, None] = "0004_app_settings"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0004_app_settings"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Alembic creates version_num as VARCHAR(32). This revision identifier is
+    # longer, so widen the table before Alembic records the new version.
+    op.alter_column(
+        "alembic_version",
+        "version_num",
+        existing_type=sa.String(length=32),
+        type_=sa.String(length=64),
+        existing_nullable=False,
+    )
     op.add_column(
         "coach_messages",
         sa.Column("status", sa.String(length=10), nullable=False, server_default="done"),

@@ -1,9 +1,16 @@
 
 .git
 .venv
+**/.venv
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
 **/__pycache__
 **/*.pyc
 frontend
 docs
 node_modules
 .env
+.scratch
+testing/.artifacts
+backend/garmin_tokens
