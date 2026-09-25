@@ -162,6 +162,9 @@ class NutritionEstimateAccepted(BaseModel):
 class NutritionEstimateItemOut(BaseModel):
     name: str
     qty_g: float
+    source: str = "estimated"
+    food_id: int | None = None
+    nutrients: dict[str, float] = Field(default_factory=dict)
 
 
 class NutritionEstimateOut(BaseModel):
@@ -181,6 +184,9 @@ class NutritionEstimateOut(BaseModel):
     items: list[NutritionEstimateItemOut] = Field(default_factory=list)
     confidence: str | None = None  # "low" | "medium" | "high"
     notes: str = ""
+
+    incomplete_micros: list[str] = Field(default_factory=list)
+    estimated_by: str = "agent"
 
 
 class NutritionLogCreate(BaseModel):
@@ -203,6 +209,7 @@ class NutritionLogCreate(BaseModel):
     confidence: str | None = None
     notes: str | None = None
     estimated_by: str = "agent"
+    incomplete_micros: list[str] = Field(default_factory=list)
 
 
 class NutritionLogOut(BaseModel):
@@ -229,6 +236,7 @@ class NutritionDayTotals(BaseModel):
     fiber_g: float
     micros: dict[str, float]
     entry_count: int
+    incomplete_micros: list[str] = Field(default_factory=list)
 
 
 # ── Brief ─────────────────────────────────────────────────────────────

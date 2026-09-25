@@ -17,6 +17,7 @@ It can also **take action** (use tools):
 
 - Edit a day's gym workout (swap exercises, change sets/reps/load)
 - Add a competition to your calendar
+- Save foods with your supplied label values and log portions from your personal library
 
 It searches the web only when you ask, and flags any number it cites that isn't
 backed by your real data.
@@ -48,6 +49,20 @@ session analysis, and mental training check-ins.
 ### Nutrition
 Describe a meal and the AI estimates the macros — you confirm to save. Tracks
 intake vs. daily targets, and generates meal plans and shopping lists.
+
+**My foods** is a searchable personal library for products and homemade dishes.
+Enter calories, macros, and any named micronutrient in g, mg, mcg, or IU per 100 g.
+You can add a named serving with its gram weight, edit foods, or remove them.
+Blank values stay unknown; incomplete foods can be saved, but calories, protein,
+carbs, and fat are required to log them. Editing or removing a food preserves
+past meal logs. Micronutrient totals show known amounts and flag incomplete coverage.
+
+You can also tell coach chat: “Save My yogurt: per 100 g, 62.3 kcal, 5.12 g protein,
+4.1 g carbs, 2.03 g fat, 125 mg calcium; one pot is 150 g.” Saving does not log a meal.
+Later, “I ate half a pot of My yogurt” logs it immediately using saved values.
+The coach asks about ambiguous matches, quantities, or duplicate names. Nutrients
+are never invented for library entries. The meal estimator uses saved values for
+recognized foods and labels estimates for the remaining foods separately.
 
 <!-- screenshot: nutrition -->
 ![Nutrition](./docs/screenshots/nutrition1.png)
