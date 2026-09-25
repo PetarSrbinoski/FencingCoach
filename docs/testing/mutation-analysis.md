@@ -2,11 +2,12 @@
 
 The [report](report.md) gives stage selections and scores. The full raw
 all-ID results and generated source are archived under [A](evidence/mutation-A-20260925T100433Z-52813/),
-[B](evidence/mutation-B-20260925T100521Z-53548/), and
-[C](evidence/mutation-C-20260925T100720Z-55056/). There are 466 identical IDs
+[B](evidence/mutation-B-20260925T103100Z-64279/), and
+[C](evidence/mutation-C-20260925T103240Z-64278/). There are 466 identical IDs
 in each result file, with no no-tests, timeout, skipped, suspicious, or
-interrupted cases. The two-file source hash and source revision match across
-all three `experiment.json` records. Each stage first passed clean tests and
+interrupted cases. The two-file source hash matches across all three
+`experiment.json` records; A used revision `d24a34d` and B/C used `8c5148a`
+after tests and frontend code changed. Each stage first passed clean tests and
 mutmut's forced-fail instrumentation check.
 
 | Mutant ID suffix (all under `app.services.garmin_extract`) | B → C | Diff / classification | Disposition |
@@ -18,7 +19,7 @@ mutmut's forced-fail instrumentation check.
 | `x_extract_training_status__mutmut_21` | survived at C | Changes only the detail string decision for empty payloads; status and scalar meaning remain. | No exact-message requirement; irrelevant to the defined semantic score, but retained in the unadjusted denominator. |
 | `x__build__mutmut_4` | survived at C | Drops a missing-value detail string. | Diagnostic wording policy unresolved; no brittle exact-message assertion. |
 
-These examples are representative; the remaining 193 C survivors have not all
+These examples are representative; the remaining 179 C survivors have not all
 been classified for equivalence. None is removed from the denominator and no
 equivalent-adjusted score is reported. A survivor means the selected suite did
 not distinguish the mutant, not that a real defect exists. Regression tests

@@ -1,0 +1,16 @@
+.....................................                                    [100%]
+- generated xml file: /home/petar/projects/CoachApp/testing/.artifacts/expanded-20260925T102831Z-62901/junit.xml -
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                                                   Stmts   Miss Branch BrPart  Cover
+--------------------------------------------------------------------------------------------------------
+/home/petar/projects/CoachApp/backend/app/services/garmin_extract.py     112      0     32      0   100%
+/home/petar/projects/CoachApp/backend/app/services/schedule.py            21      0      4      0   100%
+/home/petar/projects/CoachApp/backend/app/services/targets.py            107     11     24      3    86%
+--------------------------------------------------------------------------------------------------------
+TOTAL                                                                    240     11     60      3    94%
+Coverage HTML written to dir /home/petar/projects/CoachApp/testing/.artifacts/expanded-20260925T102831Z-62901/coverage-html
+Coverage XML written to file /home/petar/projects/CoachApp/testing/.artifacts/expanded-20260925T102831Z-62901/coverage.xml
+Coverage JSON written to file /home/petar/projects/CoachApp/testing/.artifacts/expanded-20260925T102831Z-62901/coverage.json
+37 passed in 20.79s
