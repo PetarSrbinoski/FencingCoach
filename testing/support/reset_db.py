@@ -15,8 +15,12 @@ def validate_destination() -> None:
     if (
         os.environ.get("TEST_DB_GUARD") != "isolated-fencingcoach"
         or url.database != "coachapp_testing"
-        or url.host != "db"
+        or url.host not in {"db", "127.0.0.1"}
         or url.username != "coach_test"
+        or (
+            url.host == "127.0.0.1"
+            and url.port != int(os.environ.get("TEST_DB_PORT", "15432"))
+        )
     ):
         raise RuntimeError("refusing to reset a database outside the isolated test stack")
     with engine.connect() as connection:

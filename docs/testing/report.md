@@ -36,12 +36,22 @@ are recorded under `evidence/` after execution.
 
 | Stage | Cases | Branch coverage | Mutation results | Runtime | Findings |
 | --- | --- | --- | --- | --- | --- |
-| A: example baseline | Pending | Pending | Pending | Pending | Pending |
+| A: example baseline | 24 passed | 43/60 branches (71.7%) across schedule, Garmin extraction, nutrition targets | Pending | 281 s including first image download/build; 2.13 s pytest | No unexpected failure; open policies remain |
 | B: plus properties | Pending | Pending | Pending | Pending | Pending |
 | C: plus regressions | Pending | Pending | Pending | Pending | Pending |
 
 API and browser smoke results are reported in the run evidence, separate from
 the later mutation comparison. No score or improvement is claimed in advance.
+
+The baseline was selected explicitly from `testing/baseline/`, with no legacy
+tests or fixtures in collection. Its source hash, suite hash, JUnit XML,
+coverage JSON and exact command are retained in
+[baseline evidence](evidence/baseline-20260925T095243Z-48489.json). The
+measured branch denominator is limited to the three named service files;
+43/60 covered branches do not imply path or data-flow coverage. The current
+`maintain` profile maps to the lean dial, and a rest day with both strength
+and fencing activities maps to gym in source inspection; their intended
+policies remain unresolved, so no production behavior was changed for them.
 
 The isolated issue 01 smoke run on 25 September 2026 passed one API/database
 test and one Chromium test. Project collection contained one test and no legacy
