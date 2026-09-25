@@ -55,7 +55,7 @@ See [AGENTS.md](./AGENTS.md) for a full setup/run guide (useful for coding agent
 
 ## Notes
 
-- Single-user app with no authentication — only expose it over Tailscale, never LAN/public internet
+- Single-user app with no authentication
 - Set `GARMIN_EMAIL` and `GARMIN_PASSWORD` in `.env`
 - If you use a remote model, set `LLM_BASE_URL` and `LLM_API_KEY`
 - If you use Ollama, pull a model and set `LLM_MODEL` to match
