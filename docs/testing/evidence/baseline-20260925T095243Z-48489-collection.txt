@@ -1,0 +1,26 @@
+testing/baseline/test_garmin.py::test_absent_and_null_candidates_are_missing
+testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload0-missing-None]
+testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload1-ok-1.0]
+testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload2-ok-300.0]
+testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload3-implausible-None]
+testing/baseline/test_garmin.py::test_hrv_partition_and_inclusive_boundaries[payload4-implausible-None]
+testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[0-ok-0.0]
+testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[100000-ok-100000.0]
+testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[-1-implausible-None]
+testing/baseline/test_garmin.py::test_steps_accept_zero_and_inclusive_bounds[100001-implausible-None]
+testing/baseline/test_garmin.py::test_supported_fallback_paths_and_preferred_candidate
+testing/baseline/test_garmin.py::test_present_invalid_preferred_value_does_not_fall_through
+testing/baseline/test_garmin.py::test_payload_only_metrics_have_no_scalar_even_when_present
+testing/baseline/test_schedule.py::test_all_supported_types_keep_monday_to_sunday_order
+testing/baseline/test_schedule.py::test_case_and_surrounding_space_do_not_change_schedule
+testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[-exactly 7]
+testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest-exactly 7]
+testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest,gym,rest-exactly 7]
+testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,double,competition,rest,-invalid day type]
+testing/baseline/test_schedule.py::test_malformed_schedule_is_rejected[rest,gym,fencing,unknown,competition,rest,gym-invalid day type]
+testing/baseline/test_targets.py::test_missing_profile_fallback_and_two_profile_weights
+testing/baseline/test_targets.py::test_phase_and_day_type_change_targets
+testing/baseline/test_targets.py::test_four_vs_five_usable_history_days_and_window_endpoints
+testing/baseline/test_targets.py::test_manual_selection_precedes_competition_and_activity_only_on_its_day
+
+24 tests collected in 0.35s
