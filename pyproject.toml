@@ -76,6 +76,7 @@ warn_redundant_casts = true
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+markers = ["live_llm: calls the configured LLM provider; opt in with RUN_LIVE_LLM_EVALS=1"]
 # `app` lives under backend/, `llm` (prompts) at the repo root — put both on
 # sys.path so tests can import them.
 pythonpath = ["backend", "."]
