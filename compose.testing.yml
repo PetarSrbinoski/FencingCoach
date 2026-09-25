@@ -1,0 +1,64 @@
+name: fencingcoach-testing
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: coach_test
+      POSTGRES_PASSWORD: disposable_test_password
+      POSTGRES_DB: coachapp_testing
+    volumes:
+      - testing_pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${TEST_DB_PORT:-15432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coach_test -d coachapp_testing"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  backend:
+    build:
+      context: .
+      dockerfile: testing/Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://coach_test:disposable_test_password@db:5432/coachapp_testing
+      TEST_DB_GUARD: isolated-fencingcoach
+      TEST_ATHLETE_DAY: ${TEST_ATHLETE_DAY:-2026-09-25}
+      ATHLETE_TIMEZONE: UTC
+      BACKEND_CORS_ORIGINS: '["http://localhost:${TEST_FRONTEND_PORT:-13000}"]'
+      WEEKLY_SCHEDULE: fencing,gym,fencing,gym,fencing,fencing,rest
+      LLM_BASE_URL: http://127.0.0.1:9/v1
+      LLM_API_KEY: ""
+      LLM_FALLBACK_BASE_URL: ""
+      LLM_FALLBACK_API_KEY: ""
+      LLM_FALLBACK2_BASE_URL: ""
+      LLM_FALLBACK2_API_KEY: ""
+      GARMIN_EMAIL: ""
+      GARMIN_PASSWORD: ""
+      USDA_API_KEY: ""
+      USDA_MCP_SCRIPT: /app/testing/no-usda-mcp.py
+      LOGFIRE_TOKEN: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${TEST_BACKEND_PORT:-18000}:8000"
+    command: ["uvicorn", "testing.support.serve_app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${TEST_BACKEND_PORT:-18000}
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${TEST_FRONTEND_PORT:-13000}:3000"
+
+volumes:
+  testing_pgdata:
