@@ -5,11 +5,11 @@ their own selectors and are not conflated with the repository suite.
 
 | Command | Observed result |
 | --- | --- |
-| `bash testing/scripts/run_backend_tests.sh baseline` | 24 passed; JUnit and 43/60 scoped branches retained. |
-| `bash testing/scripts/run_backend_tests.sh expanded` | 36 passed; JUnit and 44/60 scoped branches retained. |
-| `cd testing && uv run --project .. --frozen pytest -c ../pytest.project.ini --collect-only -q` | 44 project cases collected across baseline, properties, integration and regression; no legacy cases. |
+| `bash testing/scripts/run_backend_tests.sh baseline` | 24 passed; JUnit, coverage JSON/XML/HTML, and 43/60 scoped branches retained. |
+| `bash testing/scripts/run_backend_tests.sh expanded` | 37 passed; JUnit, coverage JSON/XML/HTML, and 53/60 scoped branches retained. |
+| `cd testing && uv run --project .. --frozen pytest -c ../pytest.project.ini --collect-only -q` | 45 project cases collected across baseline, properties, integration and regression; no legacy cases. |
 | `bash testing/scripts/run_e2e.sh` | Five API/database and four Chromium tests passed; zero retries/flaky cases. An earlier red browser run for UI-01 is retained separately. |
-| `bash testing/scripts/run_mutation_stage.sh A/B/C` | All three completed within 300 seconds; 466 identical IDs and source hash; 248/251/273 killed respectively. |
+| `bash testing/scripts/run_mutation_stage.sh A/B/C` | All three completed within 300 seconds; 466 identical IDs and source hash; 248/265/287 killed respectively. |
 | `timeout 150 uv run --frozen pytest -q` | Repository suite: **248 passed**, four deprecation warnings, 3.52 seconds; exit 0. This is a separate legacy regression check. |
 | `uv run --frozen ruff check backend/app backend/tests llm testing` | Passed after sorting one new regression-test import block. |
 | `uv run --frozen mypy backend/app backend/tests llm testing` | Passed: 111 source files checked. |
