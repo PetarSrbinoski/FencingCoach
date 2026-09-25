@@ -1,5 +1,5 @@
 import "../styles/globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Playfair_Display } from "next/font/google";
 import { SidebarLayout } from "@/components/sidebar-layout";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -24,6 +24,12 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
   weight: ["400", "500", "700"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "FencingCoach",

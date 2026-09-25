@@ -7,8 +7,8 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen relative">
       <Sidebar />
       {/* Main content area — generous spacing, editorial feel */}
-      <main className="md:pl-56 pt-16 md:pt-0 min-h-screen">
-        <div className="max-w-5xl mx-auto px-6 md:px-12 lg:px-16 py-8 md:py-12">
+      <main className="md:pl-56 min-h-screen">
+        <div className="max-w-5xl mx-auto px-4 md:px-12 lg:px-16 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(7rem+env(safe-area-inset-bottom))] md:py-12">
           {children}
         </div>
       </main>

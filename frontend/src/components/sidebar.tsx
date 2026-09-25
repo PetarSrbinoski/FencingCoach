@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   Home,
   CalendarDays,
@@ -14,7 +15,7 @@ import {
   Watch,
   ChevronLeft,
   ChevronRight,
-  Menu,
+  MoreHorizontal,
   X,
   User,
   Sun,
@@ -34,16 +35,31 @@ const NAV_ITEMS = [
   { href: "/profile", label: "Profile", icon: User },
 ];
 
+const DOCK_ITEMS = [
+  { ...NAV_ITEMS[0], label: "Home" },
+  NAV_ITEMS[2],
+  NAV_ITEMS[3],
+  { ...NAV_ITEMS[5], label: "Coach" },
+];
+const MORE_ITEMS = NAV_ITEMS.filter(
+  (item) => !DOCK_ITEMS.some((dockItem) => dockItem.href === item.href)
+);
+
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
-  // `resolvedTheme` is undefined on the server and reads localStorage on the
-  // first client render, so rendering theme-dependent content before mount
-  // causes a hydration mismatch (React #425/#418/#423). Gate it on `mounted`.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => setMobileOpen(false), [pathname]);
 
   function toggleTheme() {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -51,91 +67,91 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-border bg-background px-6 py-4 md:hidden">
-        <button
-          className="h-10 w-10 inline-flex items-center justify-center text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open navigation menu"
+      <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
+        <nav
+          aria-label="Mobile navigation"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-[1.25rem] border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden"
         >
-          <Menu className="h-5 w-5" strokeWidth={1.5} />
-        </button>
-        <span className="font-semibold uppercase tracking-widest text-xs text-foreground">Coach</span>
-        <button
-          className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          onClick={toggleTheme}
-          aria-label="Toggle color theme"
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        </button>
-      </div>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile drawer */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-72 transform border-r border-border bg-background transition-transform duration-200 md:hidden",
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-          <span className="font-semibold uppercase tracking-widest text-sm">FencingCoach</span>
-          <button
-            className="h-10 w-10 inline-flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close navigation menu"
-          >
-            <X className="h-4 w-4" strokeWidth={1.5} />
-          </button>
-        </div>
-        <nav className="flex flex-col py-4">
-          {NAV_ITEMS.map((item) => {
+          {DOCK_ITEMS.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-3 px-6 py-3.5 text-sm font-medium uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
-                  active
-                    ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent" />
-                )}
-                <item.icon className="h-4 w-4" strokeWidth={1.5} />
+                <item.icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2 : 1.5} />
                 {item.label}
               </Link>
             );
           })}
-        </nav>
-        <div className="absolute bottom-0 left-0 right-0 border-t border-border px-6 py-4">
-          <div className="space-y-3">
-            <LlmProviderToggle />
+          <Dialog.Trigger asChild>
             <button
-              onClick={toggleTheme}
-              className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              aria-label="Toggle color theme"
+              aria-label="More navigation and settings"
+              className={cn(
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                mobileOpen || MORE_ITEMS.some((item) => pathname === item.href)
+                  ? "bg-accent/10 text-accent"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
             >
-              <Sun className="h-3.5 w-3.5 dark:hidden" />
-              <Moon className="h-3.5 w-3.5 hidden dark:block" />
-              <span>{mounted && resolvedTheme === "dark" ? "Dark" : "Light"}</span>
+              <MoreHorizontal aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+              More
             </button>
-          </div>
-        </div>
-      </aside>
+          </Dialog.Trigger>
+        </nav>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden" />
+          <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none md:hidden">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <Dialog.Title className="text-lg font-semibold">More from Coach</Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-muted-foreground">Plan your week and manage your settings.</Dialog.Description>
+              </div>
+              <Dialog.Close className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Close navigation">
+                <X aria-hidden="true" className="h-5 w-5" />
+              </Dialog.Close>
+            </div>
+            <nav aria-label="More navigation" className="grid grid-cols-2 gap-2">
+              {MORE_ITEMS.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <Dialog.Close asChild key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex min-h-16 items-center gap-3 rounded-[0.875rem] px-3 py-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                        active ? "bg-accent/10 text-accent" : "bg-muted/60 text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <item.icon aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.5} />
+                      {item.label}
+                    </Link>
+                  </Dialog.Close>
+                );
+              })}
+            </nav>
+            <div className="mt-5 space-y-4 border-t border-border pt-4">
+              <button
+                onClick={toggleTheme}
+                className="flex min-h-11 w-full items-center gap-3 rounded-[0.875rem] px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <Sun aria-hidden="true" className="h-5 w-5 dark:hidden" />
+                <Moon aria-hidden="true" className="hidden h-5 w-5 dark:block" />
+                Toggle color theme
+              </button>
+              <div className="px-3 [&_button]:min-h-11">
+                <LlmProviderToggle />
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Desktop sidebar */}
       <aside
