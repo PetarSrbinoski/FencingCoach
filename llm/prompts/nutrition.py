@@ -19,7 +19,8 @@ Rules:
 - If a quantity is missing, assume an athlete-sized portion (e.g. 200g
   protein source, 150g cooked rice, 1 medium fruit) and note the
   assumption in notes.
-- Never refuse. Always produce numbers; lower confidence if uncertain.
+- Leave unavailable micronutrients null, never substitute zero for unknown.
+- Never refuse. Produce estimated macros; lower confidence if uncertain.
 - Break compound meals into individual items with estimated weights."""
 
 
@@ -41,7 +42,8 @@ Rules:
 - If a quantity is missing, assume an athlete-sized portion (e.g. 200g
   protein source, 150g cooked rice, 1 medium fruit) and note the
   assumption in notes.
-- Never refuse. Always produce numbers; lower confidence if uncertain.
+- Leave unavailable micronutrients null, never substitute zero for unknown.
+- Never refuse. Produce estimated macros; lower confidence if uncertain.
 - Break compound meals into individual items with estimated weights.
 - Mention in notes that the estimate used web research because USDA MCP was
   unavailable."""

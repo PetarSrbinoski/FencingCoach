@@ -16,6 +16,7 @@ from app.api import (
     competitions,
     diagnostics,
     fencing,
+    foods,
     garmin,
     health,
     mealplan,
@@ -93,6 +94,7 @@ app.include_router(readiness.router)
 app.include_router(metrics.router)
 app.include_router(activities.router)
 app.include_router(nutrition.router)
+app.include_router(foods.router)
 app.include_router(brief.router)
 app.include_router(phase.router)
 app.include_router(targets.router)

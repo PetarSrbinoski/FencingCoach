@@ -43,10 +43,12 @@ def _estimate_out(row: NutritionEstimate) -> NutritionEstimateOut:
         carbs_g=row.carbs_g,
         fat_g=row.fat_g,
         fiber_g=row.fiber_g,
-        micros=row.micros or {},
+        micros={k: v for k, v in (row.micros or {}).items() if type(v) in (int, float)},
         items=[NutritionEstimateItemOut(**item) for item in (row.items or [])],
         confidence=row.confidence,
         notes=row.notes or "",
+        incomplete_micros=(row.micros or {}).get("incomplete_micros", []),
+        estimated_by=(row.micros or {}).get("estimated_by", "agent"),
     )
 
 
@@ -78,7 +80,11 @@ async def _estimate_values(db: Session, *, text: str) -> dict[str, Any]:
         "carbs_g": est.carbs_g,
         "fat_g": est.fat_g,
         "fiber_g": est.fiber_g,
-        "micros": est.micros.model_dump(),
+        "micros": {
+            **est.micros.model_dump(exclude_none=True),
+            "incomplete_micros": est.incomplete_micros,
+            "estimated_by": est.estimated_by,
+        },
         "items": [item.model_dump() for item in est.items],
         "confidence": est.confidence,
         "notes": est.notes,
@@ -111,6 +117,7 @@ def log_meal(
         log.debug("USDA cross-reference skipped: %s", e)
 
     micros_data: dict[str, Any] = dict(body.micros or {})
+    micros_data["incomplete_micros"] = body.incomplete_micros
     if body.confidence:
         micros_data["confidence"] = body.confidence
     if body.notes:
@@ -163,8 +170,16 @@ def day_totals(day: Date, db: Session = Depends(get_db)) -> NutritionDayTotals:
         if not r.micros:
             continue
         for k, v in r.micros.items():
-            if isinstance(v, (int, float)):
+            if type(v) in (int, float):
                 micros[k] = micros.get(k, 0.0) + float(v)
+    incomplete = [
+        key for key in micros
+        if any(
+            type((row.micros or {}).get(key)) not in (int, float)
+            or key in (row.micros or {}).get("incomplete_micros", [])
+            for row in rows
+        )
+    ]
     return NutritionDayTotals(
         day=day,
         kcal=sum(r.kcal or 0 for r in rows),
@@ -174,6 +189,7 @@ def day_totals(day: Date, db: Session = Depends(get_db)) -> NutritionDayTotals:
         fiber_g=sum(r.fiber_g or 0 for r in rows),
         micros=micros,
         entry_count=len(rows),
+        incomplete_micros=sorted(incomplete),
     )
 
 

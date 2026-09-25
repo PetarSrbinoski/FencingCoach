@@ -15,6 +15,7 @@ from app.models.models import (  # noqa: F401
     NutritionEstimate,
     NutritionLog,
     NutritionPlan,
+    SavedFood,
     TrainingPlan,
     USDAFood,
     WorkoutLog,

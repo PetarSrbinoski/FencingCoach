@@ -102,6 +102,22 @@ class Activity(Base):
     raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
+class SavedFood(Base):
+    __tablename__ = "saved_foods"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    name_key: Mapped[str] = mapped_column(String(400), unique=True)
+    kcal: Mapped[float | None] = mapped_column(Float)
+    protein_g: Mapped[float | None] = mapped_column(Float)
+    carbs_g: Mapped[float | None] = mapped_column(Float)
+    fat_g: Mapped[float | None] = mapped_column(Float)
+    fiber_g: Mapped[float | None] = mapped_column(Float)
+    micros: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    serving_name: Mapped[str | None] = mapped_column(String(80))
+    serving_size_g: Mapped[float | None] = mapped_column(Float)
+
+
 class NutritionLog(Base):
     __tablename__ = "nutrition_log"
     __table_args__ = (Index("ix_nutrition_log_day", "day"),)

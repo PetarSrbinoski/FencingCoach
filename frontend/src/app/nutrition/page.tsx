@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { Card, StatRow } from "@/components/ui";
 import { MacroProgress } from "@/components/charts";
+import { FoodLibrary } from "@/components/food-library";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,6 +249,10 @@ export default function NutritionPage() {
         items: estimate.items,
         confidence: estimate.confidence ?? undefined,
         notes: estimate.notes,
+        incomplete_micros: estimate.incomplete_micros,
+        estimated_by: (["kcal", "protein_g", "carbs_g", "fat_g", "fiber_g"] as const)
+          .some(key => (draft[key] === "" ? null : Number(draft[key])) !== estimate[key])
+          ? "manual" : estimate.estimated_by,
       });
       setText("");
       setEstimate(null);
@@ -505,6 +510,18 @@ export default function NutritionPage() {
               <Markdown className="text-xs text-muted-foreground">{estimate.notes}</Markdown>
             )}
 
+            {estimate.items.some(item => item.source === "saved") && (
+              <ul className="text-xs space-y-2">
+                {estimate.items.map((item, index) => <li key={index}>
+                  <span className="font-medium">{item.name}</span>
+                  {item.source === "saved" ? ` · ${item.qty_g} g · saved values` : " · estimated"}
+                  {item.nutrients && <span className="block text-muted-foreground">
+                    {Object.entries(item.nutrients).map(([key, value]) => `${key}: ${value}`).join(" · ")}
+                  </span>}
+                </li>)}
+              </ul>
+            )}
+
             <div className="flex gap-2 pt-1">
               <Button onClick={confirmLog} disabled={confirming} size="sm">
                 {confirming ? "Saving…" : "Confirm & log"}
@@ -517,6 +534,8 @@ export default function NutritionPage() {
           </div>
         )}
       </Card>
+
+      <FoodLibrary onLogged={refresh} meal={meal} />
 
       {/* Targets vs intake */}
       {loading && !targets ? (
@@ -608,6 +627,7 @@ export default function NutritionPage() {
                   key={k}
                   label={k}
                   value={typeof v === "number" ? v.toFixed(1) : String(v)}
+                  hint={totals.incomplete_micros?.includes(k) ? "incomplete" : undefined}
                 />
               ))
           ) : (
@@ -615,6 +635,7 @@ export default function NutritionPage() {
               <p className="text-muted-foreground text-sm font-medium">No data yet</p>
             </div>
           )}
+          <p className="text-xs text-muted-foreground mt-3">Known amounts only. Missing nutrient values are unknown, not zero.</p>
         </Card>
 
         <Card title="Today's entries">
@@ -656,6 +677,11 @@ export default function NutritionPage() {
                     {l.kcal?.toFixed(0)} kcal · P{" "}
                     {l.protein_g?.toFixed(0)} / C {l.carbs_g?.toFixed(0)} / F{" "}
                     {l.fat_g?.toFixed(0)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {l.estimated_by?.startsWith("saved") ? "Saved food values" :
+                      l.estimated_by?.startsWith("mixed") ? "Saved values + estimates" :
+                      l.estimated_by?.startsWith("manual") ? "Edited values" : "Estimated values"}
                   </div>
                 </li>
               ))}

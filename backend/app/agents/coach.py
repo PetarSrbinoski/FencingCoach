@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -42,6 +43,8 @@ from app.agents.retry import (
 )
 from app.models import Competition
 from app.schemas import ExerciseOverrideIn
+from app.schemas.foods import FoodPortion, PositiveAmount, SavedFoodInput, SavedFoodOut
+from app.services import foods
 from app.services.grounding import find_ungrounded_claims
 from app.services.training import clear_workout_override, set_workout_override
 from llm.prompts.coach import COACH_SYSTEM_PROMPT
@@ -115,8 +118,7 @@ _COACH_AGENT_KWARGS: dict[str, Any] = dict(
 )
 
 # ── Agent definitions ──────────────────────────────────────────────────
-# Default: no tools at all — the model can only answer from its own
-# knowledge + the injected context snapshot. Nothing to misfire on.
+# Default: database tools and context, with web search available only on request.
 coach_agent = Agent(get_model(), **_COACH_AGENT_KWARGS)
 
 # Used only when `_wants_web_search()` matches the athlete's message.
@@ -242,6 +244,86 @@ async def add_competition(
         f"Added competition '{comp.name}' on {comp.event_date.isoformat()} "
         f"(priority {comp.priority}, id={comp.id})."
     )
+
+
+@coach_agent.tool
+@coach_agent_search.tool
+async def search_saved_foods(ctx: RunContext[CoachDeps], query: str = "") -> list[SavedFoodOut]:
+    """Find personal foods and their exact supplied nutrients per 100 g.
+
+    Use before logging food or updating a library entry. Empty query lists all
+    foods; try it if a nickname or a specific query returns no match. Ask the
+    athlete when several foods could match. Never invent an ID or quantity.
+    """
+    return [SavedFoodOut.model_validate(food) for food in foods.list_foods(ctx.deps.db, query)]
+
+
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def save_personal_food(
+    ctx: RunContext[CoachDeps], food: SavedFoodInput, food_id: int | None = None,
+    values_for_g: PositiveAmount = 100,
+) -> SavedFoodOut:
+    """Save a food ONLY when the athlete explicitly requests a library save/update.
+
+    All nutrient numbers must be supplied by the athlete. Pass them unchanged,
+    and set values_for_g to their stated basis in grams (default 100). The server
+    converts to per 100 g. Unknown fields stay null/absent; never fill them with
+    estimates or web data. Ask for the basis weight if it is unclear.
+    Saving does not log consumption. On a duplicate ask whether to update the
+    existing ID or save a distinctly named variant. Pass food_id ONLY after the
+    athlete asks for an update; preserve existing fields they did not change.
+    """
+    key = json.dumps([food_id, food.model_dump(), values_for_g], sort_keys=True)
+    cache = ctx.deps.extra.setdefault("saved_food_writes", {})
+    if key in cache:
+        return cache[key]
+    try:
+        food = foods.per_100g(food, values_for_g)
+        if food_id is not None:
+            current = SavedFoodOut.model_validate(foods.get_food(ctx.deps.db, food_id))
+            data = current.model_dump(exclude={"id"})
+            data.update(food.model_dump(exclude_unset=True))
+            food = SavedFoodInput.model_validate(data)
+        row = foods.save_food(ctx.deps.db, food, food_id)
+    except foods.FoodError as exc:
+        raise ModelRetry(str(exc)) from exc
+    ctx.deps.side_effect_committed = True
+    result = SavedFoodOut.model_validate(row)
+    cache[key] = result
+    return result
+
+
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def log_saved_foods(
+    ctx: RunContext[CoachDeps], portions: list[FoodPortion],
+    day: str | None = None, meal: str | None = None,
+) -> dict[str, Any]:
+    """Record consumption of saved foods using server-calculated nutrients.
+
+    Call when the athlete says they ate a food or asks to log it, never for
+    hypothetical meals. Search the library first. Ask for clarification if a
+    food or quantity is ambiguous. Supply grams OR a count of the saved serving;
+    never guess grams, serving sizes, missing macros, or unit conversions.
+    Omitted day means today. Returned numbers are what was actually recorded.
+    """
+    parsed_day = _parse_iso_date(day, field_name="day") if day else None
+    key = json.dumps([day, meal, [p.model_dump() for p in portions]], sort_keys=True)
+    cache = ctx.deps.extra.setdefault("saved_food_logs", {})
+    if key in cache:
+        return cache[key]
+    try:
+        row = foods.log_foods(ctx.deps.db, portions, day=parsed_day, meal=meal)
+    except foods.FoodError as exc:
+        raise ModelRetry(str(exc)) from exc
+    ctx.deps.side_effect_committed = True
+    result = {
+        "log_id": row.id, "day": row.day.isoformat(), "foods": row.raw_text,
+        **{name: getattr(row, name) for name in foods.MACROS}, "micros": row.micros,
+    }
+    cache[key] = result
+    return result
 
 
 # ── History conversion ────────────────────────────────────────────────

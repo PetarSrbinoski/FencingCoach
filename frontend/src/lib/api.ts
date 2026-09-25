@@ -66,7 +66,24 @@ export type NutritionLog = {
   logged_at: string;
 };
 
-export type NutritionEstimateItem = { name: string; qty_g: number };
+export type FoodNutrient = { name: string; amount: number; unit: "g" | "mg" | "mcg" | "IU" };
+export type SavedFoodInput = {
+  name: string;
+  kcal: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  fiber_g: number | null;
+  micros: FoodNutrient[];
+  serving_name: string | null;
+  serving_size_g: number | null;
+};
+export type SavedFood = SavedFoodInput & { id: number };
+export type FoodPortion = { food_id: number; grams?: number; servings?: number };
+export type NutritionEstimateItem = {
+  name: string; qty_g: number; source?: string; food_id?: number | null;
+  nutrients?: Record<string, number>;
+};
 
 export type NutritionEstimateStatus = "pending" | "done" | "error";
 
@@ -90,6 +107,8 @@ export type NutritionEstimate = {
   items: NutritionEstimateItem[];
   confidence: "low" | "medium" | "high" | string | null;
   notes: string;
+  incomplete_micros?: string[];
+  estimated_by?: string;
 };
 
 export type NutritionLogInput = {
@@ -106,6 +125,7 @@ export type NutritionLogInput = {
   confidence?: string;
   notes?: string;
   estimated_by?: string;
+  incomplete_micros?: string[];
 };
 
 export type NutritionDayTotals = {
@@ -117,6 +137,7 @@ export type NutritionDayTotals = {
   fiber_g: number;
   micros: Record<string, number>;
   entry_count: number;
+  incomplete_micros?: string[];
 };
 
 export type Brief = {
@@ -452,6 +473,20 @@ export const api = {
     totals: (day: string) => request<NutritionDayTotals>(`/nutrition/totals/${day}`),
     delete: (id: number) =>
       request<void>(`/nutrition/log/${id}`, { method: "DELETE" }),
+  },
+
+  foods: {
+    list: (q = "") => request<SavedFood[]>(`/nutrition/foods?q=${encodeURIComponent(q)}`),
+    create: (food: SavedFoodInput) => request<SavedFood>("/nutrition/foods", {
+      method: "POST", body: JSON.stringify(food),
+    }),
+    update: (id: number, food: SavedFoodInput) => request<SavedFood>(`/nutrition/foods/${id}`, {
+      method: "PUT", body: JSON.stringify(food),
+    }),
+    delete: (id: number) => request<void>(`/nutrition/foods/${id}`, { method: "DELETE" }),
+    log: (portions: FoodPortion[], meal?: string) => request<NutritionLog>("/nutrition/foods/log", {
+      method: "POST", body: JSON.stringify({ portions, meal }),
+    }),
   },
 
   brief: {

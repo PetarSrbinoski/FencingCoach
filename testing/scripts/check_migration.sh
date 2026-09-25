@@ -8,4 +8,4 @@ trap '"${COMPOSE[@]}" down --volumes --remove-orphans >/dev/null' EXIT
 "${COMPOSE[@]}" build backend >/dev/null
 "${COMPOSE[@]}" up -d db >/dev/null
 "${COMPOSE[@]}" run --rm backend alembic upgrade head
-"${COMPOSE[@]}" run --rm backend alembic current | grep '0005_async_chat_and_nutrition_jobs'
+"${COMPOSE[@]}" run --rm backend alembic current | grep '0006_saved_foods'
