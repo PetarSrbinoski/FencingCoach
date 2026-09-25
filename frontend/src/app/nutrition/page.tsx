@@ -81,7 +81,7 @@ function slotLabel(slot: string): string {
 }
 
 export default function NutritionPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
   const [text, setText] = useState("");
   const [meal, setMeal] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -131,13 +131,18 @@ export default function NutritionPage() {
 
   function refresh() {
     Promise.all([
-      api.nutrition.totals(today).then(setTotals).catch(() => {}),
       api.nutrition.list(7).then(setLogs).catch(() => {}),
       api.targets.today().then((t) => {
+        // Logging uses the athlete's timezone on the server, which can differ
+        // from the browser's UTC date around midnight.
+        setToday(t.day);
         setTargets(t);
         setDayTypeOverride(t.override_source === "manual" ? t.day_type : "auto");
+        return Promise.all([
+          api.nutrition.totals(t.day).then(setTotals).catch(() => {}),
+          api.mealplan.get(t.day).then(setPlan).catch(() => {}),
+        ]);
       }).catch(() => {}),
-      api.mealplan.get(today).then(setPlan).catch(() => {}),
     ]).finally(() => setLoading(false));
   }
 
