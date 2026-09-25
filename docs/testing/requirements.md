@@ -30,7 +30,7 @@ today's targets, synthetic estimate completion, its persisted job row, and no
 nutrition log. The browser smoke checks that real targets load and a controlled
 estimate reaches review. A passing run is recorded in `evidence/` only after
 execution; writing a test is not execution evidence. The first successful run
-is [20260925T091801Z-38984.json](evidence/20260925T091801Z-38984.json): one
+is [20260925T093139Z-43024.json](evidence/20260925T093139Z-43024.json): one
 API/database test and one Chromium test passed, with zero legacy tests collected.
 
 ## Observed implementation behavior, not yet a confirmed requirement

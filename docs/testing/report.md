@@ -46,7 +46,7 @@ the later mutation comparison. No score or improvement is claimed in advance.
 The isolated issue 01 smoke run on 25 September 2026 passed one API/database
 test and one Chromium test. Project collection contained one test and no legacy
 tests. It took 60 seconds including cached image builds and stack teardown.
-See the [run evidence](evidence/20260925T091801Z-38984.json). The migration-only
+See the [run evidence](evidence/20260925T093139Z-43024.json). The migration-only
 regression check also passed on a fresh PostgreSQL database after the fix
 described in [defects.md](defects.md).
 
