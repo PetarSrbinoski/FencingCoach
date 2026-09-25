@@ -1,8 +1,9 @@
 {
-  "source_revision": "b981e64a3712cb415eaf176d3cfa53c7765fe2fc",
-  "suite_sha256": "1727882e2ff98e6e20b647e2eb0d4004e0324997494895054054fc1723c1c99b",
-  "working_tree_status": "M .dockerignore\n M .gitignore\n M backend/alembic/env.py\n M backend/alembic/versions/0005_async_chat_and_nutrition_jobs.py\n M frontend/package-lock.json\n M frontend/package.json\n?? PLAN.md\n?? SPEC.md\n?? compose.testing.yml\n?? docs/testing/\n?? frontend/.dockerignore\n?? frontend/e2e/\n?? frontend/playwright.config.ts\n?? pytest.project.ini\n?? testing/",
-  "started_at_utc": "2026-09-25T09:18:01Z",
+  "source_revision": "5d8c8830212a30c7b76035e41fbe5e2b52504c64",
+  "source_tree_sha256": "4c10ded3a36f6dce6390196a6384e2b17af2dcfdd441e26ec9ff6cca76da24d6",
+  "suite_sha256": "58597980537441abcd76d4e854e8a9827663b469fda807629fb2c22b1c44139c",
+  "working_tree_status": "M .gitignore\n?? PLAN.md\n?? SPEC.md",
+  "started_at_utc": "2026-09-25T09:31:39Z",
   "duration_seconds": 60,
   "environment": {
     "os": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
@@ -33,11 +34,11 @@
     "failures": "0",
     "errors": "0",
     "skipped": "0",
-    "time": "0.478"
+    "time": "0.472"
   },
   "browser": {
-    "startTime": "2026-09-25T09:18:46.615Z",
-    "duration": 8879.346,
+    "startTime": "2026-09-25T09:32:25.838Z",
+    "duration": 8438.23,
     "expected": 1,
     "skipped": 0,
     "unexpected": 0,
