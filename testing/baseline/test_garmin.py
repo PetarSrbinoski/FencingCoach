@@ -1,5 +1,3 @@
-"""GAR-01/02/03: independently selected public extractor examples."""
-
 import pytest
 from app.services.garmin_extract import (
     extract_all,

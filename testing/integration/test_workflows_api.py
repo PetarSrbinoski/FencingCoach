@@ -1,5 +1,3 @@
-"""API-01..05 against the running FastAPI server and migrated PostgreSQL."""
-
 from __future__ import annotations
 
 import os

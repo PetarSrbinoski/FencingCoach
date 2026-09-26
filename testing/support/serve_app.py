@@ -1,5 +1,3 @@
-"""Test-only ASGI entrypoint; never selected by the production Compose file."""
-
 from __future__ import annotations
 
 import os

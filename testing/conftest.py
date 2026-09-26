@@ -1,5 +1,3 @@
-"""Fixtures for the independent project suite; legacy fixtures are never imported."""
-
 from collections.abc import Iterator
 
 import pytest
