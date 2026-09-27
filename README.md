@@ -1,3 +1,5 @@
+# TESTOVITE ZA SKIT SE VO testing/
+
 # FencingCoach AI
 
 A personal coaching app for fencing. It helps with training notes, nutrition logs, Garmin sync, and chat-based check-ins.
