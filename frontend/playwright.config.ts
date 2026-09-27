@@ -3,7 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 const artifactDir = process.env.TEST_ARTIFACT_DIR ?? "../testing/.artifacts/latest";
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "../testing/frontend/e2e",
+  tsconfig: "../testing/frontend/tsconfig.json",
   workers: 1,
   retries: 0,
   timeout: 30_000,
