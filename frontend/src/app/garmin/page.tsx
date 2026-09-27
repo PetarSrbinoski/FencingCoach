@@ -8,7 +8,7 @@ import { DataCoveragePanel } from "@/components/data-coverage-panel";
 import { useToast } from "@/components/ui/toast";
 
 export default function GarminPage() {
-  const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null } | null>(null);
+  const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null; last_sync_outcome: string | null } | null>(null);
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [syncState, setSyncState] = useState<string | null>(null);
   const [coverageRevision, setCoverageRevision] = useState(0);
@@ -38,7 +38,10 @@ export default function GarminPage() {
     try {
       const res = await api.garmin.syncRecent(2);
       announceGarminSync();
-      if (res.ok) {
+      if (res.outcome === "partial") {
+        setSyncState("Sync partially completed. Usable readings are shown; some endpoints are unavailable. Retry is available.");
+        toast({ title: "Partial sync", description: "Some Garmin endpoints could not be fetched." });
+      } else if (res.ok) {
         const current = await api.readiness.today();
         setSyncState(current.score === null ? "Sync complete; today's readiness is unavailable." : `Sync complete; readiness is ${current.score} (${current.band}).`);
         toast({ title: "Synced last 2 days", description: JSON.stringify(res.fetched), variant: "success" });
@@ -60,7 +63,10 @@ export default function GarminPage() {
     try {
       const res = await api.garmin.syncFull(365);
       announceGarminSync();
-      if (res.ok) {
+      if (res.outcome === "partial") {
+        setSyncState("Full sync partially completed. Usable readings are shown; some endpoints are unavailable. Retry is available.");
+        toast({ title: "Partial sync", description: "Some Garmin endpoints could not be fetched." });
+      } else if (res.ok) {
         const current = await api.readiness.today();
         setSyncState(current.score === null ? "Full sync complete; today's readiness is unavailable." : `Full sync complete; readiness is ${current.score} (${current.band}).`);
         toast({ title: "Full sync complete", description: JSON.stringify(res.fetched), variant: "success" });
@@ -158,7 +164,7 @@ export default function GarminPage() {
       {/* ── Status metadata ────────────────────────────────────────── */}
       <section className="border-t border-border pt-6 text-sm" role="status">
         {readiness ? readiness.score === null ? `Today's readiness (${readiness.day}) is unavailable.` : `Readiness ${readiness.score} (${readiness.band}) for ${readiness.day}; fetched ${readiness.reading_fetched_at ?? "at an unknown time"}.` : "Loading current readiness…"}
-        {status?.last_sync_at && <p className="text-xs text-muted-foreground mt-2">Last sync attempt: {status.last_sync_at} · {status.last_sync_ok ? "complete" : "failed"}</p>}
+        {status?.last_sync_at && <p className="text-xs text-muted-foreground mt-2">Last sync attempt: {status.last_sync_at} · {status.last_sync_outcome || (status.last_sync_ok ? "complete" : "failed")}</p>}
       </section>
       <section className="border-t border-border pt-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-lg">

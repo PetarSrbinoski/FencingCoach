@@ -26,8 +26,8 @@ ALIASES = {
     "dairy-free": ("dairy",), "no dairy": ("dairy",), "lactose intolerant": ("dairy",),
     "gluten-free": ("gluten",), "no gluten": ("gluten",), "celiac": ("gluten",),
     "egg-free": ("egg",), "no eggs": ("egg",),
-    "vegetarian": ("meat",),
-    "vegan": ("meat", "dairy", "egg", "honey"),
+    "vegetarian": ("meat", "shellfish"),
+    "vegan": ("meat", "shellfish", "dairy", "egg", "honey"),
     "no pork": ("pork",), "pork-free": ("pork",),
     "shellfish-free": ("shellfish",), "no shellfish": ("shellfish",), "shellfish allergy": ("shellfish",),
 }
@@ -63,6 +63,6 @@ def ingredient_conflicts(payload: Any, rules: tuple[str, ...]) -> list[str]:
                 continue
             name = item["name"].casefold()
             for rule in rules:
-                if any(re.search(rf"\b{re.escape(term)}\b", name) for term in INGREDIENT_TERMS[rule]):
+                if any(re.search(rf"\b{re.escape(term)}(?:s|es)?\b", name) for term in INGREDIENT_TERMS[rule]):
                     conflicts.append(f"{meal['name']}: {item['name']} conflicts with {rule}")
     return conflicts

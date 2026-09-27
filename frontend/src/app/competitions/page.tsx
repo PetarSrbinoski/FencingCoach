@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { api, Competition, CompetitionInput } from "@/lib/api";
 import { Card, BandPill } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export default function CompetitionsPage() {
     api.competitions.list(false).then(setList).catch((e) => setErr(e?.message));
   }
   useEffect(() => { refresh(); api.readiness.today().then(t => setToday(t.day)).catch(() => {}); }, []);
+  useWorkflowRefresh(refresh);
   useEffect(() => { if (list.length && window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView(); }, [list]);
 
   function reset() {

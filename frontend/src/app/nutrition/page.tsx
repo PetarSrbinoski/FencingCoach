@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { createJobObserver, type JobObservation } from "@/lib/job-observer";
 import {
   api,
@@ -172,6 +173,11 @@ export default function NutritionPage() {
   }, []);
 
   function refresh() { setReloadTick(value => value + 1); }
+  useWorkflowRefresh(() => {
+    refresh();
+    api.profile.get().then(setProfile).catch(() => {});
+    if (today) api.mealplan.get(today).then(setPlan).catch(() => {});
+  });
 
   useEffect(() => {
     api.profile.get().then(setProfile).catch(() => {});
@@ -967,9 +973,9 @@ export default function NutritionPage() {
           </div>
         ) : shopping.item_count === 0 ? (
           <p className="text-muted-foreground text-sm font-mono">
-            No meal plans generated yet for {shopping.start} → {shopping.end}.
+            No usable shopping quantities for {shopping.start} → {shopping.end}.
             {shopping.missing_days.length > 0 && (
-              <> Missing: {shopping.missing_days.join(", ")}</>
+              <> Missing or unusable coverage: {shopping.missing_days.join(", ")}</>
             )}
           </p>
         ) : (
@@ -978,7 +984,7 @@ export default function NutritionPage() {
               {shopping.start} → {shopping.end} · {shopping.item_count} items ·
               covered: {shopping.days_covered.length}/7 days {shopping.missing_days.length > 0 ? "(partial)" : "(complete)"}
               {shopping.missing_days.length > 0 && (
-                <> · missing: {shopping.missing_days.join(", ")}</>
+                <> · missing or unusable coverage: {shopping.missing_days.join(", ")}</>
               )}
             </p>
             <ul className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-6">

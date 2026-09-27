@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { announceGarminSync, useGarminSyncObserver } from "@/lib/garmin-refresh";
 import { useRouter } from "next/navigation";
 import {
@@ -74,6 +75,7 @@ export default function Home() {
 
   useEffect(loadAll, []);
   useGarminSyncObserver(loadAll);
+  useWorkflowRefresh(loadAll);
 
   async function generateBrief() {
     setGenerating(true);
@@ -98,7 +100,10 @@ export default function Home() {
         : 2;
       const res = await api.garmin.syncRecent(days);
       announceGarminSync();
-      if (res.ok) {
+      if (res.outcome === "partial") {
+        setSyncState("Sync partially completed. Usable readings remain visible; some endpoints are unavailable. Retry is available.");
+        toast({ title: "Partial sync", description: "Some Garmin endpoints could not be fetched." });
+      } else if (res.ok) {
         const latest = await api.readiness.today();
         setSyncState(latest.score === null ? "Sync complete; today's readiness is unavailable." : `Sync complete; today's readiness is ${latest.score} (${latest.band}).`);
         toast({ title: `Synced last ${days} day${days === 1 ? "" : "s"}`, variant: "success" });

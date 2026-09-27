@@ -80,6 +80,7 @@ class GarminService:
         """
         c = self._client_or_login()
         out: dict[str, Any] = {}
+        failures: list[str] = []
         ds = day.isoformat()
 
         def _safe(name: str, fn):
@@ -88,6 +89,7 @@ class GarminService:
             except Exception as e:  # noqa: BLE001
                 log.warning("Garmin fetch %s failed: %s", name, e)
                 out[name] = None
+                failures.append(name)
 
         _safe("stats", lambda: c.get_stats(ds))
         _safe("user_summary", lambda: c.get_user_summary(ds))
@@ -101,6 +103,7 @@ class GarminService:
         _safe("training_readiness", lambda: c.get_training_readiness(ds))
         _safe("max_metrics", lambda: c.get_max_metrics(ds))  # VO2max
         _safe("intensity_minutes", lambda: c.get_intensity_minutes_data(ds))
+        out["fetch_failures"] = failures
         return out
 
     def fetch_recent_activities(self, limit: int = 20) -> list[dict[str, Any]]:
@@ -109,7 +112,7 @@ class GarminService:
             return c.get_activities(0, limit) or []
         except Exception as e:  # noqa: BLE001
             log.warning("Garmin activities fetch failed: %s", e)
-            return []
+            raise RuntimeError("Garmin activities are unavailable") from e
 
     # ── persistence ───────────────────────────────────────────────────
     @staticmethod
@@ -123,7 +126,7 @@ class GarminService:
             detail=metric.detail,
         )
         stmt = stmt.on_conflict_do_update(
-            constraint="uq_garmin_metric_kind_day",
+            index_elements=["kind", "day"],
             set_={
                 "value": stmt.excluded.value,
                 "payload": stmt.excluded.payload,
@@ -200,26 +203,30 @@ class GarminService:
     def sync_recent(
         self, db: Session, days: int = settings.GARMIN_RECENT_SYNC_DAYS
     ) -> dict[str, Any]:
-        today = athlete_today()
-        days_synced = 0
-        for i in range(days):
-            d = today - timedelta(days=i)
-            raw = self.fetch_day(d)
-            self.persist_day(db, d, raw)
-            days_synced += 1
-        activities_added = self.persist_activities(db, self.fetch_recent_activities(20))
-        return {"days_synced": days_synced, "activities_added": activities_added}
+        return self._sync(db, days, activity_limit=20)
 
     def sync_full(self, db: Session, days: int = settings.GARMIN_FULL_SYNC_DAYS) -> dict[str, Any]:
+        return self._sync(db, days, activity_limit=100)
+
+    def _sync(self, db: Session, days: int, *, activity_limit: int) -> dict[str, Any]:
         today = athlete_today()
         days_synced = 0
+        fetch_failures: list[dict[str, Any]] = []
         for i in range(days):
             d = today - timedelta(days=i)
             raw = self.fetch_day(d)
             self.persist_day(db, d, raw)
+            if raw.get("fetch_failures"):
+                fetch_failures.append({"day": d.isoformat(), "endpoints": raw["fetch_failures"]})
             days_synced += 1
-        activities_added = self.persist_activities(db, self.fetch_recent_activities(100))
-        return {"days_synced": days_synced, "activities_added": activities_added}
+        try:
+            activities = self.fetch_recent_activities(activity_limit)
+        except RuntimeError:
+            fetch_failures.append({"day": None, "endpoints": ["activities"]})
+            activities = []
+        activities_added = self.persist_activities(db, activities)
+        return {"days_synced": days_synced, "activities_added": activities_added,
+                "partial": bool(fetch_failures), "fetch_failures": fetch_failures}
 
 
 _garmin: GarminService | None = None

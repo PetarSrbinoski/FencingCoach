@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import CoachPlanProposal, Competition
 from app.services.agent_actions import record_action
 from app.services.competition_nutrition import preview, stage_accepted_plan
+from app.services.transactions import lock_nutrition_inputs
 
 router = APIRouter(prefix="/coach-plan-proposals", tags=["coach plan proposals"])
 
@@ -54,8 +55,7 @@ def cancel_proposal(proposal_id: int, db: Session = Depends(get_db)) -> dict[str
 
 @router.post("/{proposal_id}/apply")
 def apply_proposal(proposal_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(71248791)"))
+    lock_nutrition_inputs(db)
     row = db.scalar(select(CoachPlanProposal).where(CoachPlanProposal.id == proposal_id).with_for_update())
     if row is None:
         raise HTTPException(404, "Coach plan proposal not found")

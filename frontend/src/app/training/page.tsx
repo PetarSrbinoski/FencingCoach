@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useGarminSyncObserver } from "@/lib/garmin-refresh";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput, FencingAnalysis } from "@/lib/api";
 import { BandPill, Card } from "@/components/ui";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -499,6 +500,7 @@ export default function TrainingPage() {
     setWeekStart(mondayOf(new Date(`${shownDay}T12:00:00`)));
   }).catch(() => {}); }, []);
   useGarminSyncObserver(fetchWeek);
+  useWorkflowRefresh(fetchWeek);
 
   async function resetOverride(day: string) {
     setResettingDay(day);

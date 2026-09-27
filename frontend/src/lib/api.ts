@@ -435,10 +435,13 @@ export type NutritionAnswerReference = {
   days?: Array<{ day: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; training_type: string; context: string; explanation: string; target_source: string; plan_url: string | null; diary_url: string; plan_version: number | null }>;
 };
 
+export type AgentActionKind = "workout" | "competition" | "food_create" | "food_update" | "meal" | "nutrition_plan" | "reversal";
+export type AgentActionStatus = "committed" | "undone" | "failed" | "conflict" | "missing";
+
 export type AgentAction = {
   id: number;
-  kind: string;
-  status: string;
+  kind: AgentActionKind;
+  status: AgentActionStatus;
   resource_id: string | number;
   summary: string;
   before: Record<string, unknown> | null;
@@ -535,7 +538,7 @@ export const api = {
         body: JSON.stringify({ email, password }),
       }),
     syncRecent: (days = 2) =>
-      request<{ ok: boolean; fetched: Record<string, unknown>; error?: string }>(
+      request<{ ok: boolean; outcome: "complete" | "partial" | "failed"; fetched: Record<string, unknown>; error?: string }>(
         `/garmin/sync/recent?days=${days}`,
         { method: "POST" }
       ),
@@ -543,12 +546,12 @@ export const api = {
     // window (GARMIN_FULL_SYNC_DAYS). Callers doing a one-time deep
     // historical backfill should pass an explicit larger value (e.g. 365).
     syncFull: (days = 30) =>
-      request<{ ok: boolean; fetched: Record<string, unknown>; error?: string }>(
+      request<{ ok: boolean; outcome: "complete" | "partial" | "failed"; fetched: Record<string, unknown>; error?: string }>(
         `/garmin/sync/full?days=${days}`,
         { method: "POST" }
       ),
     status: () =>
-      request<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null }>("/garmin/status"),
+      request<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null; last_sync_outcome: string | null }>("/garmin/status"),
   },
 
   diagnostics: {

@@ -51,3 +51,23 @@ def test_ambiguous_restriction_requires_clarification(client, db):
     response = client.post("/mealplan/2026-09-28")
     assert response.status_code == 409
     assert "clarify" in response.json()["detail"].lower()
+
+
+@pytest.mark.parametrize(("restriction", "ingredient"), [
+    ("no peanuts", "Peanuts"), ("no eggs", "Eggs"), ("vegan", "Mussels"), ("vegetarian", "Oysters"),
+])
+def test_plural_ingredient_names_cannot_bypass_exclusions(client, db, monkeypatch, restriction, ingredient):
+    db.add(AthleteProfile(weight_kg=75, dietary_restrictions=restriction))
+    db.commit()
+
+    def proposed(prompt, **kwargs):
+        return SimpleNamespace(output=MealPlanOutput.model_validate({
+            "meals": [{"slot": "lunch", "time": "12:00", "name": "Lunch",
+                       "ingredients": [{"name": ingredient, "qty_g": 100}]}],
+        }))
+
+    monkeypatch.setattr("app.agents.mealplan.mealplan_agent.run_sync", proposed)
+    response = client.post("/mealplan/2026-09-28")
+    assert response.status_code == 409
+    assert "conflicts" in response.json()["detail"]
+    assert client.get("/mealplan/2026-09-28").json() is None

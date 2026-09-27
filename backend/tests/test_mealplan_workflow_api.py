@@ -67,3 +67,17 @@ def test_failed_regeneration_preserves_saved_plan(client, db, monkeypatch):
     assert response.status_code == 502
     assert "preserved" in response.json()["detail"]
     assert client.get("/mealplan/2026-09-28").json()["plan"] == saved
+
+
+def test_shopping_marks_empty_or_partly_unusable_ingredients_as_missing_coverage(client, db):
+    db.add_all([
+        NutritionPlan(day=date(2026, 9, 28), targets={}, plan={"meals": [{"name": "Lunch", "ingredients": []}]}),
+        NutritionPlan(day=date(2026, 9, 29), targets={}, plan={"meals": [{"name": "Lunch", "ingredients": [
+            {"name": "rice", "qty_g": 100}, {"name": "eggs", "qty_g": None},
+        ]}]}),
+    ])
+    db.commit()
+    result = client.get("/shopping/range?start=2026-09-28&end=2026-09-29").json()
+    assert result["days_covered"] == []
+    assert result["missing_days"] == ["2026-09-28", "2026-09-29"]
+    assert result["items"] == [{"name": "rice", "qty_g": 100}]

@@ -44,7 +44,7 @@ def lookup_targets(db: Session, start: date, end: date, event_id: int | None = N
             "context": plan_day["context"] if plan_day else "ordinary",
             "explanation": plan_day["explanation"] if plan_day else target.notes,
             "diary_url": f"/nutrition?day={day.isoformat()}",
-            "plan_url": f"/nutrition?competition={plan.event_id}" if plan else None,
+            "plan_url": f"/nutrition?competition={plan.event_id}&plan={plan.id}" if plan else None,
             "provisional": day > athlete_today(),
             "entry_count": int(count),
             "diary_incomplete_possible": True,

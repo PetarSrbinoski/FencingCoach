@@ -67,3 +67,19 @@ def test_repeat_scales_snapshot_once_per_request(client):
     assert again.status_code == 201
     assert again.json()["id"] == first.json()["id"]
     assert client.get("/nutrition/totals/2026-01-10").json()["entry_count"] == 1
+
+
+def test_repeat_preserves_numeric_uncertainty_and_source_metadata(client):
+    original = client.post("/nutrition/log", json={
+        "day": "2026-01-03", "raw_text": "Rice bowl", "kcal": 500,
+        "protein_g": 20, "carbs_g": 80, "fat_g": 10,
+        "micros": {"iron_mg": 2, "confidence": 0.8, "source_version": 3},
+    }).json()
+    copy = client.post(f"/nutrition/log/{original['id']}/repeat", json={
+        "day": "2026-01-10", "meal": "lunch", "multiplier": 2, "request_id": "uncertainty-copy",
+    }).json()
+    assert copy["micros"]["iron_mg"] == 4
+    assert copy["micros"]["confidence"] == 0.8
+    assert copy["micros"]["source_version"] == 3
+    totals = client.get("/nutrition/totals/2026-01-10").json()["micros"]
+    assert "confidence" not in totals and "source_version" not in totals

@@ -43,9 +43,10 @@ def sync_recent(
     started = datetime.now(UTC)
     try:
         result = get_garmin().sync_recent(db, days=days)
-        record_sync_result(db, ok=True)
+        partial = bool(result.get("partial"))
+        record_sync_result(db, ok=not partial, partial=partial)
         return GarminSyncResult(
-            ok=True,
+            ok=not partial, outcome="partial" if partial else "complete",
             fetched=result,
             started_at=started,
             finished_at=datetime.now(UTC),
@@ -55,6 +56,7 @@ def sync_recent(
         record_sync_result(db, ok=False)
         return GarminSyncResult(
             ok=False,
+            outcome="failed",
             fetched={},
             started_at=started,
             finished_at=datetime.now(UTC),
@@ -70,9 +72,10 @@ def sync_full(
     started = datetime.now(UTC)
     try:
         result = get_garmin().sync_full(db, days=days)
-        record_sync_result(db, ok=True)
+        partial = bool(result.get("partial"))
+        record_sync_result(db, ok=not partial, partial=partial)
         return GarminSyncResult(
-            ok=True,
+            ok=not partial, outcome="partial" if partial else "complete",
             fetched=result,
             started_at=started,
             finished_at=datetime.now(UTC),
@@ -82,6 +85,7 @@ def sync_full(
         record_sync_result(db, ok=False)
         return GarminSyncResult(
             ok=False,
+            outcome="failed",
             fetched={},
             started_at=started,
             finished_at=datetime.now(UTC),
@@ -95,9 +99,11 @@ def status(db: Session = Depends(get_db)) -> dict[str, object]:
     count = db.scalar(select(func.count()).select_from(GarminMetric)) or 0
     completed = db.get(AppSetting, "garmin_last_sync_at")
     outcome = db.get(AppSetting, "garmin_last_sync_ok")
+    detail = db.get(AppSetting, "garmin_last_sync_outcome")
     return {
         "last_fetch": last.isoformat() if last else None,
         "metric_rows": int(count),
         "last_sync_at": completed.value if completed else None,
         "last_sync_ok": outcome.value == "true" if outcome else None,
+        "last_sync_outcome": detail.value if detail else None,
     }

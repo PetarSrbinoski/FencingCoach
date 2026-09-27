@@ -42,6 +42,7 @@ test("profile saves separate dietary exclusions and soft preferences across relo
 
 test("chat shows durable action receipts, guarded Undo, and a read-only target answer", async ({ page }) => {
   let undone = false;
+  let attempts = 0;
   const action = { id: 7, kind: "workout", status: "committed", resource_id: day,
     summary: `Set workout for ${day}: custom session`, before: null,
     after: { session_name: "custom session", exercises: [{ exercise: "Squat", sets: 3, reps: 5 }], notes: null, revision: "a" },
@@ -54,8 +55,14 @@ test("chat shows durable action receipts, guarded Undo, and a read-only target a
     if (path === "/chat/conversations/1") return json(route, { id: 1, title: "Competition preparation", created_at: now, updated_at: now,
       messages: [{ id: 1, role: "user", content: "What are my macros?", created_at: now, status: "done" },
         { id: 2, role: "assistant", content: "Here are your saved targets.", created_at: now, status: "done", nutrition_refs: [answer] }] });
-    if (path === "/agent-actions") return json(route, { items: [{ ...action, status: undone ? "undone" : "committed", undone_at: undone ? now : null }], total: 1, page: 1, page_size: 20 });
-    if (path === "/agent-actions/7/undo") { undone = true; return json(route, { ...action, status: "undone", undone_at: now }); }
+    if (path === "/agent-actions") return json(route, { items: [
+      { ...action, status: undone ? "undone" : "committed", undone_at: undone ? now : null },
+      ...(undone ? [{ ...action, id: 8, kind: "reversal", summary: "Undid action 7", status: "committed" }] : []),
+    ], total: undone ? 2 : 1, page: 1, page_size: 20 });
+    if (path === "/agent-actions/7/undo") {
+      if (++attempts === 1) return json(route, { detail: "Workout changed; review the newer version" }, 409);
+      undone = true; return json(route, { ...action, status: "undone", undone_at: now });
+    }
     if (path === "/coach-plan-proposals") return json(route, []);
     return json(route, {});
   });
@@ -70,7 +77,12 @@ test("chat shows durable action receipts, guarded Undo, and a read-only target a
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await dialog.getByRole("button", { name: "Preview Undo" }).click();
   await dialog.getByRole("button", { name: "Confirm Undo" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Workout changed");
+  await dialog.getByRole("button", { name: "Preview Undo" }).click();
+  await dialog.getByRole("button", { name: "Confirm Undo" }).click();
   await expect(dialog.getByText("Status: undone", { exact: false })).toBeVisible();
+  await expect(dialog.getByText("Undid action 7", { exact: false })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Preview Undo" })).toHaveCount(0);
 });
 
 test("coach nutrition proposal is visibly reviewed before Apply", async ({ page }) => {
@@ -100,6 +112,7 @@ test("coach nutrition proposal is visibly reviewed before Apply", async ({ page 
 
 test("dated nutrition page shows meal draft and accepts without claiming consumption", async ({ page }) => {
   let accepted = false;
+  let targetKcal = 2800;
   const event = { id: 1, name: "Cup", event_date: day, end_date: null, location: null, priority: "A", level: null, notes: null, result: null };
   const planDay = { day, context: "event", training_type: "competition", training_source: "auto", kcal: 2800, protein_g: 150, carbs_g: 500, fat_g: 60,
     fiber_g: 25, ordinary_kcal: 2400, ordinary_carbs_g: 300, explanation: "Event demand", existing_plan_id: null };
@@ -121,7 +134,7 @@ test("dated nutrition page shows meal draft and accepts without claiming consump
     if (path === "/nutrition/log" && route.request().method() === "GET") return json(route, []);
     if (path === `/nutrition/totals/${day}`) return json(route, { day, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fiber_g: 0, micros: {}, entry_count: 0 });
     if (path === `/targets/${day}`) return json(route, { day, day_type: "competition", phase: "comp", weight_kg: 75,
-      kcal: 2800, protein_g: 150, carbs_g: 500, fat_g: 60, fiber_g: 25, micros: {}, notes: "Event demand", override_source: "auto",
+      kcal: targetKcal, protein_g: 150, carbs_g: 500, fat_g: 60, fiber_g: 25, micros: {}, notes: "Event demand", override_source: "auto",
       goal: "performance", baseline_kcal: 2400, requested_kcal: 2400, baseline_source: "estimated", data_cutoff: day,
       policy_version: "v1", energy_conflict: null, target_source: "accepted", plan_id: 1, plan_version: 1, needs_review: false });
     if (path === "/competitions") return json(route, [event]);
@@ -142,6 +155,13 @@ test("dated nutrition page shows meal draft and accepts without claiming consump
   await expect(page.getByText("150 g Rice", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Accept these meals" }).click();
   await expect(page.getByText("No food was logged as consumed", { exact: false })).toBeVisible();
+  await expect(page.getByText("Rice and Yogurt", { exact: false })).toBeVisible();
+  await page.goto(`/nutrition?day=${day}&competition=1&plan=1`);
+  await expect(page.getByRole("button", { name: "Generate meals" })).toBeVisible();
+  await expect(page.getByText("150 g Rice", { exact: false })).toBeVisible();
+  targetKcal = 3100;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByText("/ 3100 kcal", { exact: false })).toBeVisible();
 });
 
 test("competition results validate, save, and clear on the selected event", async ({ page }) => {
@@ -169,11 +189,13 @@ test("competition results validate, save, and clear on the selected event", asyn
 
 test("Garmin page refreshes readiness and persistent sync status after sync", async ({ page }) => {
   let synced = false;
+  let partial = false;
   await mockApi(page, async (route, path) => {
-    if (path === "/garmin/status") return json(route, { last_fetch: synced ? now : null, metric_rows: synced ? 8 : 0, last_sync_at: synced ? now : null, last_sync_ok: synced ? true : null });
+    if (path === "/garmin/status") return json(route, { last_fetch: synced ? now : null, metric_rows: synced ? 8 : 0, last_sync_at: synced ? now : null,
+      last_sync_ok: synced ? !partial : null, last_sync_outcome: synced ? partial ? "partial" : "complete" : null });
     if (path === "/readiness/today") return json(route, { day: "2026-09-28", score: synced ? 72 : null,
       band: synced ? "green" : "unknown", source: synced ? "garmin" : "neutral", advisories: {}, inputs: {}, reading_fetched_at: synced ? now : null });
-    if (path === "/garmin/sync/recent") { synced = true; return json(route, { ok: true, fetched: { metrics: 8 } }); }
+    if (path === "/garmin/sync/recent") { synced = true; return json(route, { ok: !partial, outcome: partial ? "partial" : "complete", fetched: { metrics: 8 } }); }
     if (path === "/diagnostics") return json(route, { generated_at: now, window_days: 30, metrics: [] });
     return json(route, {});
   });
@@ -182,6 +204,10 @@ test("Garmin page refreshes readiness and persistent sync status after sync", as
   await page.locator("button").filter({ hasText: "Last 2 days" }).click();
   await expect(page.getByText("Sync complete; readiness is 72", { exact: false })).toBeVisible();
   await expect(page.getByText("Last sync attempt:", { exact: false })).toBeVisible();
+  partial = true;
+  await page.locator("button").filter({ hasText: "Last 2 days" }).click();
+  await expect(page.getByText("Sync partially completed", { exact: false })).toBeVisible();
+  await expect(page.getByText("Last sync attempt:", { exact: false })).toContainText("partial");
 });
 
 test("dated diary edit conflict and repeat keep the selected day", async ({ page }) => {

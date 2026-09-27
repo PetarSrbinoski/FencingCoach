@@ -73,7 +73,8 @@ def _run_recent() -> None:
     db = SessionLocal()
     try:
         result = GarminService().sync_recent(db, days=settings.GARMIN_RECENT_SYNC_DAYS)
-        record_sync_result(db, ok=True)
+        partial = bool(result.get("partial"))
+        record_sync_result(db, ok=not partial, partial=partial)
         _record_success()
         log.info("Recent sync done: %s", result)
     except Exception as e:  # noqa: BLE001
@@ -98,7 +99,8 @@ def _run_full() -> None:
     db = SessionLocal()
     try:
         result = GarminService().sync_full(db, days=settings.GARMIN_FULL_SYNC_DAYS)
-        record_sync_result(db, ok=True)
+        partial = bool(result.get("partial"))
+        record_sync_result(db, ok=not partial, partial=partial)
         _record_success()
         log.info("Full sync done: %s", result)
     except Exception as e:  # noqa: BLE001

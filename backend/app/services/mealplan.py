@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, timedelta
+from math import isfinite
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -49,19 +50,28 @@ def build_shopping_list(
     plan_by_day = {p.day: p for p in plans}
     while cur <= end:
         meals = plan_meals(plan_by_day[cur].plan) if cur in plan_by_day else []
-        if meals:
+        complete = bool(meals)
+        for meal in meals:
+            ingredients = meal.get("ingredients")
+            if not isinstance(ingredients, list) or not ingredients:
+                complete = False
+                continue
+            for ing in ingredients:
+                if not isinstance(ing, dict) or not isinstance(ing.get("name"), str):
+                    complete = False
+                    continue
+                name = ing["name"].strip().lower()
+                try:
+                    qty = float(ing.get("qty_g") or 0)
+                except (TypeError, ValueError):
+                    complete = False
+                    continue
+                if name and isfinite(qty) and qty > 0:
+                    totals[name] += qty
+                else:
+                    complete = False
+        if complete:
             days_covered.append(cur.isoformat())
-            for meal in meals:
-                for ing in meal.get("ingredients") or []:
-                    if not isinstance(ing, dict):
-                        continue
-                    name = (ing.get("name") or "").strip().lower()
-                    try:
-                        qty = float(ing.get("qty_g") or 0)
-                    except (TypeError, ValueError):
-                        continue
-                    if name and qty > 0:
-                        totals[name] += qty
         else:
             missing_days.append(cur.isoformat())
         cur += timedelta(days=1)

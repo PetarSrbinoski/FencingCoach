@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { announceWorkflowChange } from "@/lib/workflow-refresh";
 import { api, type AgentAction } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Props = { open: boolean; onOpenChange: (value: boolean) => void; onOpenConversation: (id: number) => void };
-const kindLabels: Record<string, string> = {
+const kindLabels: Record<AgentAction["kind"], string> = {
   workout: "Workout", competition: "Competition", food_create: "Food added",
   food_update: "Food updated", meal: "Meal logged", reversal: "Undo",
+  nutrition_plan: "Nutrition plan",
 };
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
@@ -26,8 +28,8 @@ function resourceUrl(action: AgentAction): string | null {
 function stateSummary(state: Record<string, unknown> | null, kind: string): string {
   if (!state) return kind === "workout" ? "Automatic workout (no manual override)" : "No entry";
   if (kind === "workout") {
-    const exercises = Array.isArray(state.exercises) ? state.exercises : [];
-    return `${state.session_name || "Custom workout"}: ${exercises.map((item: any) => `${item.exercise} ${item.sets} × ${item.reps}${item.load_kg == null ? "" : ` at ${item.load_kg} kg`}`).join(", ") || "No exercises"}`;
+    const exercises = Array.isArray(state.exercises) ? state.exercises.filter((item): item is Record<string, unknown> => item !== null && typeof item === "object") : [];
+    return `${state.session_name || "Custom workout"}: ${exercises.map(item => `${item.exercise} ${item.sets} × ${item.reps}${item.load_kg == null ? "" : ` at ${item.load_kg} kg`}`).join(", ") || "No exercises"}`;
   }
   if (kind === "competition") return `${state.name} · ${state.event_date}${state.end_date ? `–${state.end_date}` : ""} · priority ${state.priority}${state.result ? " · result recorded" : ""}`;
   if (kind === "meal") return `${state.day} · ${state.meal || "meal"} · ${state.raw_text} · ${state.kcal ?? "unknown"} kcal, ${state.protein_g ?? "unknown"} g protein, ${state.carbs_g ?? "unknown"} g carbs, ${state.fat_g ?? "unknown"} g fat`;
@@ -60,12 +62,11 @@ export function AgentLogs({ open, onOpenChange, onOpenConversation }: Props) {
       const result = await api.agentActions.list({ page, kind, status, start, end });
       setItems(result.items);
       setTotal(result.total);
-      setError(null);
     } catch (error) { setError(errorText(error)); }
     finally { setLoading(false); }
   }, [page, kind, status, start, end]);
 
-  useEffect(() => { if (open) void refresh(); }, [open, refresh]);
+  useEffect(() => { if (open) { setError(null); void refresh(); } }, [open, refresh]);
 
   async function confirmUndo(action: AgentAction) {
     setBusyId(action.id);
@@ -74,7 +75,7 @@ export function AgentLogs({ open, onOpenChange, onOpenConversation }: Props) {
     try {
       const result = await api.agentActions.undo(action.id, `undo-${action.id}`);
       setNotice(result.status === "undone" ? `Undid ${action.summary}. Affected views will refresh when opened.` : result.status);
-      window.dispatchEvent(new Event("agent-action-changed"));
+      announceWorkflowChange();
     } catch (error) { setError(errorText(error)); }
     finally { setBusyId(null); await refresh(); }
   }
@@ -121,7 +122,7 @@ export function AgentLogs({ open, onOpenChange, onOpenConversation }: Props) {
           {action.kind.startsWith("food") && <p className="text-xs text-muted-foreground">Undo changes the library entry. Historical diary snapshots stay unchanged.</p>}
           {action.kind === "meal" && <p className="text-xs text-muted-foreground">Undo removes only this entry; repeated copies stay in the diary.</p>}
               {action.kind === "nutrition_plan" && <p className="text-xs text-muted-foreground">Undo restores previous effective target assignments only when affected dates have not changed. Meal plans may need review; consumed entries remain unchanged.</p>}
-              {!["undone", "failed", "reversal"].includes(action.status) && (confirmId === action.id ?
+              {action.kind !== "reversal" && !["undone", "failed"].includes(action.status) && (confirmId === action.id ?
             <div className="border border-border p-3 text-sm space-y-2" role="group" aria-label={`Confirm undo of ${action.summary}`}>
               <p>Undo {action.summary}? {action.kind === "competition" ? "This removes the event if it has not changed or gained dependent plans." : "Later edits are protected."}</p>
               <div className="flex gap-2"><Button id={`agent-undo-confirm-${action.id}`} size="sm" variant="destructive" disabled={busyId !== null} onClick={() => void confirmUndo(action)}>Confirm Undo</Button><Button size="sm" variant="outline" onClick={() => setConfirmId(null)}>Cancel</Button></div>

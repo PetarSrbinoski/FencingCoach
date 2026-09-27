@@ -9,7 +9,7 @@ Source: `.scratch/product-workflows/issues/01–18`.
 | 01 | Nested/legacy day meals, unknown nutrients, gram shopping quantities, partial coverage, preserved plans on failure | `test_mealplan_workflow_api.py`, browser meal/shopping scenario |
 | 02 | Durable Garmin completion status, refreshed fetch times, valid readiness extraction, page/focus refresh | `test_garmin_sync_freshness_api.py`, browser sync scenario |
 | 03 | Inclusive competition dates, event links, automatic training precedence, retained manual work | `test_competition_calendar_workflow_api.py`, browser calendar scenario |
-| 04 | Separate hard dietary exclusions and soft preferences, bounded validation/retry, saved input context | `test_dietary_planning_workflow_api.py` |
+| 04 | Separate hard dietary exclusions and soft preferences, bounded validation/retry, saved input context | `test_dietary_planning_workflow_api.py`, browser profile save/reload scenario |
 | 05–07 | Selected-date diary, manual entry, revision-checked editing, independently scaled repeat snapshots | `test_nutrition_diary_workflow_api.py`, browser diary scenario |
 | 08 | Structured results, validation, legacy-field preservation, explicit clear | `test_competition_results_workflow_api.py`, browser results scenario |
 | 09–12 | Atomic coach receipts, retained conversation references, action filters/pagination, exact guarded undo | `test_agent_actions_workflow_api.py`, `test_chat_api.py`, browser Agent logs scenario |
@@ -25,9 +25,10 @@ Source: `.scratch/product-workflows/issues/01–18`.
 - Frontend regression scenarios run in Chromium at desktop and 390 × 844 mobile sizes with controlled API responses. They verify main success flows, result validation, a diary edit conflict, draft review, cancellation and guarded undo.
 - Browser command: `cd frontend && npx playwright test --config=playwright.workflows.config.ts`.
 - Browser report and any traces/screenshots are under `.scratch/product-workflows/browser-artifacts/`. The protected `testing/` directory is unchanged.
-- Backend suite: 311 passed, 5 skipped. Browser suite: 16 passed across desktop and mobile.
+- Backend suite: 318 passed, 5 skipped. Browser suite: 18 passed across desktop and mobile.
 - A disposable PostgreSQL 16 container was migrated from an empty database through `0014_workout_day_revisions`. A concurrent direct workout edit and Undo request verified that Undo waits for the edit transaction and then returns a conflict without overwriting it. Stale and repeated target acceptances were also checked against PostgreSQL. A persistent workout-date revision also protects later set-and-reset edits when no override remains.
 - Ruff, mypy, frontend ESLint, TypeScript, and the production build were run. ESLint configuration/dependencies were added because the original lint command opened an interactive setup prompt.
+- Standards and spec review reports, with the fixes made from each, are in `product-workflows-review.md`.
 
 ## Practical limits
 

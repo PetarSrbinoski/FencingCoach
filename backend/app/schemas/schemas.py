@@ -81,6 +81,7 @@ class GarminLoginRequest(BaseModel):
 
 class GarminSyncResult(BaseModel):
     ok: bool
+    outcome: str = "complete"
     fetched: dict[str, Any]
     started_at: datetime
     finished_at: datetime

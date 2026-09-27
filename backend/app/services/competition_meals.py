@@ -8,7 +8,7 @@ import re
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -212,3 +212,26 @@ def preview_meals(db: Session, plan: CompetitionNutritionPlan, inputs: dict[str,
     token = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
     return {"plan_id": plan.id, "plan_version": plan.version, "inputs": inputs,
             "days": drafts, "token": token}
+
+
+def stage_accepted_meals(db: Session, plan: CompetitionNutritionPlan, draft: dict[str, Any],
+                         acceptance_id: str) -> list[CompetitionMealPlan]:
+    """Stage immutable dated menus and supersede existing menus; caller commits."""
+    saved = []
+    for day in draft["days"]:
+        parsed_day = date.fromisoformat(day["day"])
+        old = db.scalars(select(CompetitionMealPlan).where(
+            CompetitionMealPlan.day == parsed_day, CompetitionMealPlan.active.is_(True)).with_for_update()).all()
+        version = (db.scalar(select(func.max(CompetitionMealPlan.version)).where(
+            CompetitionMealPlan.day == parsed_day)) or 0) + 1
+        for row in old:
+            row.active = False
+        row = CompetitionMealPlan(day=parsed_day, target_plan_id=plan.id,
+                                  target_version=plan.version, version=version,
+                                  meals=day["meals"], totals=day["totals"], warnings=day["warnings"],
+                                  inputs=draft["inputs"], preview_token=draft["token"],
+                                  acceptance_id=acceptance_id, active=True)
+        db.add(row)
+        saved.append(row)
+    db.flush()
+    return saved

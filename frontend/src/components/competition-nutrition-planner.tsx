@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { api, type Competition, type CompetitionNutritionInputs, type CompetitionNutritionPlan, type CompetitionNutritionPreview } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -19,17 +20,27 @@ export function CompetitionNutritionPlanner({ onChanged, onSelectDay }: { onChan
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
   const [acceptanceId, setAcceptanceId] = useState(() => crypto.randomUUID());
+  const [linkedPlanId, setLinkedPlanId] = useState<number | null>(null);
   const [deactivation, setDeactivation] = useState<{ plan_id: number; version: number; days: { day: string; old_targets: Record<string, unknown> }[]; token: string } | null>(null);
 
   function refresh() {
     Promise.all([api.competitions.list(false), api.competitionNutrition.plans()])
       .then(([nextEvents, nextPlans]) => {
         setEvents(nextEvents); setPlans(nextPlans);
-        const fromUrl = Number(new URLSearchParams(window.location.search).get("competition"));
+        const query = new URLSearchParams(window.location.search);
+        const fromUrl = Number(query.get("competition"));
+        const planId = Number(query.get("plan"));
+        setLinkedPlanId(planId || null);
         setEventId(current => current ?? (nextEvents.some(event => event.id === fromUrl) ? fromUrl : nextEvents[0]?.id ?? null));
       }).catch(error => setError(errorText(error)));
   }
   useEffect(refresh, []);
+  useWorkflowRefresh(refresh);
+  useEffect(() => {
+    if (linkedPlanId !== null && plans.some(plan => plan.id === linkedPlanId)) {
+      document.getElementById(`nutrition-plan-${linkedPlanId}`)?.scrollIntoView({ block: "start" });
+    }
+  }, [linkedPlanId, plans]);
 
   function chooseEvent(id: number) {
     const event = events.find(item => item.id === id);
@@ -128,8 +139,10 @@ export function CompetitionNutritionPlanner({ onChanged, onSelectDay }: { onChan
         </div>
         <div className="flex gap-2"><Button size="sm" onClick={accept} disabled={busy}>{busy ? "Saving…" : "Accept targets"}</Button><Button size="sm" variant="outline" onClick={() => setDraft(null)} disabled={busy}>Cancel</Button></div>
       </section>}
-      {plans.length > 0 && <details className="border-t border-border pt-4"><summary className="cursor-pointer font-medium">Accepted plan history ({plans.length})</summary>
-        <ul className="space-y-3 mt-3">{plans.map(plan => <li key={plan.id} className="border border-border p-3 text-sm space-y-1">
+      {linkedPlanId !== null && plans.length > 0 && !plans.some(plan => plan.id === linkedPlanId) && <p role="status" className="text-xs">Referenced plan #{linkedPlanId} is unavailable. Choose an available version below.</p>}
+      {plans.length > 0 && <details open={linkedPlanId !== null || undefined} className="border-t border-border pt-4"><summary className="cursor-pointer font-medium">Accepted plan history ({plans.length})</summary>
+        <ul className="space-y-3 mt-3">{plans.map(plan => <li id={`nutrition-plan-${plan.id}`} key={plan.id} className={`border p-3 text-sm space-y-1 ${linkedPlanId === plan.id ? "border-accent" : "border-border"}`}>
+          {linkedPlanId === plan.id && <p role="status" className="text-xs">Referenced plan #{plan.id} · version {plan.version}</p>}
           <p className="font-medium">{plan.event.name} · version {plan.version} · {plan.active ? "active" : "inactive"}</p>
           <p className="text-xs text-muted-foreground">Accepted {plan.created_at} · {plan.policy_version} · {plan.days.length} dated targets</p>
           <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={() => onSelectDay(plan.days[0].day)}>Open first diary date</Button>{plan.active && <Button size="sm" variant="outline" onClick={() => void reviewDeactivation(plan)}>Review deactivation</Button>}</div>

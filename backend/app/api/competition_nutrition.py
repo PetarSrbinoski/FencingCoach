@@ -9,7 +9,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
@@ -17,6 +17,7 @@ from app.core.database import get_db
 from app.models import Competition, CompetitionNutritionPlan, NutritionTargetAssignment
 from app.services.competition_nutrition import preview, stage_accepted_plan
 from app.services.nutrition_lookup import lookup_targets
+from app.services.transactions import lock_nutrition_inputs
 
 router = APIRouter(prefix="/competition-nutrition", tags=["competition nutrition"])
 
@@ -58,11 +59,6 @@ def _plan_out(plan: CompetitionNutritionPlan) -> dict:
             "created_at": plan.created_at.isoformat() if plan.created_at else None}
 
 
-def _lock_plans(db: Session) -> None:
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(71248791)"))
-
-
 @router.get("/plans")
 def list_plans(db: Session = Depends(get_db)) -> list[dict]:
     return [_plan_out(plan) for plan in db.scalars(
@@ -91,7 +87,7 @@ def preview_event(event_id: int, body: PreviewInput, db: Session = Depends(get_d
 
 @router.post("/accept", status_code=201)
 def accept_preview(body: AcceptInput, db: Session = Depends(get_db)) -> dict:
-    _lock_plans(db)
+    lock_nutrition_inputs(db)
     existing = db.scalar(select(CompetitionNutritionPlan).where(
         CompetitionNutritionPlan.acceptance_id == body.acceptance_id))
     if existing is not None:
@@ -133,7 +129,7 @@ def deactivation_preview(plan_id: int, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/plans/{plan_id}/deactivate")
 def deactivate_plan(plan_id: int, body: DeactivateInput, db: Session = Depends(get_db)) -> dict:
-    _lock_plans(db)
+    lock_nutrition_inputs(db)
     plan = db.get(CompetitionNutritionPlan, plan_id)
     if plan is None:
         raise HTTPException(404, "nutrition plan not found")

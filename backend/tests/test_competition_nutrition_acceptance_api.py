@@ -43,6 +43,8 @@ def test_acceptance_is_explicit_idempotent_and_stale_safe(client, db, monkeypatc
     assert current["target_source"] == "accepted"
     assert current["plan_id"] == accepted.json()["id"]
     assert current["carbs_g"] == 525
+    lookup = client.get("/competition-nutrition/targets?start=2026-07-25&end=2026-07-25").json()
+    assert lookup["days"][0]["plan_url"] == f"/nutrition?competition={event.id}&plan={accepted.json()['id']}"
     assert client.post("/competition-nutrition/accept", json={**acceptance, "acceptance_id": "test-accept-2"}).status_code == 409
 
 

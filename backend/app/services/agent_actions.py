@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -20,7 +20,7 @@ from app.models import (
 )
 from app.services.foods import normalized_name
 from app.services.training import clear_workout_override, set_workout_override, workout_revision
-from app.services.transactions import lock_resource
+from app.services.transactions import lock_nutrition_inputs, lock_resource
 
 WORKOUT_FIELDS = ("session_name", "exercises", "notes", "revision")
 COMPETITION_FIELDS = ("name", "location", "event_date", "end_date", "level", "priority", "notes", "result", "revision")
@@ -149,8 +149,7 @@ def undo(db: Session, action_id: int) -> tuple[dict[str, Any], bool]:
 
 
 def _undo_nutrition_plan(db: Session, action: AgentAction) -> tuple[dict[str, Any], bool]:
-    if db.bind is not None and db.bind.dialect.name == "postgresql":
-        db.execute(text("SELECT pg_advisory_xact_lock(71248791)"))
+    lock_nutrition_inputs(db)
     assert action.before is not None and action.after is not None
     plan = db.get(CompetitionNutritionPlan, int(action.resource_id))
     after = action.after["assignments"]

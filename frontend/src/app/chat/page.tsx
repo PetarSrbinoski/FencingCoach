@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { announceWorkflowChange } from "@/lib/workflow-refresh";
 import { createJobObserver, type JobObservation } from "@/lib/job-observer";
 import { api, type AgentAction, type ChatMessageStatusValue, type CoachConversationSummary, type CoachPlanProposal, type NutritionAnswerReference } from "@/lib/api";
 import { AgentLogs } from "@/components/agent-logs";
@@ -127,7 +128,7 @@ export default function ChatPage() {
       else await api.coachPlanProposals.cancel(proposal.id);
       refreshPlanProposals();
       refreshActionReceipts();
-      window.dispatchEvent(new Event("agent-action-changed"));
+      announceWorkflowChange();
     } catch (error) {
       setProposalError(`${error instanceof Error ? error.message : String(error)} Request a fresh comparison from the coach if inputs changed.`);
       refreshPlanProposals();
@@ -150,6 +151,7 @@ export default function ChatPage() {
         } : message));
         refreshActionReceipts();
         refreshPlanProposals();
+        announceWorkflowChange();
         if (poll.status === "error") setErr(poll.error ?? "Chat failed");
       },
       (error) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { api, type FoodNutrient, type SavedFood, type SavedFoodInput } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -47,10 +48,8 @@ export function FoodLibrary({ onLogged, meal, day }: { onLogged: () => void; mea
   }
   useEffect(() => {
     void refresh();
-    const onFocus = () => { void refresh(); };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
   }, []);
+  useWorkflowRefresh(() => { void refresh(); });
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get("food");

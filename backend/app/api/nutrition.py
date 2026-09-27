@@ -188,10 +188,14 @@ def edit_log(entry_id: int, body: NutritionLogEdit, db: Session = Depends(get_db
     return NutritionLogOut.model_validate(entry, from_attributes=True)
 
 
+def _is_nutrient_key(key: str) -> bool:
+    return key == "kcal" or key.casefold().endswith(("_g", "_mg", "_mcg", "_iu"))
+
+
 def _scaled_snapshot(micros: dict[str, Any] | None, multiplier: float) -> dict[str, Any]:
     result = deepcopy(micros or {})
     for key, value in result.items():
-        if type(value) in (int, float):
+        if _is_nutrient_key(key) and type(value) in (int, float):
             result[key] = round(value * multiplier, 3)
     for item in result.get("items", []):
         if not isinstance(item, dict):
@@ -199,7 +203,7 @@ def _scaled_snapshot(micros: dict[str, Any] | None, multiplier: float) -> dict[s
         if type(item.get("qty_g")) in (int, float):
             item["qty_g"] = round(item["qty_g"] * multiplier, 3)
         for key, value in item.get("nutrients", {}).items():
-            if type(value) in (int, float):
+            if _is_nutrient_key(key) and type(value) in (int, float):
                 item["nutrients"][key] = round(value * multiplier, 3)
     return result
 
@@ -244,7 +248,7 @@ def day_totals(day: Date, db: Session = Depends(get_db)) -> NutritionDayTotals:
         if not r.micros:
             continue
         for k, v in r.micros.items():
-            if type(v) in (int, float):
+            if _is_nutrient_key(k) and type(v) in (int, float):
                 micros[k] = micros.get(k, 0.0) + float(v)
     incomplete = [
         key for key in micros
