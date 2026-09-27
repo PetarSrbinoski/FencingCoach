@@ -1,5 +1,3 @@
-"""NUT-01..04 and DAY-01/02 on migrated, disposable PostgreSQL."""
-
 from datetime import UTC, date, datetime, time, timedelta
 
 import pytest

@@ -1,5 +1,3 @@
-"""A real API and migrated PostgreSQL smoke test for the isolated stack."""
-
 from __future__ import annotations
 
 import os

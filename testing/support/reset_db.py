@@ -1,5 +1,3 @@
-"""Remove committed test data and seed one synthetic athlete."""
-
 from __future__ import annotations
 
 import os

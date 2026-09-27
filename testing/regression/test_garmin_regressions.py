@@ -1,5 +1,3 @@
-"""Meaningful GAR-01/03 assertions selected from surviving mutations."""
-
 import pytest
 from app.services.garmin_extract import extract_body_battery, extract_sleep
 

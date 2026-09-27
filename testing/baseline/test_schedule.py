@@ -1,5 +1,3 @@
-"""SCH-01/02: examples through the public schedule interface."""
-
 import pytest
 from app.core.config import settings
 from app.services.schedule import (
