@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-const resetScript = path.resolve(__dirname, "../../testing/scripts/reset_db.sh");
+const resetScript = path.resolve(__dirname, "../../scripts/reset_db.sh");
 
 test.beforeEach(async ({ page }) => {
   execFileSync("bash", [resetScript], { stdio: "inherit" });

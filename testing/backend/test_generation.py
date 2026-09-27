@@ -1,5 +1,3 @@
-"""Generation lifecycle tested with independent request, job and reader sessions."""
-
 import asyncio
 from typing import Any
 

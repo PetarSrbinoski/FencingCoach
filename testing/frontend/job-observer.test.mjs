@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import test from 'node:test';
-import ts from 'typescript';
 
-// Compile the actual module without adding a browser test dependency.
-const source = await readFile(new URL('../src/lib/job-observer.ts', import.meta.url), 'utf8');
+const require = createRequire(new URL('../../frontend/package.json', import.meta.url));
+const ts = require('typescript');
+
+const source = await readFile(new URL('../../frontend/src/lib/job-observer.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
 });

@@ -1,9 +1,3 @@
-"""Opt-in evaluations of answers from the configured real coach model.
-
-Run with RUN_LIVE_LLM_EVALS=1 uv run pytest backend/tests/test_live_llm_responses.py -q -s.
-These tests send synthetic athlete data to the configured LLM endpoint.
-"""
-
 from __future__ import annotations
 
 import asyncio

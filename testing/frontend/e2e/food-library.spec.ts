@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 
-const resetScript = path.resolve(__dirname, "../../testing/scripts/reset_db.sh");
+const resetScript = path.resolve(__dirname, "../../scripts/reset_db.sh");
 const backend = `http://127.0.0.1:${process.env.TEST_BACKEND_PORT ?? "18000"}`;
 
 test.beforeEach(async ({ page }) => {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Fair, fresh A/B/C mutation run in its own generated source/test workspace.
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 stage="${1:?Expected A, B or C}"

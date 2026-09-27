@@ -1,5 +1,3 @@
-"""Food library invariants through real API writes, chat tools and estimation."""
-
 from __future__ import annotations
 
 import asyncio

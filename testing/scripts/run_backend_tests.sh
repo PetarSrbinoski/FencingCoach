@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Run the independent service suite against an empty migrated PostgreSQL stack.
 set -euo pipefail
 export TEST_COMPOSE_PROJECT="fencingcoach-testing-service-$(date -u +%s)-$$"
 source "$(dirname "$0")/compose.sh"

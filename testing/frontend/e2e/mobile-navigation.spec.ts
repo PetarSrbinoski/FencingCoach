@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-// Also a read-only deployment smoke check against the actual served frontend.
 test("mobile dock stays visible and More opens working navigation", async ({ page }) => {
   await page.goto(`${process.env.NAVIGATION_BASE_URL ?? ""}/nutrition`);
   const dock = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
