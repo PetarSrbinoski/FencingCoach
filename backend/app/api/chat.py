@@ -89,6 +89,7 @@ def get_conversation(
                 content=message.content,
                 created_at=message.created_at,
                 status=message.status,
+                nutrition_refs=(message.meta or {}).get("nutrition_refs", []),
             )
             for message in messages
             if message.role in {"user", "assistant"}
@@ -166,6 +167,8 @@ async def chat(
     placeholder = CoachMessage(
         conversation_id=conv.id, role="assistant", content="", status="pending"
     )
+    db.add(placeholder)
+    db.flush()
     submit_generation(
         db,
         background_tasks,
@@ -175,6 +178,8 @@ async def chat(
             user_message=req.message,
             context_text=context_text,
             history_snapshot=history_snapshot,
+            conversation_id=conv.id,
+            message_id=placeholder.id,
         ),
     )
 
@@ -187,6 +192,8 @@ async def _reply_values(
     user_message: str,
     context_text: str,
     history_snapshot: list[tuple[str, str]],
+    conversation_id: int | None = None,
+    message_id: int | None = None,
 ) -> dict[str, Any]:
     history_messages = [
         SimpleNamespace(role=role, content=content) for role, content in history_snapshot
@@ -196,6 +203,8 @@ async def _reply_values(
         db=db,
         context_text=context_text,
         history_messages=history_messages or None,
+        conversation_id=conversation_id,
+        message_id=message_id,
     )
     return {
         "content": result.reply,
@@ -203,6 +212,7 @@ async def _reply_values(
             "model": result.model,
             "context_snapshot": context_text or None,
             "ungrounded_claims": result.ungrounded_claims,
+            "nutrition_refs": result.nutrition_refs,
         },
     }
 
@@ -226,5 +236,6 @@ def get_message_status(
         model=meta.get("model"),
         context_snapshot=meta.get("context_snapshot"),
         ungrounded_claims=meta.get("ungrounded_claims", []),
+        nutrition_refs=meta.get("nutrition_refs", []),
         error=msg.error,
     )

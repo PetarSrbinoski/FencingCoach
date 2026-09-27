@@ -347,12 +347,16 @@ class TestMealPlanAgent:
     def test_generate_meal_plan_retries_transient_error_then_succeeds(self, monkeypatch, db):
         from datetime import date
 
-        from app.agents.mealplan import generate_meal_plan, mealplan_agent
+        from app.agents.mealplan import Meal, generate_meal_plan, mealplan_agent
+        from app.models import AthleteProfile
+
+        db.add(AthleteProfile(weight_kg=75))
+        db.commit()
 
         monkeypatch.setattr("app.agents.retry.RETRY_BACKOFF_SECONDS", 0)
         calls = {"n": 0}
 
-        good_output = MealPlanOutput(meals=[], rationale="ok")
+        good_output = MealPlanOutput(meals=[Meal(slot="breakfast", time="08:00", name="Rice bowl")], rationale="ok")
 
         def flaky_run(user_msg, deps=None, model=None):
             calls["n"] += 1
@@ -372,7 +376,7 @@ class TestMealPlanAgent:
         plan = generate_meal_plan(db, day=date(2026, 8, 1))
 
         assert calls["n"] == 2
-        assert plan.plan["plan"]["rationale"] == "ok"
+        assert plan.plan["plan"]["rationale"].startswith("ok")
 
 
 # ── brief agent ───────────────────────────────────────────────────────

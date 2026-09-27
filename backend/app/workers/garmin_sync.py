@@ -20,6 +20,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.services.garmin import GarminService
+from app.services.garmin_status import record_sync_result
 
 log = logging.getLogger("garmin_sync")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -72,9 +73,12 @@ def _run_recent() -> None:
     db = SessionLocal()
     try:
         result = GarminService().sync_recent(db, days=settings.GARMIN_RECENT_SYNC_DAYS)
+        record_sync_result(db, ok=True)
         _record_success()
         log.info("Recent sync done: %s", result)
     except Exception as e:  # noqa: BLE001
+        db.rollback()
+        record_sync_result(db, ok=False)
         err_str = str(e).lower()
         if "429" in err_str or "too many" in err_str or "authentication" in err_str:
             _record_auth_failure()
@@ -94,9 +98,12 @@ def _run_full() -> None:
     db = SessionLocal()
     try:
         result = GarminService().sync_full(db, days=settings.GARMIN_FULL_SYNC_DAYS)
+        record_sync_result(db, ok=True)
         _record_success()
         log.info("Full sync done: %s", result)
     except Exception as e:  # noqa: BLE001
+        db.rollback()
+        record_sync_result(db, ok=False)
         err_str = str(e).lower()
         if "429" in err_str or "too many" in err_str or "authentication" in err_str:
             _record_auth_failure()

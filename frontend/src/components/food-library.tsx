@@ -13,11 +13,11 @@ const MACROS = [
 type Macro = typeof MACROS[number][0];
 type MicroDraft = { name: string; amount: string; unit: FoodNutrient["unit"] };
 type Draft = Record<Macro, string> & {
-  name: string; serving_name: string; serving_size_g: string; micros: MicroDraft[];
+  name: string; serving_name: string; serving_size_g: string; prep_time_min: string; micros: MicroDraft[];
 };
 const emptyDraft = (): Draft => ({
   name: "", kcal: "", protein_g: "", carbs_g: "", fat_g: "", fiber_g: "",
-  serving_name: "", serving_size_g: "", micros: [],
+  serving_name: "", serving_size_g: "", prep_time_min: "", micros: [],
 });
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const numberOrNull = (value: string): number | null => {
@@ -27,7 +27,7 @@ const numberOrNull = (value: string): number | null => {
   return number;
 };
 
-export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: string }) {
+export function FoodLibrary({ onLogged, meal, day }: { onLogged: () => void; meal: string; day: string }) {
   const [foods, setFoods] = useState<SavedFood[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -52,6 +52,14 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("food");
+    if (!requested || !/^\d+$/.test(requested)) return;
+    const id = Number(requested);
+    if (foods.some(food => food.id === id)) setSelectedId(id);
+    else if (!loading) setMessage(`Food #${id} is no longer in the library. Historical meals are unchanged.`);
+  }, [foods, loading]);
+
   function edit(food?: SavedFood) {
     setError(null);
     setMessage("");
@@ -61,6 +69,7 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
       protein_g: food.protein_g?.toString() ?? "", carbs_g: food.carbs_g?.toString() ?? "",
       fat_g: food.fat_g?.toString() ?? "", fiber_g: food.fiber_g?.toString() ?? "",
       serving_name: food.serving_name ?? "", serving_size_g: food.serving_size_g?.toString() ?? "",
+      prep_time_min: food.prep_time_min?.toString() ?? "",
       micros: food.micros.map(m => ({ ...m, amount: m.amount.toString() })),
     } : emptyDraft());
   }
@@ -78,6 +87,7 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
         fiber_g: numberOrNull(draft.fiber_g),
         serving_name: draft.serving_name.trim() || null,
         serving_size_g: numberOrNull(draft.serving_size_g),
+        prep_time_min: draft.prep_time_min.trim() === "" ? null : Number(draft.prep_time_min),
         micros: draft.micros.map(m => {
           const amount = numberOrNull(m.amount);
           if (!m.name.trim() || amount === null) throw new Error("Enter a name and amount for each nutrient.");
@@ -86,6 +96,7 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
       };
       if (data.serving_size_g !== null && data.serving_size_g <= 0) throw new Error("Serving weight must be greater than zero.");
       if (data.serving_name && data.serving_size_g === null) throw new Error("Enter the serving weight in grams.");
+      if (data.prep_time_min != null && (!Number.isInteger(data.prep_time_min) || data.prep_time_min < 0 || data.prep_time_min > 240)) throw new Error("Preparation time must be a whole number from 0 to 240 minutes.");
       const saved = editingId === null ? await api.foods.create(data) : await api.foods.update(editingId, data);
       setDraft(null);
       setSelectedId(saved.id);
@@ -121,8 +132,8 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
       const entry = await api.foods.log([{
         food_id: selectedId,
         ...(quantityUnit === "grams" ? { grams: amount } : { servings: amount }),
-      }], meal || undefined);
-      setMessage(`Logged ${entry.raw_text}: ${entry.kcal} kcal, ${entry.protein_g} g protein, ${entry.carbs_g} g carbs, ${entry.fat_g} g fat.`);
+      }], meal || undefined, day);
+      setMessage(`Logged ${entry.raw_text} to ${entry.day}: ${entry.kcal} kcal, ${entry.protein_g} g protein, ${entry.carbs_g} g carbs, ${entry.fat_g} g fat.`);
       setQuantity("");
       onLogged();
     } catch (error) { setError(errorText(error)); }
@@ -137,7 +148,7 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
 
   return (
     <Card title="My foods" action={<Button size="sm" onClick={() => edit()} disabled={busy}>Add food</Button>}>
-      <p className="text-sm text-muted-foreground mb-4">Save label values once, then log grams or a saved serving. You can also ask the coach to save a food.</p>
+      <p className="text-sm text-muted-foreground mb-4">Save label values once, then log grams or a saved serving to {day}. You can also ask the coach to save a food.</p>
       {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
       {message && <p role="status" className="text-sm mb-3">{message}</p>}
       {draft && (
@@ -163,6 +174,9 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
             </label>
             <label className="text-xs">Serving weight (g)
               <Input type="number" min="0.001" step="any" placeholder="60" value={draft.serving_size_g} onChange={e => setDraft({ ...draft, serving_size_g: e.target.value })} />
+            </label>
+            <label className="text-xs">Preparation time (minutes, optional)
+              <Input type="number" min="0" max="240" step="1" placeholder="Unknown" value={draft.prep_time_min} onChange={e => setDraft({ ...draft, prep_time_min: e.target.value })} />
             </label>
           </div>
           <fieldset className="space-y-3">
@@ -220,7 +234,7 @@ export function FoodLibrary({ onLogged, meal }: { onLogged: () => void; meal: st
           </label>
           <Button type="submit" disabled={busy || !!missingCore?.length}>Log food</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Logs to today{meal ? ` · ${meal}` : ""}. Nutrients are calculated from your saved values.</p>
+        <p className="text-xs text-muted-foreground">Logs to {day}{meal ? ` · ${meal}` : ""}. Nutrients are calculated from your saved values.</p>
       </form>}
     </Card>
   );

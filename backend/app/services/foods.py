@@ -71,7 +71,11 @@ def nutrient_values(micros: list[FoodNutrient]) -> dict[str, float]:
     return values
 
 
-def save_food(db: Session, data: SavedFoodInput, food_id: int | None = None) -> SavedFood:
+def save_food(db: Session, data: SavedFoodInput, food_id: int | None = None, *, commit: bool = True) -> SavedFood:
+    from app.services.transactions import lock_meal_inputs, lock_resource
+    lock_meal_inputs(db)
+    if food_id is not None:
+        lock_resource(db, "food", food_id)
     nutrient_values(data.micros)  # validate normalized duplicates before writing
     key = normalized_name(data.name)
     duplicate = db.scalar(select(SavedFood).where(SavedFood.name_key == key))
@@ -87,7 +91,10 @@ def save_food(db: Session, data: SavedFoodInput, food_id: int | None = None) -> 
     food.name_key = key
     db.add(food)
     try:
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
     except IntegrityError as exc:
         db.rollback()
         raise FoodError(
@@ -184,7 +191,8 @@ def combine_portions(parts: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def log_foods(
-    db: Session, portions: list[FoodPortion], *, day: date | None = None, meal: str | None = None
+    db: Session, portions: list[FoodPortion], *, day: date | None = None, meal: str | None = None,
+    commit: bool = True,
 ) -> NutritionLog:
     values = combine_portions([portion_values(db, portion) for portion in portions])
     items = values.pop("items")
@@ -198,6 +206,9 @@ def log_foods(
         raw_text=", ".join(f"{item['qty_g']:g} g {item['name']}" for item in items),
     )
     db.add(row)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     db.refresh(row)
     return row

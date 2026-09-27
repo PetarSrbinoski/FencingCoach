@@ -29,6 +29,7 @@ class SavedFoodInput(BaseModel):
     micros: list[FoodNutrient] = Field(default_factory=list)
     serving_name: str | None = Field(default=None, min_length=1, max_length=80)
     serving_size_g: PositiveAmount | None = None
+    prep_time_min: int | None = Field(default=None, ge=0, le=240)
 
     @model_validator(mode="after")
     def serving_has_weight(self) -> SavedFoodInput:

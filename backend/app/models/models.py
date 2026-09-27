@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import (
     BigInteger,
@@ -42,6 +43,7 @@ class AthleteProfile(Base):
     weaknesses: Mapped[str | None] = mapped_column(Text)
     body_comp_goal: Mapped[str | None] = mapped_column(String(80))
     dietary_restrictions: Mapped[str | None] = mapped_column(Text)
+    food_preferences: Mapped[str | None] = mapped_column(Text)
     food_budget: Mapped[str | None] = mapped_column(String(40))
     supplements: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
@@ -116,6 +118,8 @@ class SavedFood(Base):
     micros: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     serving_name: Mapped[str | None] = mapped_column(String(80))
     serving_size_g: Mapped[float | None] = mapped_column(Float)
+    prep_time_min: Mapped[int | None] = mapped_column(Integer)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex, onupdate=lambda: uuid4().hex)
 
 
 class NutritionLog(Base):
@@ -134,6 +138,8 @@ class NutritionLog(Base):
     fiber_g: Mapped[float | None] = mapped_column(Float)
     micros: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     estimated_by: Mapped[str | None] = mapped_column(String(40))  # llm|manual|usda
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    repeat_request_id: Mapped[str | None] = mapped_column(String(100), unique=True)
 
 
 class NutritionEstimate(Base):
@@ -173,6 +179,78 @@ class NutritionPlan(Base):
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class CompetitionNutritionPlan(Base):
+    """Immutable accepted version of a dated competition nutrition preview."""
+
+    __tablename__ = "competition_nutrition_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    input_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    days: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(60), nullable=False)
+    preview_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    acceptance_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NutritionTargetAssignment(Base):
+    """One effective accepted target per date; historical rows remain after deactivation."""
+
+    __tablename__ = "nutrition_target_assignments"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    plan_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    targets: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CompetitionMealPlan(Base):
+    """Immutable reviewed meal version for one accepted target date."""
+
+    __tablename__ = "competition_meal_plans"
+    __table_args__ = (
+        Index("ix_competition_meal_plans_day", "day", "active"),
+        UniqueConstraint("acceptance_id", "day", name="uq_competition_meal_acceptance_day"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
+    target_plan_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    meals: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    totals: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    warnings: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    preview_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    acceptance_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CoachPlanProposal(Base):
+    """Coach-created preview awaiting an explicit athlete decision."""
+
+    __tablename__ = "coach_plan_proposals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    preview: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    token: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    conversation_id: Mapped[int | None] = mapped_column(Integer)
+    message_id: Mapped[int | None] = mapped_column(BigInteger)
+    applied_plan_id: Mapped[int | None] = mapped_column(Integer)
+    action_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TrainingPlan(Base):
@@ -221,6 +299,28 @@ class Competition(Base):
     priority: Mapped[str] = mapped_column(String(10), default="A")  # A|B|C
     notes: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex, onupdate=lambda: uuid4().hex)
+
+
+class AgentAction(Base):
+    """A user-facing receipt committed in the same transaction as a coach write."""
+
+    __tablename__ = "agent_actions"
+    __table_args__ = (Index("ix_agent_actions_created", "created_at", "id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="committed")
+    resource_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource_revision: Mapped[str | None] = mapped_column(String(32))
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    conversation_id: Mapped[int | None] = mapped_column(Integer)
+    message_id: Mapped[int | None] = mapped_column(BigInteger)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CoachConversation(Base):
@@ -310,6 +410,15 @@ class DayTypeOverride(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class WorkoutDayRevision(Base):
+    """Retain a workout date's revision even when its manual override is absent."""
+
+    __tablename__ = "workout_day_revisions"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
 class WorkoutOverride(Base):
     """Manual replacement of the auto-generated gym session for a given day —
     takes precedence over `build_session()`'s computed plan when present.
@@ -321,6 +430,7 @@ class WorkoutOverride(Base):
     session_name: Mapped[str | None] = mapped_column(String(80))
     exercises: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex, onupdate=lambda: uuid4().hex)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

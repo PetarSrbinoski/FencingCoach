@@ -2,11 +2,15 @@
 
 from app.models.models import (  # noqa: F401
     Activity,
+    AgentAction,
     AppSetting,
     AthleteProfile,
     CoachConversation,
     CoachMessage,
+    CoachPlanProposal,
     Competition,
+    CompetitionMealPlan,
+    CompetitionNutritionPlan,
     DailyBrief,
     DataSummary,
     DayTypeOverride,
@@ -15,9 +19,11 @@ from app.models.models import (  # noqa: F401
     NutritionEstimate,
     NutritionLog,
     NutritionPlan,
+    NutritionTargetAssignment,
     SavedFood,
     TrainingPlan,
     USDAFood,
+    WorkoutDayRevision,
     WorkoutLog,
     WorkoutOverride,
 )

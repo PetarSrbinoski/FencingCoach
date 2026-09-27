@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import GarminMetric
+from app.models import AppSetting, GarminMetric
 from app.schemas import GarminLoginRequest, GarminSyncResult
 from app.services.garmin import get_garmin
+from app.services.garmin_status import record_sync_result
 
 router = APIRouter(prefix="/garmin", tags=["garmin"])
 
@@ -42,6 +43,7 @@ def sync_recent(
     started = datetime.now(UTC)
     try:
         result = get_garmin().sync_recent(db, days=days)
+        record_sync_result(db, ok=True)
         return GarminSyncResult(
             ok=True,
             fetched=result,
@@ -49,6 +51,8 @@ def sync_recent(
             finished_at=datetime.now(UTC),
         )
     except Exception as e:  # noqa: BLE001
+        db.rollback()
+        record_sync_result(db, ok=False)
         return GarminSyncResult(
             ok=False,
             fetched={},
@@ -66,6 +70,7 @@ def sync_full(
     started = datetime.now(UTC)
     try:
         result = get_garmin().sync_full(db, days=days)
+        record_sync_result(db, ok=True)
         return GarminSyncResult(
             ok=True,
             fetched=result,
@@ -73,6 +78,8 @@ def sync_full(
             finished_at=datetime.now(UTC),
         )
     except Exception as e:  # noqa: BLE001
+        db.rollback()
+        record_sync_result(db, ok=False)
         return GarminSyncResult(
             ok=False,
             fetched={},
@@ -86,7 +93,11 @@ def sync_full(
 def status(db: Session = Depends(get_db)) -> dict[str, object]:
     last = db.scalar(select(func.max(GarminMetric.fetched_at)))
     count = db.scalar(select(func.count()).select_from(GarminMetric)) or 0
+    completed = db.get(AppSetting, "garmin_last_sync_at")
+    outcome = db.get(AppSetting, "garmin_last_sync_ok")
     return {
         "last_fetch": last.isoformat() if last else None,
         "metric_rows": int(count),
+        "last_sync_at": completed.value if completed else None,
+        "last_sync_ok": outcome.value == "true" if outcome else None,
     }

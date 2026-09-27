@@ -31,6 +31,7 @@ export type Readiness = {
   source: "garmin" | "neutral";
   advisories: Record<string, ReadinessAdvisory>;
   inputs: Record<string, number | null>;
+  reading_fetched_at: string | null;
 };
 
 export type MetricSeries = {
@@ -64,7 +65,11 @@ export type NutritionLog = {
   micros: Record<string, unknown> | null;
   estimated_by: string | null;
   logged_at: string;
+  version: number;
 };
+
+export type NutritionLogEdit = Pick<NutritionLog, "day" | "meal" | "raw_text" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "fiber_g"> & { expected_version: number };
+export type NutritionLogRepeat = { day: string; meal: string | null; multiplier: number; request_id: string };
 
 export type FoodNutrient = { name: string; amount: number; unit: "g" | "mg" | "mcg" | "IU" };
 export type SavedFoodInput = {
@@ -77,6 +82,7 @@ export type SavedFoodInput = {
   micros: FoodNutrient[];
   serving_name: string | null;
   serving_size_g: number | null;
+  prep_time_min?: number | null;
 };
 export type SavedFood = SavedFoodInput & { id: number };
 export type FoodPortion = { food_id: number; grams?: number; servings?: number };
@@ -170,6 +176,71 @@ export type Targets = {
   micros: Record<string, number>;
   notes: string;
   override_source: string;
+  goal: string;
+  baseline_kcal: number;
+  requested_kcal: number;
+  baseline_source: string;
+  data_cutoff: string;
+  policy_version: string;
+  energy_conflict: string | null;
+  target_source: "ordinary" | "accepted";
+  plan_id: number | null;
+  plan_version: number | null;
+  needs_review: boolean;
+};
+
+export type CompetitionNutritionInputs = {
+  expected_demand: "low" | "moderate" | "high";
+  event_format: "single_day" | "multi_day";
+  start_time: string | null;
+  resolve_overlaps: boolean;
+};
+export type CompetitionNutritionDay = {
+  day: string; context: string; training_type: string; training_source: string;
+  session_name: string | null; countdown_days: number;
+  kcal: number; protein_g: number; carbs_g: number; fat_g: number;
+  ordinary_kcal: number; ordinary_carbs_g: number;
+  baseline_source: string; data_cutoff: string; goal: string;
+  energy_conflict: string | null; provisional: boolean; explanation: string;
+  existing_plan_id: number | null; existing_targets: Record<string, unknown> | null;
+};
+export type CompetitionNutritionPreview = {
+  event: Pick<Competition, "id" | "name" | "event_date" | "end_date" | "priority" | "location">;
+  inputs: CompetitionNutritionInputs;
+  days: CompetitionNutritionDay[];
+  policy_version: string; competing_events: { id: number; name: string; event_date: string; end_date: string }[];
+  assumptions: string[]; token: string;
+};
+export type CompetitionNutritionPlan = {
+  id: number; event_id: number; event: CompetitionNutritionPreview["event"];
+  inputs: CompetitionNutritionInputs; days: CompetitionNutritionDay[];
+  version: number; policy_version: string; active: boolean; created_at: string;
+};
+
+export type CompetitionMealInputs = {
+  start: string; end: string; start_time: string | null; break_times: string[]; replace_slot: string | null;
+  prep_limit_minutes: number | null;
+};
+export type CompetitionMeal = {
+  slot: string; time: string | null; name: string; notes: string;
+  ingredients: Array<{ name: string; qty_g: number; source: string; source_id: number; nutrients: Record<string, number | null> }>;
+  totals: Record<string, number | null>;
+};
+export type CompetitionMealDay = {
+  day: string; context: string; target_plan_id: number; target_version: number;
+  target: Record<string, number>; meals: CompetitionMeal[];
+  totals: Record<string, number | null>; deviations: Record<string, number | null>;
+  warnings: string[]; replaces_meal_plan_id: number | null;
+};
+export type CompetitionMealDraft = {
+  plan_id: number; plan_version: number; inputs: CompetitionMealInputs;
+  days: CompetitionMealDay[]; token: string;
+};
+export type CompetitionMealPlan = {
+  id: number; day: string; target_plan_id: number; target_version: number;
+  version: number; meals: CompetitionMeal[]; totals: Record<string, number | null>;
+  warnings: string[]; inputs: CompetitionMealInputs; active: boolean; created_at: string;
+  needs_review: boolean;
 };
 
 export type MealPlan = {
@@ -181,6 +252,7 @@ export type MealPlan = {
 
 export type ShoppingItem = {
   name: string;
+  qty_g: number;
   amount?: number | string;
   unit?: string;
   category?: string;
@@ -214,6 +286,8 @@ export type TrainingSession = {
   readiness: Record<string, unknown>;
   reason?: string | null;
   source: "auto" | "manual";
+  activity_type: "competition" | "gym" | "fencing" | "rest";
+  competitions: Pick<Competition, "id" | "name" | "location" | "event_date" | "end_date" | "priority">[];
 };
 
 export type WorkoutLog = {
@@ -301,6 +375,7 @@ export type Profile = {
   weaknesses: string | null;
   body_comp_goal: string | null;
   dietary_restrictions: string | null;
+  food_preferences: string | null;
   food_budget: string | null;
   supplements: string | null;
   notes: string | null;
@@ -350,6 +425,37 @@ export type CoachMessage = {
   content: string;
   created_at: string;
   status: ChatMessageStatusValue;
+  nutrition_refs?: NutritionAnswerReference[];
+};
+
+export type NutritionAnswerReference = {
+  start: string;
+  end: string;
+  plan_versions: string[];
+  days?: Array<{ day: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; training_type: string; context: string; explanation: string; target_source: string; plan_url: string | null; diary_url: string; plan_version: number | null }>;
+};
+
+export type AgentAction = {
+  id: number;
+  kind: string;
+  status: string;
+  resource_id: string | number;
+  summary: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  conversation_id: number | null;
+  conversation_available: boolean;
+  message_id: number | null;
+  error: string | null;
+  created_at: string;
+  undone_at: string | null;
+};
+export type CoachPlanProposal = {
+  id: number; event_id: number; inputs: CompetitionNutritionInputs;
+  preview: CompetitionNutritionPreview; token: string;
+  status: "pending" | "applied" | "cancelled";
+  conversation_id: number | null; message_id: number | null;
+  applied_plan_id: number | null; action_id: number | null; created_at: string;
 };
 
 /** Returned immediately by `POST /chat` — poll `api.chatMessages.poll`
@@ -368,6 +474,7 @@ export type ChatMessagePoll = {
   model: string | null;
   context_snapshot: string | null;
   ungrounded_claims: string[];
+  nutrition_refs: NutritionAnswerReference[];
   error: string | null;
 };
 
@@ -410,6 +517,16 @@ export const api = {
     get: (id: number) => request<CoachConversation>(`/chat/conversations/${id}`),
     delete: (id: number) => request<void>(`/chat/conversations/${id}`, { method: "DELETE" }),
   },
+  agentActions: {
+    list: (params: { page?: number; kind?: string; status?: string; start?: string; end?: string } = {}) =>
+      request<{ items: AgentAction[]; total: number; page: number; page_size: number }>(`/agent-actions?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => [key, String(value)])).toString()}`),
+    undo: (id: number, requestId: string) => request<AgentAction>(`/agent-actions/${id}/undo`, { method: "POST", body: JSON.stringify({ request_id: requestId }) }),
+  },
+  coachPlanProposals: {
+    list: (conversationId?: number) => request<CoachPlanProposal[]>(`/coach-plan-proposals${conversationId ? `?conversation_id=${conversationId}` : ""}`),
+    apply: (id: number) => request<CoachPlanProposal>(`/coach-plan-proposals/${id}/apply`, { method: "POST" }),
+    cancel: (id: number) => request<CoachPlanProposal>(`/coach-plan-proposals/${id}/cancel`, { method: "POST" }),
+  },
 
   garmin: {
     login: (email: string, password: string) =>
@@ -431,7 +548,7 @@ export const api = {
         { method: "POST" }
       ),
     status: () =>
-      request<{ last_fetch: string | null; metric_rows: number }>("/garmin/status"),
+      request<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null }>("/garmin/status"),
   },
 
   diagnostics: {
@@ -470,6 +587,13 @@ export const api = {
         body: JSON.stringify(entry),
       }),
     list: (days = 7) => request<NutritionLog[]>(`/nutrition/log?days=${days}`),
+    forDay: (day: string) => request<NutritionLog[]>(`/nutrition/log?day=${day}`),
+    edit: (id: number, entry: NutritionLogEdit) => request<NutritionLog>(`/nutrition/log/${id}`, {
+      method: "PUT", body: JSON.stringify(entry),
+    }),
+    repeat: (id: number, entry: NutritionLogRepeat) => request<NutritionLog>(`/nutrition/log/${id}/repeat`, {
+      method: "POST", body: JSON.stringify(entry),
+    }),
     totals: (day: string) => request<NutritionDayTotals>(`/nutrition/totals/${day}`),
     delete: (id: number) =>
       request<void>(`/nutrition/log/${id}`, { method: "DELETE" }),
@@ -484,8 +608,8 @@ export const api = {
       method: "PUT", body: JSON.stringify(food),
     }),
     delete: (id: number) => request<void>(`/nutrition/foods/${id}`, { method: "DELETE" }),
-    log: (portions: FoodPortion[], meal?: string) => request<NutritionLog>("/nutrition/foods/log", {
-      method: "POST", body: JSON.stringify({ portions, meal }),
+    log: (portions: FoodPortion[], meal?: string, day?: string) => request<NutritionLog>("/nutrition/foods/log", {
+      method: "POST", body: JSON.stringify({ portions, meal, day }),
     }),
   },
 
@@ -537,6 +661,25 @@ export const api = {
       request<ShoppingList>(`/shopping/week${start ? `?start=${start}` : ""}`),
     range: (start: string, end: string) =>
       request<ShoppingList>(`/shopping/range?start=${start}&end=${end}`),
+  },
+
+  competitionNutrition: {
+    preview: (eventId: number, inputs: CompetitionNutritionInputs) => request<CompetitionNutritionPreview>(`/competition-nutrition/preview/${eventId}`, {
+      method: "POST", body: JSON.stringify(inputs),
+    }),
+    accept: (eventId: number, inputs: CompetitionNutritionInputs, token: string, acceptanceId: string) => request<CompetitionNutritionPlan>("/competition-nutrition/accept", {
+      method: "POST", body: JSON.stringify({ event_id: eventId, inputs, token, acceptance_id: acceptanceId }),
+    }),
+    plans: () => request<CompetitionNutritionPlan[]>("/competition-nutrition/plans"),
+    deactivationPreview: (id: number) => request<{ plan_id: number; version: number; days: { day: string; old_targets: Record<string, unknown> }[]; token: string }>(`/competition-nutrition/plans/${id}/deactivation-preview`),
+    deactivate: (id: number, token: string) => request<CompetitionNutritionPlan>(`/competition-nutrition/plans/${id}/deactivate`, {
+      method: "POST", body: JSON.stringify({ token }),
+    }),
+  },
+  competitionMeals: {
+    history: (planId: number) => request<CompetitionMealPlan[]>(`/competition-nutrition/plans/${planId}/meals`),
+    preview: (planId: number, inputs: CompetitionMealInputs) => request<CompetitionMealDraft>(`/competition-nutrition/plans/${planId}/meals/preview`, { method: "POST", body: JSON.stringify(inputs) }),
+    accept: (planId: number, draft: CompetitionMealDraft, acceptanceId: string) => request<CompetitionMealPlan[]>(`/competition-nutrition/plans/${planId}/meals/accept`, { method: "POST", body: JSON.stringify({ inputs: draft.inputs, token: draft.token, acceptance_id: acceptanceId }) }),
   },
 
   training: {
@@ -602,6 +745,7 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(result),
       }),
+    clearResult: (id: number) => request<void>(`/competitions/${id}/result`, { method: "DELETE" }),
     delete: (id: number) =>
       request<void>(`/competitions/${id}`, { method: "DELETE" }),
   },

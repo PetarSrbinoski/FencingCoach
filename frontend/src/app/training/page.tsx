@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useGarminSyncObserver } from "@/lib/garmin-refresh";
 import { api, TrainingSession, MentalEntry, MentalInsight, MentalEntryInput, FencingAnalysis } from "@/lib/api";
 import { BandPill, Card } from "@/components/ui";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,15 +24,6 @@ function mondayOf(d: Date): Date {
 function formatDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-function classifyDay(s: TrainingSession): "fencing" | "gym" | "rest" {
-  if (s.session) return "gym";
-  const reason = (s.reason || "").toLowerCase();
-  if (reason.includes("rest")) return "rest";
-  const wd = s.weekday;
-  if (["Monday", "Wednesday", "Friday", "Saturday"].includes(wd)) return "fencing";
-  return "rest";
 }
 
 function timeAgo(iso: string): string {
@@ -482,21 +474,31 @@ function MentalTrainingSection() {
 
 // ── main ─────────────────────────────────────────────────────────────
 export default function TrainingPage() {
-  const today = new Date().toISOString().slice(0, 10);
+  const [today, setToday] = useState("");
   const [weekStart, setWeekStart] = useState<Date>(mondayOf(new Date()));
   const [week, setWeek] = useState<TrainingSession[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [resettingDay, setResettingDay] = useState<string | null>(null);
+  const weekRequest = useRef(0);
 
   function isoDate(d: Date): string {
     return d.toISOString().slice(0, 10);
   }
 
   const fetchWeek = useCallback(() => {
-    api.training.week(isoDate(weekStart)).then(setWeek).catch((e) => setErr(e?.message));
+    const request = ++weekRequest.current;
+    api.training.week(isoDate(weekStart)).then(value => { if (request === weekRequest.current) setWeek(value); })
+      .catch((e) => { if (request === weekRequest.current) setErr(e?.message); });
   }, [weekStart]);
 
   useEffect(() => { fetchWeek(); }, [fetchWeek]);
+  useEffect(() => { api.readiness.today().then(t => {
+    setToday(t.day);
+    const requestedDay = new URLSearchParams(window.location.search).get("day");
+    const shownDay = requestedDay && /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) ? requestedDay : t.day;
+    setWeekStart(mondayOf(new Date(`${shownDay}T12:00:00`)));
+  }).catch(() => {}); }, []);
+  useGarminSyncObserver(fetchWeek);
 
   async function resetOverride(day: string) {
     setResettingDay(day);
@@ -579,7 +581,7 @@ export default function TrainingPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
           {week.map((session) => {
-            const dayType = classifyDay(session);
+            const dayType = session.activity_type;
             const isToday = session.day === today;
 
             return (
@@ -601,6 +603,7 @@ export default function TrainingPage() {
                     {dayType === "fencing" && <Swords className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />}
                     {dayType === "gym" && <Dumbbell className="h-4 w-4 text-accent" strokeWidth={1.5} />}
                     {dayType === "rest" && <BedDouble className="h-4 w-4 text-muted-foreground/50" strokeWidth={1.5} />}
+                    {dayType === "competition" && <Swords className="h-4 w-4 text-accent" strokeWidth={1.5} />}
                     <span className="font-semibold text-base tracking-wide text-foreground">
                       {session.weekday}
                     </span>
@@ -611,6 +614,14 @@ export default function TrainingPage() {
                 </div>
 
                 {/* Fencing day */}
+                {dayType === "competition" && <div className="space-y-3">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-accent">Competition day</span>
+                  {session.competitions.map(event => <div key={event.id} className="border border-border p-3 space-y-1">
+                    <a href={`/competitions#competition-${event.id}`} className="font-semibold underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">{event.name}</a>
+                    <p className="text-xs text-muted-foreground">{event.event_date}{event.end_date && event.end_date !== event.event_date ? ` – ${event.end_date}` : ""} · Priority {event.priority}{event.location ? ` · ${event.location}` : ""}</p>
+                  </div>)}
+                </div>}
+
                 {dayType === "fencing" && (
                   <div className="space-y-2">
                     <span className="text-xs font-semibold uppercase tracking-widest text-foreground/80">
@@ -638,11 +649,11 @@ export default function TrainingPage() {
                 )}
 
                 {/* Gym day */}
-                {dayType === "gym" && session.session && (
+                {(dayType === "gym" || dayType === "competition") && session.session && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold uppercase tracking-widest text-accent">
-                        Gym
+                        {dayType === "competition" ? "Additional planned work" : "Gym"}
                       </span>
                       <span className="text-xs text-foreground/75 capitalize font-mono">
                         {session.session.name.replace(/_/g, " ")}

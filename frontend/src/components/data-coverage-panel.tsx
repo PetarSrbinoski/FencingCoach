@@ -37,7 +37,7 @@ function staleMessage(m: MetricDiagnostic): string {
 
 /** Surfaces Garmin extraction gaps instead of letting them silently degrade
  * readiness/targets/coach context. See GET /diagnostics. */
-export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) {
+export function DataCoveragePanel({ windowDays = 30, revision = 0 }: { windowDays?: number; revision?: number }) {
   const [data, setData] = useState<Diagnostics | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
       .get(windowDays)
       .then(setData)
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
-  }, [windowDays]);
+  }, [windowDays, revision]);
 
   if (err) {
     return (
@@ -125,12 +125,12 @@ export function DataCoveragePanel({ windowDays = 30 }: { windowDays?: number }) 
 
 /** Slim, dashboard-friendly variant: renders nothing when all metrics are
  * healthy, otherwise a compact warning list. */
-export function StaleDataBanner({ windowDays = 30 }: { windowDays?: number }) {
+export function StaleDataBanner({ windowDays = 30, revision = 0 }: { windowDays?: number; revision?: number }) {
   const [data, setData] = useState<Diagnostics | null>(null);
 
   useEffect(() => {
     api.diagnostics.get(windowDays).then(setData).catch(() => {});
-  }, [windowDays]);
+  }, [windowDays, revision]);
 
   // Only surface metrics that were working and went stale (actionable sync
   // gap) — metrics that never parsed at all are unsupported-metric noise.

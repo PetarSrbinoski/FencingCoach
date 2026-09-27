@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createJobObserver, type JobObservation } from "@/lib/job-observer";
-import { api, type ChatMessageStatusValue, type CoachConversationSummary } from "@/lib/api";
+import { api, type AgentAction, type ChatMessageStatusValue, type CoachConversationSummary, type CoachPlanProposal, type NutritionAnswerReference } from "@/lib/api";
+import { AgentLogs } from "@/components/agent-logs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,6 +42,7 @@ type Msg = {
   status?: ChatMessageStatusValue;
   contextSnapshot?: string | null;
   ungroundedClaims?: string[];
+  nutritionRefs?: NutritionAnswerReference[];
 };
 
 function conversationLabel(conversation: CoachConversationSummary) {
@@ -67,6 +69,11 @@ export default function ChatPage() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [agentLogsOpen, setAgentLogsOpen] = useState(false);
+  const [actionReceipts, setActionReceipts] = useState<AgentAction[]>([]);
+  const [planProposals, setPlanProposals] = useState<CoachPlanProposal[]>([]);
+  const [proposalBusy, setProposalBusy] = useState<number | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const observer = useRef(createJobObserver());
 
@@ -92,6 +99,8 @@ export default function ChatPage() {
       active = false;
       stopPolling();
     };
+    // Mount-only initialization owns the observer for this page instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function stopPolling() {
@@ -100,6 +109,29 @@ export default function ChatPage() {
 
   function refreshConversationSummaries() {
     api.chatConversations.list().then(setConversations).catch(() => {});
+  }
+
+  function refreshActionReceipts() {
+    api.agentActions.list({ page: 1 }).then(result => setActionReceipts(result.items)).catch(() => {});
+  }
+
+  function refreshPlanProposals() {
+    api.coachPlanProposals.list().then(setPlanProposals).catch(() => {});
+  }
+
+  async function decideProposal(proposal: CoachPlanProposal, decision: "apply" | "cancel") {
+    setProposalBusy(proposal.id);
+    setProposalError(null);
+    try {
+      if (decision === "apply") await api.coachPlanProposals.apply(proposal.id);
+      else await api.coachPlanProposals.cancel(proposal.id);
+      refreshPlanProposals();
+      refreshActionReceipts();
+      window.dispatchEvent(new Event("agent-action-changed"));
+    } catch (error) {
+      setProposalError(`${error instanceof Error ? error.message : String(error)} Request a fresh comparison from the coach if inputs changed.`);
+      refreshPlanProposals();
+    } finally { setProposalBusy(null); }
   }
 
   function pollReply(messageId: number, observation: JobObservation) {
@@ -114,7 +146,10 @@ export default function ChatPage() {
           status: poll.status,
           contextSnapshot: poll.context_snapshot,
           ungroundedClaims: poll.ungrounded_claims,
+          nutritionRefs: poll.nutrition_refs,
         } : message));
+        refreshActionReceipts();
+        refreshPlanProposals();
         if (poll.status === "error") setErr(poll.error ?? "Chat failed");
       },
       (error) => {
@@ -169,12 +204,15 @@ export default function ChatPage() {
     if (!observation.isCurrent()) return;
     setLoadingHistory(false);
     setConversationId(conversation.id);
+    refreshActionReceipts();
+    refreshPlanProposals();
     setMessages(
       conversation.messages.map((message) => ({
         id: message.id,
         role: message.role,
         content: message.content,
         status: message.status,
+        nutritionRefs: message.nutrition_refs,
       }))
     );
     if (!nextList.some((entry) => entry.id === id)) {
@@ -354,6 +392,7 @@ export default function ChatPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setAgentLogsOpen(true)}>Agent logs</Button>
             <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="lg:hidden">
@@ -462,6 +501,26 @@ export default function ChatPage() {
                       )}
                     </div>
                   )}
+                  {!isUser && m.nutritionRefs?.map((reference, referenceIndex) => <div key={referenceIndex} className="ml-[42px] max-w-[calc(100%-42px)] border border-border p-3 text-xs space-y-2">
+                    <p className="font-medium">Nutrition targets · {reference.start} through {reference.end} · read only</p>
+                    {reference.plan_versions.length > 0 && <p className="text-muted-foreground">Referenced accepted plan versions: {reference.plan_versions.join(", ")}. This answer may describe an older version.</p>}
+                    <div className="overflow-x-auto"><table className="w-full min-w-[500px] text-left"><thead><tr><th className="p-1">Date</th><th className="p-1">Target</th><th className="p-1">Context</th><th className="p-1">Source</th><th className="p-1">Open</th></tr></thead><tbody>
+                      {reference.days?.map(day => <tr key={day.day} className="border-t border-border"><td className="p-1">{day.day}</td><td className="p-1">{day.kcal} kcal · P {day.protein_g} g · C {day.carbs_g} g · F {day.fat_g} g</td><td className="p-1">{day.training_type} · {day.context}<span className="block text-muted-foreground">{day.explanation}</span></td><td className="p-1">{day.target_source}{day.plan_version ? ` v${day.plan_version}` : ""}</td><td className="p-1"><a className="underline" href={day.diary_url}>Diary</a>{day.plan_url && <> · <a className="underline" href={day.plan_url}>Plan</a></>}</td></tr>)}
+                    </tbody></table></div>
+                  </div>)}
+                  {!isUser && m.id && actionReceipts.filter(action => action.message_id === m.id && action.kind !== "reversal").map(action => <div key={action.id} role="status" className="ml-[42px] max-w-[calc(100%-42px)] border border-border px-3 py-2 text-xs">
+                    Coach action #{action.id}: {action.summary} · {action.status}. <button className="underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent" onClick={() => setAgentLogsOpen(true)}>Review in Agent logs</button>
+                  </div>)}
+                  {!isUser && m.id && planProposals.filter(proposal => proposal.message_id === m.id).map(proposal => <section key={proposal.id} className="ml-[42px] max-w-[calc(100%-42px)] border border-border p-3 text-xs space-y-2" aria-label={`Coach plan proposal ${proposal.id}`}>
+                    <h3 className="font-medium text-sm">Nutrition plan proposal #{proposal.id} · {proposal.preview.event.name}</h3>
+                    <p>Status: {proposal.status}. {proposal.status === "pending" ? "No targets have changed. Review each date before applying." : proposal.status === "applied" ? "Accepted targets are active; review the action receipt in Agent logs." : "Cancelled without changing targets."}</p>
+                    {proposal.preview.assumptions.map(assumption => <p key={assumption} className="text-muted-foreground">Assumption: {assumption}</p>)}
+                    <div className="overflow-x-auto"><table className="w-full min-w-[460px] text-left"><thead><tr><th className="p-1">Date</th><th className="p-1">Current accepted</th><th className="p-1">Proposed</th><th className="p-1">Context</th></tr></thead><tbody>{proposal.preview.days.map(day => <tr key={day.day} className="border-t border-border"><td className="p-1">{day.day}</td><td className="p-1">{day.existing_targets ? `${day.existing_targets.kcal} kcal · P ${day.existing_targets.protein_g} g · C ${day.existing_targets.carbs_g} g · F ${day.existing_targets.fat_g} g` : "Ordinary target"}</td><td className="p-1">{day.kcal} kcal · P {day.protein_g} g · C {day.carbs_g} g · F {day.fat_g} g</td><td className="p-1">{day.context} · {day.training_type}</td></tr>)}</tbody></table></div>
+                    <p className="text-muted-foreground">Accepted meal plans on affected dates may need review. Diary entries stay unchanged.</p>
+                    {proposalError && <p role="alert" className="text-destructive">{proposalError}</p>}
+                    {proposal.status === "pending" && <div className="flex flex-wrap gap-2"><Button size="sm" disabled={proposalBusy !== null} onClick={() => void decideProposal(proposal, "apply")}>{proposalBusy === proposal.id ? "Applying…" : "Apply plan"}</Button><Button size="sm" variant="outline" disabled={proposalBusy !== null} onClick={() => void decideProposal(proposal, "cancel")}>Cancel proposal</Button></div>}
+                    {proposal.status === "applied" && <div className="flex flex-wrap gap-2"><a href={`/nutrition?competition=${proposal.event_id}&plan=${proposal.applied_plan_id}`} className="underline">Open accepted plan</a><button className="underline" onClick={() => setAgentLogsOpen(true)}>Open Agent logs receipt #{proposal.action_id}</button></div>}
+                  </section>)}
                 </div>
               );
             })}
@@ -523,6 +582,7 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+      <AgentLogs open={agentLogsOpen} onOpenChange={setAgentLogsOpen} onOpenConversation={selectConversation} />
     </div>
   );
 }

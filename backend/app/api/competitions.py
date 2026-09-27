@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.clock import athlete_today
 from app.core.database import get_db
 from app.models import Competition
-from app.schemas import CompetitionCreate, CompetitionOut
+from app.schemas import CompetitionCreate, CompetitionOut, CompetitionResultPatch
+from app.services.transactions import lock_nutrition_inputs, lock_resource
 
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
@@ -44,6 +45,7 @@ def list_competitions(
 def create_competition(
     body: CompetitionCreate, db: Session = Depends(get_db)
 ) -> CompetitionOut:
+    lock_nutrition_inputs(db)
     c = Competition(**body.model_dump())
     db.add(c)
     db.commit()
@@ -67,6 +69,7 @@ def update_competition(
     body: CompetitionCreate,
     db: Session = Depends(get_db),
 ) -> CompetitionOut:
+    lock_resource(db, "competition", comp_id)
     c = db.get(Competition, comp_id)
     if not c:
         raise HTTPException(404, "not found")
@@ -80,20 +83,37 @@ def update_competition(
 @router.patch("/{comp_id}/result", response_model=CompetitionOut)
 def set_result(
     comp_id: int,
-    result: dict,
+    result: CompetitionResultPatch,
     db: Session = Depends(get_db),
 ) -> CompetitionOut:
+    lock_resource(db, "competition", comp_id)
     c = db.get(Competition, comp_id)
     if not c:
         raise HTTPException(404, "not found")
-    c.result = result
+    updated = {**(c.result or {}), **result.model_dump(exclude_unset=True)}
+    placing = updated.get("placing")
+    field_size = updated.get("field_size")
+    if isinstance(placing, int) and isinstance(field_size, int) and placing > field_size:
+        raise HTTPException(422, "placing cannot exceed field size")
+    c.result = updated or None
     db.commit()
     db.refresh(c)
     return _to_out(c)
 
 
+@router.delete("/{comp_id}/result", status_code=204)
+def clear_result(comp_id: int, db: Session = Depends(get_db)) -> None:
+    lock_resource(db, "competition", comp_id)
+    c = db.get(Competition, comp_id)
+    if not c:
+        raise HTTPException(404, "not found")
+    c.result = None
+    db.commit()
+
+
 @router.delete("/{comp_id}", status_code=204)
 def delete_competition(comp_id: int, db: Session = Depends(get_db)):
+    lock_resource(db, "competition", comp_id)
     c = db.get(Competition, comp_id)
     if not c:
         raise HTTPException(404, "not found")

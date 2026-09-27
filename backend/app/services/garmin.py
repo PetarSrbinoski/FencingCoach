@@ -16,7 +16,7 @@ from garminconnect import (
     Garmin,
     GarminConnectAuthenticationError,
 )
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -129,6 +129,7 @@ class GarminService:
                 "payload": stmt.excluded.payload,
                 "status": stmt.excluded.status,
                 "detail": stmt.excluded.detail,
+                "fetched_at": func.now(),
             },
         )
         db.execute(stmt)
@@ -140,6 +141,8 @@ class GarminService:
         Every kind gets a row regardless of outcome (ok/missing/implausible)
         so extraction coverage is always queryable — see `services.diagnostics`.
         """
+        from app.services.transactions import lock_nutrition_inputs
+        lock_nutrition_inputs(db)
         extracted = extract_all(raw)
         for kind, metric in extracted.items():
             if metric.status != "ok":

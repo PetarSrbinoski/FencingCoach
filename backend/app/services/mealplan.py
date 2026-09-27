@@ -17,6 +17,19 @@ from sqlalchemy.orm import Session
 from app.models import NutritionPlan
 
 
+def plan_meals(payload: Any) -> list[dict[str, Any]]:
+    """Read the supported stored day-plan envelopes without treating junk as coverage."""
+    current = payload
+    for _ in range(3):
+        if not isinstance(current, dict):
+            return []
+        meals = current.get("meals")
+        if isinstance(meals, list):
+            return [meal for meal in meals if isinstance(meal, dict) and meal.get("name")]
+        current = current.get("plan")
+    return []
+
+
 def build_shopping_list(
     db: Session,
     start: date,
@@ -35,14 +48,18 @@ def build_shopping_list(
     cur = start
     plan_by_day = {p.day: p for p in plans}
     while cur <= end:
-        if cur in plan_by_day:
+        meals = plan_meals(plan_by_day[cur].plan) if cur in plan_by_day else []
+        if meals:
             days_covered.append(cur.isoformat())
-            plan = plan_by_day[cur].plan or {}
-            meals = (plan.get("plan") or {}).get("meals") or plan.get("meals") or []
             for meal in meals:
                 for ing in meal.get("ingredients") or []:
+                    if not isinstance(ing, dict):
+                        continue
                     name = (ing.get("name") or "").strip().lower()
-                    qty = float(ing.get("qty_g") or 0)
+                    try:
+                        qty = float(ing.get("qty_g") or 0)
+                    except (TypeError, ValueError):
+                        continue
                     if name and qty > 0:
                         totals[name] += qty
         else:

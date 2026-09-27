@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { announceGarminSync, useGarminSyncObserver } from "@/lib/garmin-refresh";
 import { useRouter } from "next/navigation";
 import {
   api,
@@ -48,24 +49,31 @@ export default function Home() {
   const [nextComp, setNextComp] = useState<Competition | null | undefined>(undefined);
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncState, setSyncState] = useState<string | null>(null);
+  const [coverageRevision, setCoverageRevision] = useState(0);
+  const loadVersion = useRef(0);
   const [chatInput, setChatInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   function loadAll() {
+    const version = ++loadVersion.current;
+    const current = () => loadVersion.current === version;
     setErr(null);
-    api.readiness.today().then(setReadiness).catch((e) => setErr(String(e)));
-    api.brief.today().then(setBrief).catch(() => {});
-    api.phase.today().then(setPhase).catch(() => {});
-    api.metrics.series("hrv", 7).then(setHrv).catch(() => {});
-    api.metrics.series("sleep_score", 7).then(setSleepScore).catch(() => {});
-    api.metrics.series("resting_hr", 7).then(setRhr).catch(() => {});
-    api.metrics.series("training_readiness", 7).then(setReadinessSeries).catch(() => {});
-    api.metrics.series("calories", 7).then(setCalories).catch(() => {});
-    api.activities.recent(3).then(setActivities).catch(() => {});
-    api.competitions.list(true).then((list) => setNextComp(list[0] ?? null)).catch(() => setNextComp(null));
+    api.readiness.today().then(value => { if (current()) setReadiness(value); }).catch((e) => { if (current()) setErr(String(e)); });
+    api.brief.today().then(value => { if (current()) setBrief(value); }).catch(() => {});
+    api.phase.today().then(value => { if (current()) setPhase(value); }).catch(() => {});
+    api.metrics.series("hrv", 7).then(value => { if (current()) setHrv(value); }).catch(() => {});
+    api.metrics.series("sleep_score", 7).then(value => { if (current()) setSleepScore(value); }).catch(() => {});
+    api.metrics.series("resting_hr", 7).then(value => { if (current()) setRhr(value); }).catch(() => {});
+    api.metrics.series("training_readiness", 7).then(value => { if (current()) setReadinessSeries(value); }).catch(() => {});
+    api.metrics.series("calories", 7).then(value => { if (current()) setCalories(value); }).catch(() => {});
+    api.activities.recent(3).then(value => { if (current()) setActivities(value); }).catch(() => {});
+    api.competitions.list(true).then(list => { if (current()) setNextComp(list[0] ?? null); }).catch(() => { if (current()) setNextComp(null); });
+    setCoverageRevision(value => value + 1);
   }
 
   useEffect(loadAll, []);
+  useGarminSyncObserver(loadAll);
 
   async function generateBrief() {
     setGenerating(true);
@@ -89,13 +97,17 @@ export default function Home() {
         ? Math.max(1, Math.ceil((Date.now() - new Date(status.last_fetch).getTime()) / 86400000))
         : 2;
       const res = await api.garmin.syncRecent(days);
+      announceGarminSync();
       if (res.ok) {
+        const latest = await api.readiness.today();
+        setSyncState(latest.score === null ? "Sync complete; today's readiness is unavailable." : `Sync complete; today's readiness is ${latest.score} (${latest.band}).`);
         toast({ title: `Synced last ${days} day${days === 1 ? "" : "s"}`, variant: "success" });
-        loadAll();
       } else {
+        setSyncState("Sync failed. Any committed readings remain visible; retry is available.");
         toast({ title: "Sync failed", description: res.error, variant: "destructive" });
       }
     } catch (e: unknown) {
+      setSyncState("Sync failed. Retry is available.");
       toast({ title: "Sync failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally {
       setSyncing(false);
@@ -139,6 +151,7 @@ export default function Home() {
             {syncing ? "Syncing…" : "Sync"}
           </Button>
         </div>
+        {syncState && <p role="status" className="text-sm text-muted-foreground mt-3">{syncState}</p>}
         <div className="h-1 w-16 bg-accent mt-6" />
       </header>
 
@@ -167,7 +180,7 @@ export default function Home() {
         </form>
       </section>
 
-      <StaleDataBanner />
+      <StaleDataBanner revision={coverageRevision} />
 
       {/* ── Stat cards ────────────────────────────────────────────── */}
       <section>
@@ -199,6 +212,7 @@ export default function Home() {
           </div>
         </section>
       )}
+      {readiness && <p className="text-xs text-muted-foreground" role="status">{readiness.score === null ? `Today's readiness (${readiness.day}) is unavailable.` : `Readiness for ${readiness.day}; Garmin reading fetched ${readiness.reading_fetched_at ?? "at an unknown time"}.`}</p>}
 
       {/* ── Brief + next competition ─────────────────────────────── */}
       <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12 border-t border-border pt-16">

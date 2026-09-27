@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Children, cloneElement, isValidElement, useEffect, useId, useState } from "react";
 import { api, Profile } from "@/lib/api";
 import { Card } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -270,7 +270,7 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <FieldNote>
-                  Directly affects calorie targets. Cutting/lean lowers calories; maintain keeps them neutral; gain raises them.
+                  Performance and maintain use maintenance energy; cutting requests 5% less, lean bulk 5% more, and recomposition uses maintenance with higher protein. Macro bounds can take priority when they conflict with the energy request.
                 </FieldNote>
               </Field>
               <Field label="Food budget">
@@ -290,16 +290,20 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
                 <FieldNote>
-                  Currently saved only. It does not yet change meal-plan generation logic.
+                  Used to shape meal-plan choices; no verified price estimate is made.
                 </FieldNote>
               </Field>
-              <Field label="Dietary restrictions">
+              <Field label="Dietary restrictions and hard exclusions">
                 <Textarea
                   value={form.dietary_restrictions ?? ""}
                   onChange={(e) => update("dietary_restrictions", e.target.value)}
                   placeholder="e.g. lactose intolerant, no pork"
                   rows={2}
                 />
+                <FieldNote>Supported examples: no peanuts, dairy-free, gluten-free, vegetarian, vegan, no pork. Unknown wording will require clarification before a new plan can be saved. Ingredient-name checks cannot guarantee packaged-product allergen safety or cross-contact.</FieldNote>
+              </Field>
+              <Field label="Food preferences (soft)">
+                <Textarea value={form.food_preferences ?? ""} onChange={event => update("food_preferences", event.target.value)} placeholder="e.g. quick meals, dislike mushrooms" rows={2} />
               </Field>
               <Field label="Supplements">
                 <Textarea
@@ -372,10 +376,12 @@ function Field({
   label: string;
   children: React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</label>
-      {children}
+      <label htmlFor={id} className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</label>
+      {Children.map(children, child => isValidElement<{ id?: string }>(child) && (child.type === Input || child.type === Textarea)
+        ? cloneElement(child, { id }) : child)}
     </div>
   );
 }
