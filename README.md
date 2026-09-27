@@ -1,4 +1,4 @@
-#TESTOVITE ZA SKIT SE VO testing/
+# TESTOVITE ZA SKIT SE VO testing/
 
 # FencingCoach AI
 
