@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Source this file from testing scripts to select only the disposable stack.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_COMPOSE_PROJECT="${TEST_COMPOSE_PROJECT:-fencingcoach-testing}"
 if [[ "$TEST_COMPOSE_PROJECT" != fencingcoach-testing* ]]; then

@@ -1,10 +1,3 @@
-"""Make independent, reproducible mutmut workspaces for A/B/C.
-
-The mutation population is intentionally limited to schedule and Garmin
-extractors; nutrition targets and all persistence/browser tests are omitted
-from these scores. A/B/C use the same selected source files and runner config.
-"""
-
 from __future__ import annotations
 
 import argparse
