@@ -14,7 +14,8 @@ These are references for visual techniques. All app graphics are original CSS/SV
 
 - Shared responsive mastheads on Today, Training, Nutrition, Competitions, Trends, Garmin, and Profile; Coach retains a compact conversation toolbar.
 - Warm paper surfaces in light mode, existing dark mode, stronger orange navigation states, thin underline tabs, and restrained corner radii.
-- Today: dark readiness panel with compact primary actions; separate editorial coach brief; warm competition countdown card; visible metrics with dated sparkline previews. Detailed notes and source information remain expandable.
+- Today: distinct, spaced sections for readiness, an always-visible coach input immediately underneath, recovery metrics, the coach brief, and the next competition. Recent activities is removed from this dashboard. Detailed notes and source information remain expandable.
+- Garmin: restored the original oversized Sync and Sync All text controls, with recent and full-history sync directly accessible. Existing loading, partial-success, and error feedback is preserved.
 - Original fencing line illustration on larger readiness panels. The graphic is decorative and excluded from accessibility announcements.
 - Training sessions, nutrition intake, weekly summary, and competition cards receive deliberate accent rules rather than uniform rounded containers.
 - Metric previews use actual readings, leave gaps for missing values, and link to the existing Trends screen for exact values.

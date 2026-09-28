@@ -212,7 +212,7 @@ export default function Home() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 md:space-y-10">
       <PageHeading
         title="Today"
         eyebrow={new Date().toLocaleDateString(undefined, {
@@ -273,10 +273,7 @@ export default function Home() {
             <Gauge score={readiness.score} size={120} />
           )}
           <div className="min-w-0 flex-1">
-            <p className="eyebrow text-muted-foreground">Your daily edge</p>
-            <h2 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight">
-              Readiness
-            </h2>
+            <h2 className="font-serif text-2xl">Readiness</h2>
             {readiness ? (
               <>
                 <p className="text-sm">
@@ -331,124 +328,44 @@ export default function Home() {
           </Button>
         </div>
       </section>
-      <div className="dashboard-editorial">
-        <section className="coach-brief">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-serif text-2xl sm:text-3xl">Coach brief</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={generateBrief}
-              disabled={generating}
-            >
-              {generating ? "Generating…" : brief ? "Regenerate" : "Generate"}
-            </Button>
-          </div>
-          {loadErrors.brief && (
-            <ErrorNotice
-              message={`Could not load the brief: ${loadErrors.brief}`}
-              retry={loadAll}
-            />
-          )}
-          {brief ? (
-            <ReadMore label="Read full brief">
-              <Markdown>{brief.summary}</Markdown>
-            </ReadMore>
-          ) : (
-            !loadErrors.brief && (
-              <p className="text-sm text-muted-foreground">
-                Generate today&apos;s brief for guidance on your training and
-                recovery.
-              </p>
-            )
-          )}
-          {brief?.payload?.model && (
-            <details className="text-sm text-muted-foreground">
-              <summary>Brief source</summary>
-              <p>{brief.payload.model}</p>
-            </details>
-          )}
-          <details className="border-t border-border mt-3 pt-2">
-            <summary className="font-semibold">Ask your coach</summary>
-            <form onSubmit={sendToCoach} className="mt-3 flex gap-2">
-              <Input
-                value={chatInput}
-                onChange={(event) => setChatInput(event.target.value)}
-                placeholder="Should I skip gym today?"
-                aria-label="Message the coach"
-                className="flex-1"
-              />
-              <Button
-                type="submit"
-                size="icon"
-                className="h-12 w-12 shrink-0"
-                disabled={!chatInput.trim()}
-                aria-label="Send message"
-              >
-                <Send />
-              </Button>
-            </form>
-          </details>
-        </section>
-        <section className="competition-feature space-y-3">
-          <h2 className="eyebrow">Next competition</h2>
-          {loadErrors.competitions ? (
-            <ErrorNotice
-              message="Could not load competitions."
-              retry={loadAll}
-            />
-          ) : nextComp === undefined ? (
-            <Skeleton className="h-14 w-full" />
-          ) : nextComp ? (
-            <>
-              <div className="competition-countdown">
-                <p className="countdown-number">
-                  {Math.max(0, daysToComp ?? 0)
-                    .toString()
-                    .padStart(2, "0")}
-                </p>
-                <span className="eyebrow">
-                  {daysToComp !== null && daysToComp <= 0
-                    ? "Competition time"
-                    : "Days to go"}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">
-                  {daysToComp !== null && daysToComp <= 0
-                    ? "Ongoing"
-                    : `In ${daysToComp} days`}
-                </Badge>
-                <Badge variant="outline">Priority {nextComp.priority}</Badge>
-              </div>
-              <p className="font-serif text-2xl leading-snug">
-                {nextComp.name}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {[nextComp.event_date, nextComp.location, nextComp.level]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <a href={`/competitions#competition-${nextComp.id}`}>
-                  View event
-                </a>
-              </Button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                No upcoming competitions.
-              </p>
-              <Button variant="outline" asChild>
-                <a href="/competitions">Add a competition</a>
-              </Button>
-            </>
-          )}
-        </section>
-      </div>
-      <section aria-label="Recovery metrics" className="space-y-4">
-        <h2 className="eyebrow">Recovery metrics</h2>
+      <section className="dashboard-section" aria-labelledby="ask-coach-title">
+        <h2
+          id="ask-coach-title"
+          className="dashboard-section-heading font-serif text-2xl"
+        >
+          Ask your coach
+        </h2>
+        <form onSubmit={sendToCoach} className="flex gap-3">
+          <Input
+            value={chatInput}
+            onChange={(event) => setChatInput(event.target.value)}
+            placeholder="Should I skip gym today?"
+            aria-label="Message the coach"
+            className="flex-1"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="h-12 w-12 shrink-0"
+            disabled={!chatInput.trim()}
+            aria-label="Send message"
+          >
+            <Send />
+          </Button>
+        </form>
+      </section>
+      <section
+        aria-labelledby="recovery-metrics-title"
+        className="dashboard-section"
+      >
+        <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
+          <h2 id="recovery-metrics-title" className="font-serif text-2xl">
+            Recovery metrics
+          </h2>
+          <Button variant="link" size="sm" asChild>
+            <a href="/weekly">View trends</a>
+          </Button>
+        </div>
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-5">
           <StatCard title="HRV" series={hrv} unit="ms" error={loadErrors.hrv} />
           <StatCard
@@ -486,10 +403,110 @@ export default function Home() {
             Retry unavailable data
           </Button>
         )}
-        <Button variant="link" asChild>
-          <a href="/weekly">View trends</a>
-        </Button>
       </section>
+      <div className="dashboard-editorial">
+        <section
+          className="dashboard-section coach-brief"
+          aria-labelledby="coach-brief-title"
+        >
+          <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
+            <h2 id="coach-brief-title" className="font-serif text-2xl">
+              Coach brief
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={generateBrief}
+              disabled={generating}
+            >
+              {generating ? "Generating…" : brief ? "Regenerate" : "Generate"}
+            </Button>
+          </div>
+          {loadErrors.brief && (
+            <ErrorNotice
+              message={`Could not load the brief: ${loadErrors.brief}`}
+              retry={loadAll}
+            />
+          )}
+          {brief ? (
+            <ReadMore label="Read full brief">
+              <Markdown>{brief.summary}</Markdown>
+            </ReadMore>
+          ) : (
+            !loadErrors.brief && (
+              <p className="text-sm text-muted-foreground">
+                Generate today&apos;s brief for guidance on your training and
+                recovery.
+              </p>
+            )
+          )}
+          {brief?.payload?.model && (
+            <details className="mt-4 border-t border-border pt-2 text-sm text-muted-foreground">
+              <summary>Brief source</summary>
+              <p>{brief.payload.model}</p>
+            </details>
+          )}
+        </section>
+        <section
+          className="competition-feature space-y-4"
+          aria-labelledby="next-competition-title"
+        >
+          <h2
+            id="next-competition-title"
+            className="dashboard-section-heading font-serif text-2xl"
+          >
+            Next competition
+          </h2>
+          {loadErrors.competitions ? (
+            <ErrorNotice
+              message="Could not load competitions."
+              retry={loadAll}
+            />
+          ) : nextComp === undefined ? (
+            <Skeleton className="h-14 w-full" />
+          ) : nextComp ? (
+            <>
+              <div className="competition-countdown">
+                <p className="countdown-number">
+                  {Math.max(0, daysToComp ?? 0)
+                    .toString()
+                    .padStart(2, "0")}
+                </p>
+                <span className="eyebrow">
+                  {daysToComp !== null && daysToComp <= 0
+                    ? "Competition time"
+                    : "Days to go"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">Priority {nextComp.priority}</Badge>
+              </div>
+              <p className="text-xl font-semibold leading-snug">
+                {nextComp.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {[nextComp.event_date, nextComp.location, nextComp.level]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/competitions#competition-${nextComp.id}`}>
+                  View event
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                No upcoming competitions.
+              </p>
+              <Button variant="outline" asChild>
+                <a href="/competitions">Add a competition</a>
+              </Button>
+            </>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
@@ -507,7 +524,7 @@ function StatCard({
 }) {
   const last = series?.points.filter((point) => point.value !== null).at(-1);
   return (
-    <div className="min-w-0 bg-background p-4 space-y-2 last:col-span-2 sm:last:col-span-1">
+    <div className="min-w-0 bg-card p-3 sm:p-4 space-y-2 last:col-span-2 sm:last:col-span-1">
       <h3 className="text-sm text-muted-foreground">{title}</h3>
       {error ? (
         <p className="text-sm">Unavailable</p>

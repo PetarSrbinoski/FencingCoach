@@ -740,7 +740,7 @@ test("Garmin page refreshes readiness and persistent sync status after sync", as
       .getByText("Today’s readiness", { exact: false })
       .or(page.getByText("Today's readiness", { exact: false })),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await page.getByRole("button", { name: "Sync recent data", exact: true }).click();
   await expect(
     page.getByText("Sync complete; readiness is 72", { exact: false }),
   ).toBeVisible();
@@ -748,7 +748,7 @@ test("Garmin page refreshes readiness and persistent sync status after sync", as
     page.getByText("Last sync attempt:", { exact: false }),
   ).toBeVisible();
   partial = true;
-  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await page.getByRole("button", { name: "Sync recent data", exact: true }).click();
   await expect(
     page.getByText("Sync partially completed", { exact: false }),
   ).toBeVisible();

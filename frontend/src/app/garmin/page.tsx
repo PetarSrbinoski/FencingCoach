@@ -1,11 +1,7 @@
 "use client";
 
-import { PageHeading } from "@/components/page-heading";
-
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
 import { ErrorNotice } from "@/components/mobile-ui";
-import { Card } from "@/components/ui";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { api, type Readiness } from "@/lib/api";
 import {
@@ -141,80 +137,126 @@ export default function GarminPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeading title="Garmin" eyebrow="Wearable data" />
+    <div className="space-y-10 md:space-y-16">
+      <header>
+        <p className="eyebrow mb-3 text-muted-foreground">Wearable data</p>
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
+          Garmin
+        </h1>
+        <div className="mt-6 h-1 w-16 bg-accent" />
+      </header>
       {err && <ErrorNotice message={err} retry={refresh} />}
-      <Card title="Sync status">
-        <div className="space-y-3">
-          {status ? (
-            <>
-              <p className="text-lg font-medium">
-                {status.last_fetch
-                  ? `Data last fetched ${new Date(status.last_fetch).toLocaleString()}`
-                  : "No data synced yet"}
-              </p>
-              {status.last_sync_at && (
-                <p className="text-sm text-muted-foreground">
-                  Last sync attempt:{" "}
-                  {new Date(status.last_sync_at).toLocaleString()} ·{" "}
-                  {status.last_sync_outcome ||
-                    (status.last_sync_ok ? "complete" : "failed")}
-                </p>
-              )}
-            </>
-          ) : (
-            <p role="status" className="text-sm text-muted-foreground">
-              {err ? "Status unavailable" : "Loading sync status…"}
-            </p>
-          )}
-          <p className="text-sm">
-            {readiness
-              ? readiness.score === null
-                ? `Today's readiness (${readiness.day}) is unavailable.`
-                : `Readiness ${readiness.score} (${readiness.band}) for ${readiness.day}.`
-              : err
-                ? "Readiness unavailable"
-                : "Loading current readiness…"}
-          </p>
-          <Button
-            className="w-full"
+      <section className="relative" aria-label="Garmin sync actions">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-8 left-0 hidden select-none text-[16rem] font-bold leading-none tracking-tighter text-border/30 md:block"
+        >
+          S
+        </span>
+        <div className="relative grid grid-cols-1 items-start gap-10 md:grid-cols-[3fr_2fr] md:gap-16">
+          <button
+            type="button"
             onClick={syncRecent}
             disabled={busy || historyBusy}
+            aria-busy={busy}
+            aria-label="Sync recent data"
+            className="group min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
           >
-            {busy && <Loader2 className="animate-spin" />}
-            {busy ? "Syncing recent data…" : "Sync now"}
-          </Button>
-          <p className="text-sm text-muted-foreground">
-            Fetch metrics, sleep, and activities from the last 2 days.
-          </p>
-          {syncState && (
-            <p role="status" className="rounded-xl bg-muted p-3 text-sm">
-              {syncState}
-            </p>
-          )}
-          {(busy || historyBusy) && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {historyBusy
-                ? "Importing up to one year of history. This may take several minutes."
-                : "Checking Garmin for new readings…"}
-            </p>
-          )}
+            <span className="eyebrow mb-2 flex items-center gap-3 text-muted-foreground">
+              Last 2 days{" "}
+              {busy && (
+                <Loader2
+                  className="h-4 w-4 animate-spin text-accent"
+                  aria-hidden="true"
+                />
+              )}
+            </span>
+            <span className="block text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold leading-none tracking-tighter transition-colors group-hover:text-accent">
+              Sync
+            </span>
+            <span className="mt-3 block h-0.5 bg-accent" aria-hidden="true" />
+            <span className="mt-4 block max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Pull the latest metrics, sleep, and activity data from Garmin
+              Connect.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={syncFullHistory}
+            disabled={busy || historyBusy}
+            aria-busy={historyBusy}
+            aria-label="Sync all history"
+            className="group min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-50 md:pt-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+          >
+            <span className="eyebrow mb-2 flex items-center gap-3 text-muted-foreground">
+              Full history — 1 year{" "}
+              {historyBusy && (
+                <Loader2
+                  className="h-4 w-4 animate-spin text-accent"
+                  aria-hidden="true"
+                />
+              )}
+            </span>
+            <span className="block text-4xl sm:text-5xl md:text-6xl font-bold leading-none tracking-tighter text-muted-foreground transition-colors group-hover:text-foreground">
+              Sync All
+            </span>
+            <span
+              className="mt-3 block h-px bg-muted-foreground/50"
+              aria-hidden="true"
+            />
+            <span className="mt-4 block max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Backfill your entire Garmin history. May take several minutes.
+            </span>
+          </button>
         </div>
-      </Card>
-      <details className="rounded-2xl border border-border bg-card p-4">
-        <summary className="font-semibold">Import older history</summary>
-        <p className="mb-3 text-sm text-muted-foreground">
-          Fetch up to one year of Garmin history. Use this for an initial import
-          or to fill older gaps.
+      </section>
+      <section
+        aria-label="Sync status"
+        className="space-y-3 border-t border-border pt-6"
+      >
+        {status ? (
+          <>
+            <p className="text-lg font-medium">
+              {status.last_fetch
+                ? `Data last fetched ${new Date(status.last_fetch).toLocaleString()}`
+                : "No data synced yet"}
+            </p>
+            {status.last_sync_at && (
+              <p className="text-sm text-muted-foreground">
+                Last sync attempt:{" "}
+                {new Date(status.last_sync_at).toLocaleString()} ·{" "}
+                {status.last_sync_outcome ||
+                  (status.last_sync_ok ? "complete" : "failed")}
+              </p>
+            )}
+          </>
+        ) : (
+          <p role="status" className="text-sm text-muted-foreground">
+            {err ? "Status unavailable" : "Loading sync status…"}
+          </p>
+        )}
+        <p className="text-sm">
+          {readiness
+            ? readiness.score === null
+              ? `Today's readiness (${readiness.day}) is unavailable.`
+              : `Readiness ${readiness.score} (${readiness.band}) for ${readiness.day}.`
+            : err
+              ? "Readiness unavailable"
+              : "Loading current readiness…"}
         </p>
-        <Button
-          variant="outline"
-          onClick={syncFullHistory}
-          disabled={busy || historyBusy}
-        >
-          {historyBusy ? "Importing…" : "Import one year"}
-        </Button>
-      </details>
+        {syncState && (
+          <p role="status" className="rounded-xl bg-muted p-3 text-sm">
+            {syncState}
+          </p>
+        )}
+        {(busy || historyBusy) && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {historyBusy
+              ? "Importing up to one year of history. This may take several minutes."
+              : "Checking Garmin for new readings…"}
+          </p>
+        )}
+      </section>
       <section>
         <DataCoveragePanel revision={coverageRevision} />
       </section>
