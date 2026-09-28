@@ -11,6 +11,8 @@ module.exports = {
         mono: ["var(--font-mono)", '"Fira Code"', "monospace"],
       },
       colors: {
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -46,11 +48,11 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: "0px",
-        md: "0px",
-        sm: "0px",
-        xl: "0px",
-        "2xl": "0px",
+        lg: "12px",
+        md: "8px",
+        sm: "6px",
+        xl: "12px",
+        "2xl": "16px",
       },
       boxShadow: {
         "hard-sm": "none",

@@ -16,6 +16,8 @@
     --secondary-foreground: 0 0% 4%;
     --muted: 0 0% 92%;
     --muted-foreground: 0 0% 40%;
+    --success: 158 74% 25%;
+    --warning: 32 95% 28%;
     --accent: 14 90% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 42%;
@@ -23,7 +25,7 @@
     --border: 0 0% 82%;
     --input: 0 0% 92%;
     --ring: 14 90% 40%;
-    --radius: 0px;
+    --radius: 12px;
   }
 
   .dark {
@@ -39,14 +41,16 @@
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 10%;
     --muted-foreground: 0 0% 63%;
+    --success: 158 65% 60%;
+    --warning: 43 96% 65%;
     --accent: 14 100% 50%;
     --accent-foreground: 0 0% 4%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 4%;
     --border: 0 0% 15%;
     --input: 0 0% 10%;
     --ring: 14 100% 50%;
-    --radius: 0px;
+    --radius: 12px;
   }
 }
 
@@ -94,5 +98,54 @@
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    --dock-space: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 1024px) {
+    :root {
+      --dock-space: 1rem;
+    }
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  summary {
+    min-height: 44px;
+    cursor: pointer;
+    padding-block: 10px;
+  }
+  input[type="date"],
+  input[type="time"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+  input[type="range"] {
+    min-height: 44px;
+  }
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: hsl(var(--accent));
+  }
+  html[data-keyboard="true"] [data-mobile-dock] {
+    display: none;
+  }
+  html[data-keyboard="true"] {
+    --dock-space: 0px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
