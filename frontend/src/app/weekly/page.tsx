@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import { BarChartComponent, Sparkline } from "@/components/charts";
 import { ErrorNotice, ViewTabs, useView } from "@/components/mobile-ui";
 import { Card, StatRow } from "@/components/ui";
@@ -177,17 +179,14 @@ export default function WeeklyPage() {
     sparklines.find((item) => item.title === metric) ?? sparklines[0];
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm text-muted-foreground">Training & recovery</p>
-        <h1 className="text-3xl font-bold tracking-tight">Trends</h1>
-      </header>
+      <PageHeading title="Trends" eyebrow="Training & recovery" />
       {errors.length > 0 && (
         <ErrorNotice
           message={`${errors.join(" ")} Some summaries may be incomplete.`}
           retry={() => setReload((value) => value + 1)}
         />
       )}
-      <Card title="Weekly summary">
+      <Card title="Weekly summary" className="weekly-summary">
         {loading ? (
           <Skeleton className="h-20 w-full" />
         ) : (

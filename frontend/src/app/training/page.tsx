@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import {
   ErrorNotice,
   ReadMore,
@@ -728,15 +730,7 @@ export default function TrainingPage() {
   return (
     <div className="space-y-6 lg:space-y-8">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="relative">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-          Weekly split
-        </p>
-        <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter leading-none">
-          Training
-        </h1>
-        <div className="h-1 w-10 rounded-full bg-accent mt-4" />
-      </header>
+      <PageHeading title="Training" eyebrow="Weekly split" />
       <ViewTabs
         value={view}
         onChange={setView}
@@ -841,7 +835,7 @@ export default function TrainingPage() {
                     <div
                       key={session.day}
                       className={`
-                  relative rounded-2xl bg-card border p-4 transition-all duration-150
+                  training-session relative rounded-lg bg-card border p-4 sm:p-6 transition-colors duration-150
                   ${isToday ? "border-accent" : "border-border hover:border-muted-foreground/30"}
                 `}
                     >

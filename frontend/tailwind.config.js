@@ -48,11 +48,11 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: "12px",
-        md: "8px",
-        sm: "6px",
-        xl: "12px",
-        "2xl": "16px",
+        lg: "4px",
+        md: "4px",
+        sm: "2px",
+        xl: "6px",
+        "2xl": "8px",
       },
       boxShadow: {
         "hard-sm": "none",

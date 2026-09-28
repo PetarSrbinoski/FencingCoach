@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import { ErrorNotice, UnsavedChangesGuard } from "@/components/mobile-ui";
 import { Card } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -137,22 +139,7 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 lg:space-y-8">
       {/* Header */}
-      <header className="relative">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-              Athlete identity
-            </p>
-            <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter leading-none">
-              Profile
-            </h1>
-            <p className="mt-4 text-sm text-muted-foreground font-mono">
-              Your details and coaching preferences
-            </p>
-            <div className="h-1 w-10 rounded-full bg-accent mt-4" />
-          </div>
-        </div>
-      </header>
+      <PageHeading title="Profile" eyebrow="Athlete identity" />
 
       <UnsavedChangesGuard dirty={dirty} />
       {err && (

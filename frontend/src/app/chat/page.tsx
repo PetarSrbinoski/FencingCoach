@@ -468,9 +468,9 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(var(--app-height,100dvh)-var(--dock-space)-env(safe-area-inset-top)-0.75rem)] min-h-0 flex-col gap-3">
-      <header className="flex shrink-0 items-center justify-between gap-2">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border pb-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Coach</h1>
+          <h1 className="text-3xl font-bold tracking-tighter">Coach<span className="text-accent" aria-hidden="true">.</span></h1>
           <p className="truncate text-sm text-muted-foreground">
             {conversations.find((item) => item.id === conversationId)?.title ||
               "New conversation"}

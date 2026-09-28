@@ -76,7 +76,7 @@ export function Sidebar({
         <nav
           aria-label="Mobile navigation"
           data-mobile-dock="true"
-          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-[1.25rem] border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-xl border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
         >
           {DOCK_ITEMS.map((item) => {
             const active = pathname === item.href;
@@ -86,9 +86,9 @@ export function Sidebar({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
-                    ? "bg-accent/10 text-accent"
+                    ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -105,9 +105,9 @@ export function Sidebar({
             <button
               aria-label="More navigation and settings"
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 mobileOpen || MORE_ITEMS.some((item) => pathname === item.href)
-                  ? "bg-accent/10 text-accent"
+                  ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
@@ -151,7 +151,7 @@ export function Sidebar({
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex min-h-16 items-center gap-3 rounded-[0.875rem] px-3 py-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                        "flex min-h-16 items-center gap-3 rounded-lg px-3 py-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                         active
                           ? "bg-accent/10 text-accent"
                           : "bg-muted/60 text-foreground hover:bg-muted",
@@ -171,7 +171,7 @@ export function Sidebar({
             <div className="mt-5 space-y-4 border-t border-border pt-4">
               <button
                 onClick={toggleTheme}
-                className="flex min-h-11 w-full items-center gap-3 rounded-[0.875rem] px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <Sun aria-hidden="true" className="h-5 w-5 dark:hidden" />
                 <Moon
@@ -205,8 +205,8 @@ export function Sidebar({
           {/* Accent mark */}
           <span className="h-4 w-1 bg-accent shrink-0" />
           {!collapsed && (
-            <span className="font-semibold uppercase tracking-widest text-xs">
-              Coach
+            <span className="font-bold tracking-tighter text-3xl">
+              Coach<span className="text-accent">.</span>
             </span>
           )}
         </div>

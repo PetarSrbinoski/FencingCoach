@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import { randomUUID } from "@/lib/uuid";
 
 import { MacroProgress } from "@/components/charts";
@@ -832,18 +834,7 @@ export default function NutritionPage() {
   return (
     <div className="space-y-6 lg:space-y-8">
       {/* Header */}
-      <header className="relative">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-          Fuel &amp; recovery
-        </p>
-        <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter leading-none">
-          Nutrition
-        </h1>
-        <p className="mt-4 text-sm text-muted-foreground font-mono">
-          Track meals, macros, and meal plans
-        </p>
-        <div className="h-1 w-10 rounded-full bg-accent mt-4" />
-      </header>
+      <PageHeading title="Nutrition" eyebrow="Fuel & recovery" />
 
       {err && (
         <div className="border border-accent/30 bg-accent/5 px-5 py-4">
@@ -943,7 +934,7 @@ export default function NutritionPage() {
               </div>
             </Card>
           ) : targets && totals ? (
-            <Card title="Daily intake">
+            <Card title="Daily intake" className="nutrition-intake">
               <div className="space-y-3">
                 <MacroProgress
                   label="Calories"

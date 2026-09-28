@@ -254,7 +254,7 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
         </text>
       </svg>
 
-      <span className="text-[10px] uppercase tracking-[0.15em] font-semibold text-muted-foreground">
+      <span className="text-xs uppercase tracking-[0.15em] font-semibold text-muted-foreground">
         {label}
       </span>
     </div>

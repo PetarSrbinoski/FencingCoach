@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
 import { ErrorNotice } from "@/components/mobile-ui";
 import { Card } from "@/components/ui";
@@ -140,10 +142,7 @@ export default function GarminPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm text-muted-foreground">Wearable data</p>
-        <h1 className="text-3xl font-bold tracking-tight">Garmin</h1>
-      </header>
+      <PageHeading title="Garmin" eyebrow="Wearable data" />
       {err && <ErrorNotice message={err} retry={refresh} />}
       <Card title="Sync status">
         <div className="space-y-3">

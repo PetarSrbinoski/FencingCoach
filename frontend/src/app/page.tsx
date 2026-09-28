@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
 import { Gauge } from "@/components/charts";
 import { StaleDataBanner } from "@/components/data-coverage-panel";
 import { ErrorNotice, ReadMore } from "@/components/mobile-ui";
@@ -220,26 +221,24 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString(undefined, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Today</h1>
-        </div>
-        <Button
-          variant="outline"
-          onClick={syncSinceLastSync}
-          disabled={syncing}
-        >
-          <RefreshCw className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Syncing…" : "Sync"}
-        </Button>
-      </header>
+      <PageHeading
+        title="Today"
+        eyebrow={new Date().toLocaleDateString(undefined, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })}
+        action={
+          <Button
+            variant="outline"
+            onClick={syncSinceLastSync}
+            disabled={syncing}
+          >
+            <RefreshCw className={syncing ? "animate-spin" : ""} />
+            {syncing ? "Syncing…" : "Sync"}
+          </Button>
+        }
+      />
       {err && <ErrorNotice message={err} retry={loadAll} />}
       {syncState && (
         <p role="status" className="text-sm text-muted-foreground">
@@ -247,21 +246,51 @@ export default function Home() {
         </p>
       )}
       <section
-        className="rounded-2xl border border-border bg-card p-4 space-y-4"
+        className="performance-panel space-y-4"
         aria-label="Today's readiness"
       >
-        <div className="flex flex-wrap items-center gap-5">
+        <svg
+          className="fencing-illustration"
+          viewBox="0 0 240 145"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 131H232M32 139H208"
+            stroke="currentColor"
+            strokeOpacity=".25"
+          />
+          <g
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <ellipse
+              cx="105"
+              cy="29"
+              rx="12"
+              ry="15"
+              transform="rotate(15 105 29)"
+            />
+            <path d="M99 44L77 76L112 82L142 121L160 125M77 76L57 106L30 126L15 128M84 74L64 111L35 132M111 83L132 125L158 129M98 47L127 62L162 51M96 54L125 69L165 56M96 46L69 40L53 22M91 51L66 46L48 26M164 46L169 61M167 52L228 29" />
+          </g>
+        </svg>
+        <div className="performance-overview flex flex-wrap items-center gap-4">
           {readiness?.score != null && (
-            <Gauge score={readiness.score} size={108} />
+            <Gauge score={readiness.score} size={120} />
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold">Readiness</h2>
+            <p className="eyebrow text-muted-foreground">Your daily edge</p>
+            <h2 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight">
+              Readiness
+            </h2>
             {readiness ? (
               <>
                 <p className="text-sm">
                   {readiness.score === null
                     ? "Unavailable today"
-                    : `Today&apos;s band: ${readiness.band}`}
+                    : `Today’s band: ${readiness.band}`}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {readiness.day}
@@ -296,9 +325,24 @@ export default function Home() {
           </details>
         )}
         <StaleDataBanner revision={coverageRevision} />
-        <div className="border-t border-border pt-3">
+        <div className="grid grid-cols-[1.5fr_1fr] gap-2 sm:grid-cols-2">
+          <Button
+            asChild
+            className="bg-accent text-accent-foreground border-accent hover:bg-accent/90"
+          >
+            <a href="/training">
+              Today&apos;s training <span aria-hidden="true">↗</span>
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/nutrition">Log food</a>
+          </Button>
+        </div>
+      </section>
+      <div className="dashboard-editorial">
+        <section className="coach-brief">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">Coach brief</h2>
+            <h2 className="font-serif text-2xl sm:text-3xl">Coach brief</h2>
             <Button
               variant="ghost"
               size="sm"
@@ -332,82 +376,88 @@ export default function Home() {
               <p>{brief.payload.model}</p>
             </details>
           )}
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Button asChild>
-            <a href="/training">Today&apos;s training</a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href="/nutrition">Log food</a>
-          </Button>
-        </div>
-      </section>
-      <details className="rounded-2xl border border-border bg-card p-4">
-        <summary className="font-semibold">Ask your coach</summary>
-        <form onSubmit={sendToCoach} className="mt-3 flex gap-2">
-          <Input
-            value={chatInput}
-            onChange={(event) => setChatInput(event.target.value)}
-            placeholder="Should I skip gym today?"
-            aria-label="Message the coach"
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            size="icon"
-            className="h-12 w-12 shrink-0"
-            disabled={!chatInput.trim()}
-            aria-label="Send message"
-          >
-            <Send />
-          </Button>
-        </form>
-      </details>
-      <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-        <h2 className="text-lg font-semibold">Next competition</h2>
-        {loadErrors.competitions ? (
-          <ErrorNotice message="Could not load competitions." retry={loadAll} />
-        ) : nextComp === undefined ? (
-          <Skeleton className="h-14 w-full" />
-        ) : nextComp ? (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">
-                {daysToComp !== null && daysToComp <= 0
-                  ? "Ongoing"
-                  : `In ${daysToComp} days`}
-              </Badge>
-              <Badge variant="outline">Priority {nextComp.priority}</Badge>
-            </div>
-            <p className="font-semibold text-lg">{nextComp.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {[nextComp.event_date, nextComp.location, nextComp.level]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-            <Button variant="outline" size="sm" asChild>
-              <a href={`/competitions#competition-${nextComp.id}`}>
-                View event
-              </a>
-            </Button>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              No upcoming competitions.
-            </p>
-            <Button variant="outline" asChild>
-              <a href="/competitions">Add a competition</a>
-            </Button>
-          </>
-        )}
-      </section>
-      <details className="rounded-2xl border border-border bg-card p-4">
-        <summary className="font-semibold">Recovery metrics</summary>
-        <p className="mb-3 text-sm text-muted-foreground">
-          Latest available readings, with their dates.
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <details className="border-t border-border mt-3 pt-2">
+            <summary className="font-semibold">Ask your coach</summary>
+            <form onSubmit={sendToCoach} className="mt-3 flex gap-2">
+              <Input
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                placeholder="Should I skip gym today?"
+                aria-label="Message the coach"
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="h-12 w-12 shrink-0"
+                disabled={!chatInput.trim()}
+                aria-label="Send message"
+              >
+                <Send />
+              </Button>
+            </form>
+          </details>
+        </section>
+        <section className="competition-feature space-y-3">
+          <h2 className="eyebrow">Next competition</h2>
+          {loadErrors.competitions ? (
+            <ErrorNotice
+              message="Could not load competitions."
+              retry={loadAll}
+            />
+          ) : nextComp === undefined ? (
+            <Skeleton className="h-14 w-full" />
+          ) : nextComp ? (
+            <>
+              <div className="competition-countdown">
+                <p className="countdown-number">
+                  {Math.max(0, daysToComp ?? 0)
+                    .toString()
+                    .padStart(2, "0")}
+                </p>
+                <span className="eyebrow">
+                  {daysToComp !== null && daysToComp <= 0
+                    ? "Competition time"
+                    : "Days to go"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">
+                  {daysToComp !== null && daysToComp <= 0
+                    ? "Ongoing"
+                    : `In ${daysToComp} days`}
+                </Badge>
+                <Badge variant="outline">Priority {nextComp.priority}</Badge>
+              </div>
+              <p className="font-serif text-2xl leading-snug">
+                {nextComp.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {[nextComp.event_date, nextComp.location, nextComp.level]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/competitions#competition-${nextComp.id}`}>
+                  View event
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                No upcoming competitions.
+              </p>
+              <Button variant="outline" asChild>
+                <a href="/competitions">Add a competition</a>
+              </Button>
+            </>
+          )}
+        </section>
+      </div>
+      <section aria-label="Recovery metrics" className="space-y-4">
+        <h2 className="eyebrow">Recovery metrics</h2>
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-5">
           <StatCard title="HRV" series={hrv} unit="ms" error={loadErrors.hrv} />
           <StatCard
             title="Resting HR"
@@ -447,8 +497,8 @@ export default function Home() {
         <Button variant="link" asChild>
           <a href="/weekly">View trends</a>
         </Button>
-      </details>
-      <details className="rounded-2xl border border-border bg-card p-4">
+      </section>
+      <details className="border-y border-border py-2">
         <summary className="font-semibold">Recent activities</summary>
         {loadErrors.activities ? (
           <ErrorNotice message="Could not load activities." retry={loadAll} />
@@ -498,7 +548,7 @@ function StatCard({
 }) {
   const last = series?.points.filter((point) => point.value !== null).at(-1);
   return (
-    <div className="min-w-0 rounded-xl bg-muted p-3 space-y-1">
+    <div className="min-w-0 bg-background p-4 space-y-2 last:col-span-2 sm:last:col-span-1">
       <h3 className="text-sm text-muted-foreground">{title}</h3>
       {error ? (
         <p className="text-sm">Unavailable</p>
@@ -506,17 +556,54 @@ function StatCard({
         <Skeleton className="h-7 w-14" />
       ) : (
         <>
-          <p className="text-xl font-semibold">
+          <p className="text-3xl font-semibold tracking-tight tabular-nums">
             {last?.value != null
               ? last.value.toFixed(last.value >= 100 ? 0 : 1)
               : "—"}{" "}
             <span className="text-xs font-normal">{unit}</span>
           </p>
+          <MetricTrace points={series.points} />
           <p className="text-xs text-muted-foreground">
             {last?.day ?? "No readings"}
           </p>
         </>
       )}
     </div>
+  );
+}
+
+/** Small noninteractive preview; the Trends screen provides exact dated values. */
+function MetricTrace({ points }: { points: MetricSeries["points"] }) {
+  const recent = points.slice(-14);
+  const values = recent.flatMap((point) =>
+    point.value == null ? [] : [point.value],
+  );
+  if (values.length < 2) return null;
+  const min = Math.min(...values),
+    range = Math.max(...values) - min || 1;
+  const x = (index: number) =>
+    2 + (index / Math.max(1, recent.length - 1)) * 116;
+  const y = (value: number) => 25 - ((value - min) / range) * 22;
+  return (
+    <svg
+      viewBox="0 0 120 28"
+      className="h-7 w-full text-accent"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {recent.map((point, index) => {
+        const previous = recent[index - 1];
+        return index > 0 && previous.value != null && point.value != null ? (
+          <path
+            key={index}
+            d={`M${x(index - 1)},${y(previous.value)} L${x(index)},${y(point.value)}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : null;
+      })}
+    </svg>
   );
 }

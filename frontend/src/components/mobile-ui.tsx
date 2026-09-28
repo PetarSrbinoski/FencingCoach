@@ -61,7 +61,7 @@ export function ViewTabs<T extends string>({
   return (
     <nav
       aria-label={label}
-      className="flex min-w-0 gap-1 rounded-2xl bg-muted p-1"
+      className="view-tabs flex min-w-0 gap-1 border-b border-border"
     >
       {items.map((item) => (
         <button
@@ -70,10 +70,10 @@ export function ViewTabs<T extends string>({
           aria-current={value === item.value ? "page" : undefined}
           onClick={() => onChange(item.value)}
           className={cn(
-            "min-h-12 min-w-0 flex-1 rounded-xl px-2 py-2 text-sm font-medium",
+            "min-h-12 min-w-0 flex-1 border-b-2 px-3 py-3 text-sm font-semibold transition-colors",
             value === item.value
-              ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground",
+              ? "border-accent text-accent"
+              : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
           {item.label}

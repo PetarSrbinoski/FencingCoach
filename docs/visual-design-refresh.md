@@ -1,0 +1,28 @@
+# Athletic editorial refresh
+
+This revises the visual treatment on `mobile-first-ux`, retaining its mobile navigation, URL-backed views, editors, saved drafts, keyboard handling, and existing application capabilities. Backend and API logic are unchanged.
+
+## References and direction
+
+- [VIITA Watches — Awwwards Site of the Day](https://www.awwwards.com/sites/viita-watches): oversized typography, a restrained palette, graphic line work. Reviewed the award gallery image, not just its award listing.
+- [Tracksmith — Awwwards Honorable Mention](https://www.awwwards.com/sites/tracksmith): editorial serif typography paired with athletic utility and warm colors. Reviewed the award gallery image.
+- The app's own `aac259a` design: large tightly tracked headings, thin rules, orange details, technical monospace labels, and sharper surfaces.
+
+These are references for visual techniques. All app graphics are original CSS/SVG; no third-party branding, photography, or website code is included.
+
+## What changed
+
+- Shared responsive mastheads on Today, Training, Nutrition, Competitions, Trends, Garmin, and Profile; Coach retains a compact conversation toolbar.
+- Warm paper surfaces in light mode, existing dark mode, stronger orange navigation states, thin underline tabs, and restrained corner radii.
+- Today: dark readiness panel with compact primary actions; separate editorial coach brief; warm competition countdown card; visible metrics with dated sparkline previews. Detailed notes and source information remain expandable.
+- Original fencing line illustration on larger readiness panels. The graphic is decorative and excluded from accessibility announcements.
+- Training sessions, nutrition intake, weekly summary, and competition cards receive deliberate accent rules rather than uniform rounded containers.
+- Metric previews use actual readings, leave gaps for missing values, and link to the existing Trends screen for exact values.
+
+## Verification
+
+- Inspected synthetic-data screenshots of Today, Training, Nutrition, and Competitions in light and dark themes, plus desktop Today.
+- Existing Playwright checks: all eight routes at 320, 390, 768, and 1280 pixels; secondary views and food editor at 320; dated food logging and browser Back; editor behavior with a reduced visual viewport.
+- Lint, TypeScript, all seven existing frontend unit tests, and the production build passed. Live route checks are also run after deployment.
+
+Screenshots and research images remain under ignored `.scratch/design-direction/` and are not production assets.

@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import {
   Editor,
   ErrorNotice,
@@ -336,7 +338,7 @@ export default function CompetitionsPage() {
       <article
         key={c.id}
         id={`competition-${c.id}`}
-        className="scroll-mt-6 rounded-2xl border border-border bg-card p-4 space-y-3"
+        className="event-card scroll-mt-6 rounded-lg border border-border bg-card p-4 sm:p-5 space-y-3"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -420,18 +422,7 @@ export default function CompetitionsPage() {
   return (
     <div className="space-y-6 lg:space-y-8">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="relative">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-          Competition calendar
-        </p>
-        <h1 className="text-3xl lg:text-4xl font-bold tracking-tighter leading-none">
-          Competitions
-        </h1>
-        <p className="mt-4 text-sm text-muted-foreground font-mono">
-          Plan events, set priorities, and track results
-        </p>
-        <div className="h-1 w-10 rounded-full bg-accent mt-4" />
-      </header>
+      <PageHeading title="Competitions" eyebrow="Competition calendar" />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ViewTabs
