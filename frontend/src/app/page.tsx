@@ -11,7 +11,6 @@ import { Markdown } from "@/components/ui/markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import {
-  Activity,
   api,
   Brief,
   Competition,
@@ -43,7 +42,6 @@ export default function Home() {
     null,
   );
   const [calories, setCalories] = useState<MetricSeries | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
   const [nextComp, setNextComp] = useState<Competition | null | undefined>(
     undefined,
   );
@@ -117,12 +115,6 @@ export default function Home() {
         if (current()) setCalories(value);
       })
       .catch((error) => failed("calories", error));
-    api.activities
-      .recent(3)
-      .then((value) => {
-        if (current()) setActivities(value);
-      })
-      .catch((error) => failed("activities", error));
     api.competitions
       .list(true)
       .then((list) => {
@@ -498,39 +490,6 @@ export default function Home() {
           <a href="/weekly">View trends</a>
         </Button>
       </section>
-      <details className="border-y border-border py-2">
-        <summary className="font-semibold">Recent activities</summary>
-        {loadErrors.activities ? (
-          <ErrorNotice message="Could not load activities." retry={loadAll} />
-        ) : activities.length ? (
-          <div className="divide-y divide-border">
-            {activities.slice(0, 5).map((activity) => (
-              <div key={activity.id} className="py-3 space-y-1">
-                <p className="font-medium">
-                  {activity.name ?? "Untitled activity"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {activity.activity_type ?? "Activity"} ·{" "}
-                  {new Date(activity.start_time).toLocaleDateString()}
-                </p>
-                <p className="text-sm">
-                  {activity.duration_s != null
-                    ? `${Math.round(activity.duration_s / 60)} min · `
-                    : ""}
-                  {activity.calories != null
-                    ? `${activity.calories} kcal · `
-                    : ""}
-                  {activity.avg_hr != null ? `${activity.avg_hr} bpm` : ""}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No recent activities. Sync Garmin to check for new sessions.
-          </p>
-        )}
-      </details>
     </div>
   );
 }
