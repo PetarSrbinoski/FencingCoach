@@ -1,12 +1,14 @@
 "use client";
 
+import { randomUUID } from "@/lib/uuid";
+
 import { useEffect, useRef } from "react";
 
 const EVENT = "agent-action-changed";
 const STORAGE_KEY = "coachapp:workflow-change";
 
 export function announceWorkflowChange() {
-  try { localStorage.setItem(STORAGE_KEY, crypto.randomUUID()); } catch { /* Focus also refreshes affected views. */ }
+  try { localStorage.setItem(STORAGE_KEY, randomUUID()); } catch { /* Focus also refreshes affected views. */ }
   window.dispatchEvent(new Event(EVENT));
 }
 
