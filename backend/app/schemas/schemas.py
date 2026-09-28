@@ -6,7 +6,7 @@ from datetime import date as Date
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ── Chat ──────────────────────────────────────────────────────────────
@@ -36,6 +36,7 @@ class ChatMessageStatus(BaseModel):
     context_snapshot: str | None = None
     ungrounded_claims: list[str] = Field(default_factory=list)
     error: str | None = None
+    nutrition_refs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CoachMessageOut(BaseModel):
@@ -44,6 +45,7 @@ class CoachMessageOut(BaseModel):
     content: str
     created_at: datetime
     status: str = "done"
+    nutrition_refs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CoachConversationSummary(BaseModel):
@@ -79,6 +81,7 @@ class GarminLoginRequest(BaseModel):
 
 class GarminSyncResult(BaseModel):
     ok: bool
+    outcome: str = "complete"
     fetched: dict[str, Any]
     started_at: datetime
     finished_at: datetime
@@ -93,6 +96,7 @@ class ReadinessResponse(BaseModel):
     source: str
     advisories: dict[str, dict[str, Any]]
     inputs: dict[str, Any]
+    reading_fetched_at: str | None = None
 
 
 # ── Metrics ───────────────────────────────────────────────────────────
@@ -196,14 +200,14 @@ class NutritionLogCreate(BaseModel):
     the athlete confirm/edit the numbers before logging.
     """
 
-    raw_text: str
+    raw_text: str = Field(min_length=1)
     meal: str | None = None
     day: Date | None = None
-    kcal: float
-    protein_g: float
-    carbs_g: float
-    fat_g: float
-    fiber_g: float | None = None
+    kcal: float = Field(ge=0, allow_inf_nan=False)
+    protein_g: float = Field(ge=0, allow_inf_nan=False)
+    carbs_g: float = Field(ge=0, allow_inf_nan=False)
+    fat_g: float = Field(ge=0, allow_inf_nan=False)
+    fiber_g: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     micros: dict[str, Any] | None = None
     items: list[NutritionEstimateItemOut] | None = None
     confidence: str | None = None
@@ -225,6 +229,26 @@ class NutritionLogOut(BaseModel):
     micros: dict[str, Any] | None
     estimated_by: str | None
     logged_at: datetime
+    version: int
+
+
+class NutritionLogEdit(BaseModel):
+    expected_version: int = Field(ge=1)
+    day: Date
+    meal: str | None = Field(default=None, max_length=40)
+    raw_text: str = Field(min_length=1)
+    kcal: float | None = Field(ge=0, allow_inf_nan=False)
+    protein_g: float | None = Field(ge=0, allow_inf_nan=False)
+    carbs_g: float | None = Field(ge=0, allow_inf_nan=False)
+    fat_g: float | None = Field(ge=0, allow_inf_nan=False)
+    fiber_g: float | None = Field(ge=0, allow_inf_nan=False)
+
+
+class NutritionLogRepeat(BaseModel):
+    day: Date
+    meal: str | None = Field(default=None, max_length=40)
+    multiplier: float = Field(gt=0, le=20, allow_inf_nan=False)
+    request_id: str = Field(min_length=1, max_length=100)
 
 
 class NutritionDayTotals(BaseModel):
@@ -271,6 +295,17 @@ class TargetsOut(BaseModel):
     micros: dict[str, float]
     notes: str
     override_source: str = "auto"  # "auto" or "manual"
+    goal: str = "performance"
+    baseline_kcal: float = 0
+    requested_kcal: float = 0
+    baseline_source: str = "formula"
+    data_cutoff: str = ""
+    policy_version: str = ""
+    energy_conflict: str | None = None
+    target_source: str = "ordinary"
+    plan_id: int | None = None
+    plan_version: int | None = None
+    needs_review: bool = False
 
 
 class DayTypeOverrideRequest(BaseModel):
@@ -309,6 +344,8 @@ class TrainingSessionOut(BaseModel):
     readiness: dict[str, Any]
     reason: str | None = None
     source: str = "auto"  # "auto" (computed) or "manual" (overridden)
+    activity_type: str = "rest"
+    competitions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ExerciseOverrideIn(BaseModel):
@@ -377,10 +414,25 @@ class CompetitionCreate(BaseModel):
     priority: str = "A"
     notes: str | None = None
 
+    @model_validator(mode="after")
+    def valid_date_range(self) -> CompetitionCreate:
+        if self.end_date is not None and self.end_date < self.event_date:
+            raise ValueError("End date must be on or after the start date")
+        return self
+
 
 class CompetitionOut(CompetitionCreate):
     id: int
     result: dict[str, Any] | None = None
+
+
+class CompetitionResultPatch(BaseModel):
+    placing: int | None = Field(default=None, ge=1)
+    field_size: int | None = Field(default=None, ge=1)
+    pool_wins: int | None = Field(default=None, ge=0)
+    pool_losses: int | None = Field(default=None, ge=0)
+    elimination_outcome: str | None = Field(default=None, max_length=200)
+    reflection: str | None = None
 
 
 # ── Profile ───────────────────────────────────────────────────────────
@@ -397,6 +449,7 @@ class ProfileOut(BaseModel):
     weaknesses: str | None = None
     body_comp_goal: str | None = None
     dietary_restrictions: str | None = None
+    food_preferences: str | None = None
     food_budget: str | None = None
     supplements: str | None = None
     notes: str | None = None
@@ -414,6 +467,7 @@ class ProfileUpdate(BaseModel):
     weaknesses: str | None = None
     body_comp_goal: str | None = None
     dietary_restrictions: str | None = None
+    food_preferences: str | None = None
     food_budget: str | None = None
     supplements: str | None = None
     notes: str | None = None

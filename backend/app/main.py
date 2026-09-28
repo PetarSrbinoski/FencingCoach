@@ -11,8 +11,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     activities,
+    agent_actions,
     brief,
     chat,
+    coach_plan_proposals,
+    competition_meals,
+    competition_nutrition,
     competitions,
     diagnostics,
     fencing,
@@ -89,6 +93,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(chat.router)
+app.include_router(coach_plan_proposals.router)
+app.include_router(agent_actions.router)
 app.include_router(garmin.router)
 app.include_router(readiness.router)
 app.include_router(metrics.router)
@@ -102,6 +108,8 @@ app.include_router(mealplan.router)
 app.include_router(mealplan.shopping_router)
 app.include_router(training.router)
 app.include_router(competitions.router)
+app.include_router(competition_nutrition.router)
+app.include_router(competition_meals.router)
 app.include_router(profile.router)
 app.include_router(mental.router)
 app.include_router(usda.router)

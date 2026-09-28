@@ -9,12 +9,26 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, timedelta
+from math import isfinite
 from typing import Any
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models import NutritionPlan
+
+
+def plan_meals(payload: Any) -> list[dict[str, Any]]:
+    """Read the supported stored day-plan envelopes without treating junk as coverage."""
+    current = payload
+    for _ in range(3):
+        if not isinstance(current, dict):
+            return []
+        meals = current.get("meals")
+        if isinstance(meals, list):
+            return [meal for meal in meals if isinstance(meal, dict) and meal.get("name")]
+        current = current.get("plan")
+    return []
 
 
 def build_shopping_list(
@@ -35,16 +49,29 @@ def build_shopping_list(
     cur = start
     plan_by_day = {p.day: p for p in plans}
     while cur <= end:
-        if cur in plan_by_day:
-            days_covered.append(cur.isoformat())
-            plan = plan_by_day[cur].plan or {}
-            meals = (plan.get("plan") or {}).get("meals") or plan.get("meals") or []
-            for meal in meals:
-                for ing in meal.get("ingredients") or []:
-                    name = (ing.get("name") or "").strip().lower()
+        meals = plan_meals(plan_by_day[cur].plan) if cur in plan_by_day else []
+        complete = bool(meals)
+        for meal in meals:
+            ingredients = meal.get("ingredients")
+            if not isinstance(ingredients, list) or not ingredients:
+                complete = False
+                continue
+            for ing in ingredients:
+                if not isinstance(ing, dict) or not isinstance(ing.get("name"), str):
+                    complete = False
+                    continue
+                name = ing["name"].strip().lower()
+                try:
                     qty = float(ing.get("qty_g") or 0)
-                    if name and qty > 0:
-                        totals[name] += qty
+                except (TypeError, ValueError):
+                    complete = False
+                    continue
+                if name and isfinite(qty) and qty > 0:
+                    totals[name] += qty
+                else:
+                    complete = False
+        if complete:
+            days_covered.append(cur.isoformat())
         else:
             missing_days.append(cur.isoformat())
         cur += timedelta(days=1)

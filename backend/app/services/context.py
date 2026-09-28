@@ -26,7 +26,7 @@ from app.services.activity_types import display_label
 from app.services.mental import mental_context_section
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
-from app.services.targets import compute_targets
+from app.services.targets import resolve_effective_targets
 from app.services.training import THU_TEMPLATE, TUE_TEMPLATE, detect_plateau
 
 try:
@@ -210,7 +210,7 @@ def _phase_section(db: Session, today: date) -> str:
 
 def _targets_section(db: Session, today: date) -> str:
     try:
-        t = compute_targets(db, today).to_dict()
+        t = resolve_effective_targets(db, today).to_dict()
     except Exception as e:  # noqa: BLE001
         return f"## Targets — error: {e}"
     return (

@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type Readiness } from "@/lib/api";
+import { announceGarminSync, useGarminSyncObserver } from "@/lib/garmin-refresh";
 import { Loader2 } from "lucide-react";
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
 import { useToast } from "@/components/ui/toast";
 
 export default function GarminPage() {
-  const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number } | null>(null);
+  const [status, setStatus] = useState<{ last_fetch: string | null; metric_rows: number; last_sync_at: string | null; last_sync_ok: boolean | null; last_sync_outcome: string | null } | null>(null);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [syncState, setSyncState] = useState<string | null>(null);
+  const [coverageRevision, setCoverageRevision] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
@@ -15,7 +19,10 @@ export default function GarminPage() {
 
   async function refresh() {
     try {
-      setStatus(await api.garmin.status());
+      const [nextStatus, nextReadiness] = await Promise.all([api.garmin.status(), api.readiness.today()]);
+      setStatus(nextStatus);
+      setReadiness(nextReadiness);
+      setCoverageRevision(value => value + 1);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -23,18 +30,25 @@ export default function GarminPage() {
   }
 
   useEffect(() => { refresh(); }, []);
+  useGarminSyncObserver(refresh);
 
   async function syncRecent() {
     setBusy(true);
     setErr(null);
     try {
       const res = await api.garmin.syncRecent(2);
-      if (res.ok) {
+      announceGarminSync();
+      if (res.outcome === "partial") {
+        setSyncState("Sync partially completed. Usable readings are shown; some endpoints are unavailable. Retry is available.");
+        toast({ title: "Partial sync", description: "Some Garmin endpoints could not be fetched." });
+      } else if (res.ok) {
+        const current = await api.readiness.today();
+        setSyncState(current.score === null ? "Sync complete; today's readiness is unavailable." : `Sync complete; readiness is ${current.score} (${current.band}).`);
         toast({ title: "Synced last 2 days", description: JSON.stringify(res.fetched), variant: "success" });
       } else {
+        setSyncState("Recent sync failed. Retry is available.");
         toast({ title: "Sync failed", description: res.error, variant: "destructive" });
       }
-      await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -48,12 +62,18 @@ export default function GarminPage() {
     setErr(null);
     try {
       const res = await api.garmin.syncFull(365);
-      if (res.ok) {
+      announceGarminSync();
+      if (res.outcome === "partial") {
+        setSyncState("Full sync partially completed. Usable readings are shown; some endpoints are unavailable. Retry is available.");
+        toast({ title: "Partial sync", description: "Some Garmin endpoints could not be fetched." });
+      } else if (res.ok) {
+        const current = await api.readiness.today();
+        setSyncState(current.score === null ? "Full sync complete; today's readiness is unavailable." : `Full sync complete; readiness is ${current.score} (${current.band}).`);
         toast({ title: "Full sync complete", description: JSON.stringify(res.fetched), variant: "success" });
       } else {
+        setSyncState("Full sync failed. Retry is available.");
         toast({ title: "Sync failed", description: res.error, variant: "destructive" });
       }
-      await refresh();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErr(message);
@@ -81,6 +101,7 @@ export default function GarminPage() {
           <p className="text-accent text-sm">{err}</p>
         </div>
       )}
+      {syncState && <p role="status" className="text-sm text-muted-foreground">{syncState}</p>}
 
       {/* ── Sync Buttons — typographic hero layout ─────────────────── */}
       <section className="relative">
@@ -141,6 +162,10 @@ export default function GarminPage() {
       </section>
 
       {/* ── Status metadata ────────────────────────────────────────── */}
+      <section className="border-t border-border pt-6 text-sm" role="status">
+        {readiness ? readiness.score === null ? `Today's readiness (${readiness.day}) is unavailable.` : `Readiness ${readiness.score} (${readiness.band}) for ${readiness.day}; fetched ${readiness.reading_fetched_at ?? "at an unknown time"}.` : "Loading current readiness…"}
+        {status?.last_sync_at && <p className="text-xs text-muted-foreground mt-2">Last sync attempt: {status.last_sync_at} · {status.last_sync_outcome || (status.last_sync_ok ? "complete" : "failed")}</p>}
+      </section>
       <section className="border-t border-border pt-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-lg">
           <div>
@@ -182,7 +207,7 @@ export default function GarminPage() {
 
       {/* ── Data coverage ──────────────────────────────────────────── */}
       <section className="border-t border-border pt-12">
-        <DataCoveragePanel />
+        <DataCoveragePanel revision={coverageRevision} />
       </section>
     </div>
   );

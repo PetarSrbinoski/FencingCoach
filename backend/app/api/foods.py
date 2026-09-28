@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.schemas import NutritionLogOut
 from app.schemas.foods import SavedFoodInput, SavedFoodLogInput, SavedFoodOut
 from app.services import foods
+from app.services.transactions import lock_resource
 
 router = APIRouter(prefix="/nutrition/foods", tags=["nutrition"])
 
@@ -34,6 +35,7 @@ def update_food(food_id: int, body: SavedFoodInput, db: Session = Depends(get_db
 
 @router.delete("/{food_id}", status_code=204)
 def delete_food(food_id: int, db: Session = Depends(get_db)):
+    lock_resource(db, "food", food_id)
     try:
         food = foods.get_food(db, food_id)
     except foods.FoodError as exc:
