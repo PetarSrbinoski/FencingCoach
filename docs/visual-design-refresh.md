@@ -12,7 +12,7 @@ These are references for visual techniques. All app graphics are original CSS/SV
 
 ## What changed
 
-- Shared responsive mastheads on Today, Training, Nutrition, Competitions, Trends, Garmin, and Profile; Coach retains a compact conversation toolbar.
+- All eight page titles share Today’s responsive size, weight, line height, and letter spacing through one PageTitle component. Long titles wrap instead of shrinking. Coach retains its conversation toolbar with the same title typography.
 - Inter, the Today heading font, throughout page titles, section headings, labels, forms, data, and coach content. Size and weight provide hierarchy; alternate serif and monospace font downloads are removed.
 - Warm paper surfaces in light mode, existing dark mode, stronger orange navigation states, thin underline tabs, and restrained corner radii.
 - Today: distinct, spaced sections for readiness, an always-visible coach input immediately underneath, recovery metrics, the coach brief, and the next competition. Recent activities is removed from this dashboard. Detailed notes and source information remain expandable.

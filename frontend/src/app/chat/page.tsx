@@ -1,5 +1,7 @@
 "use client";
 
+import { PageTitle } from "@/components/page-heading";
+
 import { AgentLogs } from "@/components/agent-logs";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -468,9 +470,9 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(var(--app-height,100dvh)-var(--dock-space)-env(safe-area-inset-top)-0.75rem)] min-h-0 flex-col gap-3">
-      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border pb-3">
-        <div className="min-w-0">
-          <h1 className="text-3xl font-bold tracking-tighter">Coach<span className="text-accent" aria-hidden="true">.</span></h1>
+      <header className="flex flex-wrap shrink-0 items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="min-w-0 flex-1 basis-40">
+          <PageTitle title="Coach" />
           <p className="truncate text-sm text-muted-foreground">
             {conversations.find((item) => item.id === conversationId)?.title ||
               "New conversation"}

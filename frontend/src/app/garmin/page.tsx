@@ -1,5 +1,7 @@
 "use client";
 
+import { PageHeading } from "@/components/page-heading";
+
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
 import { ErrorNotice } from "@/components/mobile-ui";
 import { useToast } from "@/components/ui/toast";
@@ -138,13 +140,7 @@ export default function GarminPage() {
 
   return (
     <div className="space-y-10 md:space-y-16">
-      <header>
-        <p className="eyebrow mb-3 text-muted-foreground">Wearable data</p>
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
-          Garmin
-        </h1>
-        <div className="mt-6 h-1 w-16 bg-accent" />
-      </header>
+      <PageHeading title="Garmin" eyebrow="Wearable data" />
       {err && <ErrorNotice message={err} retry={refresh} />}
       <section className="relative" aria-label="Garmin sync actions">
         <span

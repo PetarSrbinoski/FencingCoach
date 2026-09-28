@@ -176,7 +176,7 @@
     height: 3px;
     background: hsl(var(--accent));
   }
-  .page-heading h1 {
+  .page-title {
     min-width: 0;
     font-size: clamp(3.25rem, 12vw, 5.5rem);
     font-weight: 750;
@@ -186,9 +186,6 @@
   }
   .page-heading .eyebrow {
     color: hsl(var(--muted-foreground));
-  }
-  .page-heading h1.long-title {
-    font-size: clamp(2.15rem, 8.6vw, 5.5rem);
   }
   .fencing-illustration {
     display: none;
