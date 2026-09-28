@@ -20,6 +20,7 @@ from pydantic_ai.messages import (
     TextPart,
     UserPromptPart,
 )
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agents.deps import (
@@ -41,12 +42,16 @@ from app.agents.retry import (
 from app.agents.retry import (
     llm_slot as _llm_slot,
 )
-from app.models import Competition
+from app.models import CoachPlanProposal, Competition, WorkoutOverride
 from app.schemas import ExerciseOverrideIn
 from app.schemas.foods import FoodPortion, PositiveAmount, SavedFoodInput, SavedFoodOut
 from app.services import foods
+from app.services.agent_actions import record_action, snapshot
+from app.services.competition_nutrition import preview as preview_competition_nutrition
 from app.services.grounding import find_ungrounded_claims
+from app.services.nutrition_lookup import lookup_targets
 from app.services.training import clear_workout_override, set_workout_override
+from app.services.transactions import lock_nutrition_inputs, lock_resource
 from llm.prompts.coach import COACH_SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
@@ -105,6 +110,17 @@ def _parse_iso_date(value: str, *, field_name: str) -> Date:
         raise ModelRetry(
             f"Invalid {field_name} '{value}': must be an ISO date (YYYY-MM-DD)."
         ) from e
+
+
+def _failed_tool(ctx: RunContext[CoachDeps], kind: str, resource_id: str | int,
+                 summary: str, error: str) -> None:
+    """Keep attempted failures separate from committed coach changes."""
+    record_action(ctx.deps.db, kind, resource_id, summary, None, None,
+                  conversation_id=ctx.deps.extra.get("conversation_id"),
+                  message_id=ctx.deps.extra.get("message_id"),
+                  status="failed", error=error)
+    ctx.deps.db.commit()
+    ctx.deps.side_effect_committed = True
 
 
 _COACH_AGENT_KWARGS: dict[str, Any] = dict(
@@ -176,28 +192,52 @@ async def update_day_workout(
             body power" or "deload".
         notes: Optional rationale shown alongside the session.
     """
-    parsed_day = _parse_iso_date(day, field_name="day")
+    try:
+        parsed_day = _parse_iso_date(day, field_name="day")
+    except ModelRetry as exc:
+        _failed_tool(ctx, "workout", day, f"Attempted workout change for {day}", str(exc))
+        raise
+    key = json.dumps([day, [e.model_dump() for e in exercises or []], session_name, notes], sort_keys=True)
+    cache = ctx.deps.extra.setdefault("workout_writes", {})
+    if key in cache:
+        return cache[key]
+    lock_resource(ctx.deps.db, "workout", day)
+    before = snapshot(ctx.deps.db.get(WorkoutOverride, parsed_day), "workout")
     if not exercises:
-        clear_workout_override(ctx.deps.db, parsed_day)
+        clear_workout_override(ctx.deps.db, parsed_day, commit=False)
+        record_action(ctx.deps.db, "workout", day, f"Cleared workout override for {day}",
+                      before, None, conversation_id=ctx.deps.extra.get("conversation_id"),
+                      message_id=ctx.deps.extra.get("message_id"))
+        ctx.deps.db.commit()
         ctx.deps.side_effect_committed = True
-        return (
+        result = (
             f"Cleared the manual edit for {parsed_day.isoformat()} — it will "
             "revert to the auto-generated plan."
         )
+        cache[key] = result
+        return result
 
-    set_workout_override(
+    row = set_workout_override(
         ctx.deps.db,
         parsed_day,
         exercises=[e.model_dump() for e in exercises],
         session_name=session_name,
         notes=notes,
+        commit=False,
     )
+    record_action(ctx.deps.db, "workout", day, f"Set workout for {day}: {session_name or 'custom session'}",
+                  before, snapshot(row, "workout"),
+                  conversation_id=ctx.deps.extra.get("conversation_id"),
+                  message_id=ctx.deps.extra.get("message_id"))
+    ctx.deps.db.commit()
     ctx.deps.side_effect_committed = True
     names = ", ".join(e.exercise for e in exercises)
-    return (
+    result = (
         f"Updated the workout for {parsed_day.isoformat()} "
         f"({session_name or 'custom session'}): {names}."
     )
+    cache[key] = result
+    return result
 
 
 @coach_agent.tool
@@ -226,24 +266,45 @@ async def add_competition(
             and nutrition targets, so ask if unsure.
         notes: Any additional notes.
     """
+    key = json.dumps([name, event_date, location, end_date, level, priority, notes], sort_keys=True)
+    cache = ctx.deps.extra.setdefault("competition_writes", {})
+    if key in cache:
+        return cache[key]
+    try:
+        parsed_start = _parse_iso_date(event_date, field_name="event_date")
+        parsed_end = _parse_iso_date(end_date, field_name="end_date") if end_date else None
+        if parsed_end is not None and parsed_end < parsed_start:
+            raise ModelRetry("Competition end date must be on or after the start date")
+    except ModelRetry as exc:
+        _failed_tool(ctx, "competition", "pending", f"Attempted to add {name}", str(exc))
+        raise
     parsed_priority = priority if priority in {"A", "B", "C"} else "A"
+    lock_nutrition_inputs(ctx.deps.db)
     comp = Competition(
         name=name,
         location=location,
-        event_date=_parse_iso_date(event_date, field_name="event_date"),
-        end_date=_parse_iso_date(end_date, field_name="end_date") if end_date else None,
+        event_date=parsed_start,
+        end_date=parsed_end,
         level=level,
         priority=parsed_priority,
         notes=notes,
     )
     ctx.deps.db.add(comp)
+    ctx.deps.db.flush()
+    record_action(ctx.deps.db, "competition", comp.id,
+                  f"Added competition {comp.name} on {comp.event_date.isoformat()}",
+                  None, snapshot(comp, "competition"),
+                  conversation_id=ctx.deps.extra.get("conversation_id"),
+                  message_id=ctx.deps.extra.get("message_id"))
     ctx.deps.db.commit()
     ctx.deps.db.refresh(comp)
     ctx.deps.side_effect_committed = True
-    return (
+    result = (
         f"Added competition '{comp.name}' on {comp.event_date.isoformat()} "
         f"(priority {comp.priority}, id={comp.id})."
     )
+    cache[key] = result
+    return result
 
 
 @coach_agent.tool
@@ -281,13 +342,23 @@ async def save_personal_food(
     try:
         food = foods.per_100g(food, values_for_g)
         if food_id is not None:
+            lock_resource(ctx.deps.db, "food", food_id)
+        before = snapshot(foods.get_food(ctx.deps.db, food_id), "food_update") if food_id is not None else None
+        if food_id is not None:
             current = SavedFoodOut.model_validate(foods.get_food(ctx.deps.db, food_id))
             data = current.model_dump(exclude={"id"})
             data.update(food.model_dump(exclude_unset=True))
             food = SavedFoodInput.model_validate(data)
-        row = foods.save_food(ctx.deps.db, food, food_id)
+        row = foods.save_food(ctx.deps.db, food, food_id, commit=False)
     except foods.FoodError as exc:
+        _failed_tool(ctx, "food_update" if food_id is not None else "food_create",
+                     food_id or "pending", f"Attempted to save food {food.name}", str(exc))
         raise ModelRetry(str(exc)) from exc
+    kind = "food_update" if food_id is not None else "food_create"
+    record_action(ctx.deps.db, kind, row.id, f"{'Updated' if food_id else 'Added'} food {row.name}",
+                  before, snapshot(row, kind), conversation_id=ctx.deps.extra.get("conversation_id"),
+                  message_id=ctx.deps.extra.get("message_id"))
+    ctx.deps.db.commit()
     ctx.deps.side_effect_committed = True
     result = SavedFoodOut.model_validate(row)
     cache[key] = result
@@ -314,14 +385,108 @@ async def log_saved_foods(
     if key in cache:
         return cache[key]
     try:
-        row = foods.log_foods(ctx.deps.db, portions, day=parsed_day, meal=meal)
+        row = foods.log_foods(ctx.deps.db, portions, day=parsed_day, meal=meal, commit=False)
     except foods.FoodError as exc:
+        _failed_tool(ctx, "meal", "pending", f"Attempted meal log for {day or 'today'}", str(exc))
         raise ModelRetry(str(exc)) from exc
+    record_action(ctx.deps.db, "meal", row.id,
+                  f"Logged {row.meal or 'meal'} on {row.day.isoformat()}: {row.raw_text}",
+                  None, snapshot(row, "meal"),
+                  conversation_id=ctx.deps.extra.get("conversation_id"),
+                  message_id=ctx.deps.extra.get("message_id"))
+    ctx.deps.db.commit()
     ctx.deps.side_effect_committed = True
     result = {
         "log_id": row.id, "day": row.day.isoformat(), "foods": row.raw_text,
         **{name: getattr(row, name) for name in foods.MACROS}, "micros": row.micros,
     }
+    cache[key] = result
+    return result
+
+
+@coach_agent.tool
+@coach_agent_search.tool
+async def nutrition_targets_for_dates(
+    ctx: RunContext[CoachDeps], start_day: str, end_day: str,
+    event_name: str | None = None,
+) -> dict[str, Any]:
+    """Read exact daily macros and provenance for a bounded date range.
+
+    Use for any question about the athlete's existing or planned macro targets.
+    Ask the athlete to clarify ambiguous relative dates or event names. This is
+    read-only: it never accepts or changes a plan. Return the exact values and
+    diary/plan links; do not calculate a second target in prose.
+    """
+    start = _parse_iso_date(start_day, field_name="start_day")
+    end = _parse_iso_date(end_day, field_name="end_day")
+    event_id = None
+    if event_name:
+        matches = ctx.deps.db.scalars(select(Competition).where(
+            func.lower(Competition.name).contains(event_name.casefold())
+        )).all()
+        if len(matches) != 1:
+            raise ModelRetry("Event name is ambiguous or unavailable; ask which competition the athlete means")
+        event_id = matches[0].id
+    try:
+        result = lookup_targets(ctx.deps.db, start, end, event_id)
+    except ValueError as exc:
+        raise ModelRetry(str(exc)) from exc
+    ctx.deps.extra.setdefault("nutrition_refs", []).append({
+        "start": start.isoformat(), "end": end.isoformat(),
+        "plan_versions": sorted({f"{row['plan_id']}:v{row['plan_version']}" for row in result["days"] if row["plan_id"]}),
+        "days": [{key: row.get(key) for key in (
+            "day", "kcal", "protein_g", "carbs_g", "fat_g", "training_type", "context",
+            "explanation", "target_source", "plan_url", "diary_url", "plan_version",
+        )} for row in result["days"]],
+    })
+    return result
+
+
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def propose_competition_nutrition_plan(
+    ctx: RunContext[CoachDeps], event_name: str,
+    expected_demand: str, event_format: str,
+    start_time: str | None = None, resolve_overlaps: bool = False,
+) -> dict[str, Any]:
+    """Prepare a deterministic date-by-date target comparison for athlete review.
+
+    Use when the athlete asks to create or recalculate a competition nutrition
+    plan. This tool only records a pending proposal; it does not activate targets.
+    Ask for event, demand and format if genuinely ambiguous. The athlete must
+    press Apply in chat after reviewing the preview.
+    """
+    matches = ctx.deps.db.scalars(select(Competition).where(
+        func.lower(Competition.name).contains(event_name.casefold())
+    )).all()
+    if len(matches) != 1:
+        raise ModelRetry("Competition name is ambiguous or unavailable; ask which event the athlete means")
+    if expected_demand not in {"low", "moderate", "high"} or event_format not in {"single_day", "multi_day"}:
+        raise ModelRetry("Ask for expected demand (low/moderate/high) and event format (single/multi day)")
+    inputs = {"expected_demand": expected_demand, "event_format": event_format,
+              "start_time": start_time, "resolve_overlaps": resolve_overlaps}
+    key = json.dumps([matches[0].id, inputs], sort_keys=True)
+    cache = ctx.deps.extra.setdefault("coach_plan_proposals", {})
+    if key in cache:
+        return cache[key]
+    try:
+        draft = preview_competition_nutrition(ctx.deps.db, matches[0], inputs)
+    except ValueError as exc:
+        raise ModelRetry(str(exc)) from exc
+    proposal = CoachPlanProposal(event_id=matches[0].id, inputs=inputs, preview=draft,
+                                 token=draft["token"], status="pending",
+                                 conversation_id=ctx.deps.extra.get("conversation_id"),
+                                 message_id=ctx.deps.extra.get("message_id"))
+    ctx.deps.db.add(proposal)
+    ctx.deps.db.commit()
+    ctx.deps.db.refresh(proposal)
+    ctx.deps.side_effect_committed = True
+    result = {"proposal_id": proposal.id, "status": "pending", "event": draft["event"],
+              "days": [{"day": day["day"], "context": day["context"],
+                        "old_targets": day["existing_targets"],
+                        "new_targets": {key: day[key] for key in ("kcal", "protein_g", "carbs_g", "fat_g")}}
+                       for day in draft["days"]],
+              "instruction": "No target has changed. Ask the athlete to review and Apply or Cancel in chat."}
     cache[key] = result
     return result
 
@@ -352,6 +517,7 @@ class ChatResult:
     reply: str
     model: str
     ungrounded_claims: list[str] = field(default_factory=list)
+    nutrition_refs: list[dict[str, Any]] = field(default_factory=list)
 
 
 async def run_coach_chat(
@@ -360,10 +526,13 @@ async def run_coach_chat(
     db: Session,
     context_text: str = "",
     history_messages: list[Any] | None = None,
+    conversation_id: int | None = None,
+    message_id: int | None = None,
 ) -> ChatResult:
     """Run the coach chat agent asynchronously, returning the reply, model
     used, and any heuristically flagged ungrounded claims."""
     deps = CoachDeps(db=db, context_text=context_text)
+    deps.extra.update(conversation_id=conversation_id, message_id=message_id)
 
     # Convert DB message history to PydanticAI format
     message_history: list[ModelMessage] | None = None
@@ -411,4 +580,5 @@ async def run_coach_chat(
         reply=reply,
         model=_model_name_used(result) or active_model_label(),
         ungrounded_claims=ungrounded,
+        nutrition_refs=deps.extra.get("nutrition_refs", []),
     )

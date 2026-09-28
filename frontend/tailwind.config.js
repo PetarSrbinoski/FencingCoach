@@ -7,10 +7,10 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         display: ["var(--font-inter)", "system-ui", "sans-serif"],
-        serif: ["var(--font-playfair)", "Georgia", "serif"],
-        mono: ["var(--font-mono)", '"Fira Code"', "monospace"],
       },
       colors: {
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -46,11 +46,11 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: "0px",
-        md: "0px",
-        sm: "0px",
-        xl: "0px",
-        "2xl": "0px",
+        lg: "4px",
+        md: "4px",
+        sm: "2px",
+        xl: "6px",
+        "2xl": "8px",
       },
       boxShadow: {
         "hard-sm": "none",

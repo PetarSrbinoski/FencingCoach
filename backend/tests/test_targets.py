@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from app.models import Activity, AthleteProfile, GarminMetric
 from app.services.targets import (
-    DEFAULT_WEIGHT_KG,
     FORMULA_KCAL_PER_KG,
     MIN_GARMIN_DAYS_FOR_MAINTENANCE,
     _maintenance_kcal,
@@ -133,11 +133,10 @@ def test_maintenance_excludes_today(db):
 
 
 # ── compute_targets: end-to-end sanity ──────────────────────────────────
-def test_compute_targets_uses_default_weight_without_profile(db):
+def test_compute_targets_requires_profile_weight(db):
     day = _mon()
-    t = compute_targets(db, day)
-    assert t.weight_kg == DEFAULT_WEIGHT_KG
-    assert t.protein_g == round(DEFAULT_WEIGHT_KG * 2.2, 1)
+    with pytest.raises(ValueError, match="body weight"):
+        compute_targets(db, day)
 
 
 def test_compute_targets_uses_profile_weight_when_set(db):
@@ -149,6 +148,7 @@ def test_compute_targets_uses_profile_weight_when_set(db):
 
 def test_compute_targets_reflects_garmin_maintenance_in_notes(db):
     day = _mon()
+    db.add(AthleteProfile(weight_kg=75.0))
     _seed_calories(db, day, n_days=MIN_GARMIN_DAYS_FOR_MAINTENANCE + 2, kcal=3100)
     t = compute_targets(db, day)
     assert "garmin" in t.notes

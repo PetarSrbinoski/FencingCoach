@@ -1,32 +1,32 @@
 "use client";
 
+import { LlmProviderToggle } from "@/components/llm-provider-toggle";
+import { cn } from "@/lib/utils";
+import * as Dialog from "@radix-ui/react-dialog";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Dumbbell,
+  Home,
+  MessageCircle,
+  Moon,
+  MoreHorizontal,
+  Sun,
+  Trophy,
+  User,
+  Utensils,
+  Watch,
+  X,
+} from "lucide-react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
-import * as Dialog from "@radix-ui/react-dialog";
-import {
-  Home,
-  CalendarDays,
-  Dumbbell,
-  Utensils,
-  Trophy,
-  MessageCircle,
-  Watch,
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-  X,
-  User,
-  Sun,
-  Moon,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { LlmProviderToggle } from "@/components/llm-provider-toggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: Home },
-  { href: "/weekly", label: "Weekly", icon: CalendarDays },
+  { href: "/weekly", label: "Trends", icon: CalendarDays },
   { href: "/training", label: "Training", icon: Dumbbell },
   { href: "/nutrition", label: "Nutrition", icon: Utensils },
   { href: "/competitions", label: "Competitions", icon: Trophy },
@@ -36,22 +36,27 @@ const NAV_ITEMS = [
 ];
 
 const DOCK_ITEMS = [
-  { ...NAV_ITEMS[0], label: "Home" },
+  { ...NAV_ITEMS[0], label: "Today" },
   NAV_ITEMS[2],
   NAV_ITEMS[3],
   { ...NAV_ITEMS[5], label: "Coach" },
 ];
 const MORE_ITEMS = NAV_ITEMS.filter(
-  (item) => !DOCK_ITEMS.some((dockItem) => dockItem.href === item.href)
+  (item) => !DOCK_ITEMS.some((dockItem) => dockItem.href === item.href),
 );
 
-export function Sidebar() {
+export function Sidebar({
+  collapsed,
+  onCollapsedChange,
+}: {
+  collapsed: boolean;
+  onCollapsedChange: (value: boolean) => void;
+}) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 768px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
     const closeOnDesktop = () => {
       if (desktop.matches) setMobileOpen(false);
     };
@@ -70,7 +75,8 @@ export function Sidebar() {
       <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
         <nav
           aria-label="Mobile navigation"
-          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-[1.25rem] border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden"
+          data-mobile-dock="true"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-xl border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
         >
           {DOCK_ITEMS.map((item) => {
             const active = pathname === item.href;
@@ -80,11 +86,17 @@ export function Sidebar() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                  active ? "bg-accent/10 text-accent" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  active
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <item.icon aria-hidden="true" className="h-5 w-5" strokeWidth={active ? 2 : 1.5} />
+                <item.icon
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  strokeWidth={active ? 2 : 1.5}
+                />
                 {item.label}
               </Link>
             );
@@ -93,30 +105,44 @@ export function Sidebar() {
             <button
               aria-label="More navigation and settings"
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-[0.875rem] text-[10px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 mobileOpen || MORE_ITEMS.some((item) => pathname === item.href)
-                  ? "bg-accent/10 text-accent"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <MoreHorizontal aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+              <MoreHorizontal
+                aria-hidden="true"
+                className="h-5 w-5"
+                strokeWidth={1.5}
+              />
               More
             </button>
           </Dialog.Trigger>
         </nav>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden" />
-          <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none md:hidden">
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:hidden" />
+          <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none lg:hidden">
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <Dialog.Title className="text-lg font-semibold">More from Coach</Dialog.Title>
-                <Dialog.Description className="mt-1 text-sm text-muted-foreground">Plan your week and manage your settings.</Dialog.Description>
+                <Dialog.Title className="text-lg font-semibold">
+                  More from Coach
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-muted-foreground">
+                  Plan your week and manage your settings.
+                </Dialog.Description>
               </div>
-              <Dialog.Close className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" aria-label="Close navigation">
+              <Dialog.Close
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                aria-label="Close navigation"
+              >
                 <X aria-hidden="true" className="h-5 w-5" />
               </Dialog.Close>
             </div>
-            <nav aria-label="More navigation" className="grid grid-cols-2 gap-2">
+            <nav
+              aria-label="More navigation"
+              className="grid grid-cols-2 gap-2"
+            >
               {MORE_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 return (
@@ -125,11 +151,17 @@ export function Sidebar() {
                       href={item.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex min-h-16 items-center gap-3 rounded-[0.875rem] px-3 py-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                        active ? "bg-accent/10 text-accent" : "bg-muted/60 text-foreground hover:bg-muted"
+                        "flex min-h-16 items-center gap-3 rounded-lg px-3 py-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                        active
+                          ? "bg-accent/10 text-accent"
+                          : "bg-muted/60 text-foreground hover:bg-muted",
                       )}
                     >
-                      <item.icon aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.5} />
+                      <item.icon
+                        aria-hidden="true"
+                        className="h-5 w-5 shrink-0"
+                        strokeWidth={1.5}
+                      />
                       {item.label}
                     </Link>
                   </Dialog.Close>
@@ -139,11 +171,14 @@ export function Sidebar() {
             <div className="mt-5 space-y-4 border-t border-border pt-4">
               <button
                 onClick={toggleTheme}
-                className="flex min-h-11 w-full items-center gap-3 rounded-[0.875rem] px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <Sun aria-hidden="true" className="h-5 w-5 dark:hidden" />
-                <Moon aria-hidden="true" className="hidden h-5 w-5 dark:block" />
-                Toggle color theme
+                <Moon
+                  aria-hidden="true"
+                  className="hidden h-5 w-5 dark:block"
+                />
+                Change color theme
               </button>
               <div className="px-3 [&_button]:min-h-11">
                 <LlmProviderToggle />
@@ -156,22 +191,22 @@ export function Sidebar() {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden md:flex flex-col fixed inset-y-0 left-0 z-40 border-r border-border bg-background transition-all duration-200",
-          collapsed ? "w-[4.5rem]" : "w-56"
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 border-r border-border bg-background transition-all duration-200",
+          collapsed ? "w-[4.5rem]" : "w-56",
         )}
       >
         {/* Logo */}
         <div
           className={cn(
             "flex items-center h-16 shrink-0 border-b border-border",
-            collapsed ? "justify-center px-2" : "px-5 gap-2"
+            collapsed ? "justify-center px-2" : "px-5 gap-2",
           )}
         >
           {/* Accent mark */}
           <span className="h-4 w-1 bg-accent shrink-0" />
           {!collapsed && (
-            <span className="font-semibold uppercase tracking-widest text-xs">
-              Coach
+            <span className="font-bold tracking-tighter text-3xl">
+              Coach<span className="text-accent">.</span>
             </span>
           )}
         </div>
@@ -189,10 +224,12 @@ export function Sidebar() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "group relative flex items-center text-xs font-medium uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
-                  collapsed ? "justify-center px-2 py-3.5" : "gap-3 px-5 py-2.5",
+                  collapsed
+                    ? "justify-center px-2 py-3.5"
+                    : "gap-3 px-5 py-2.5",
                   active
                     ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {active && (
@@ -208,20 +245,25 @@ export function Sidebar() {
         {/* Bottom: LLM provider toggle + theme toggle + collapse */}
         <div className="border-t border-border p-3 shrink-0 space-y-3">
           {!collapsed && <LlmProviderToggle />}
-          <div className={cn("flex items-center", collapsed ? "flex-col gap-2" : "justify-between")}>
+          <div
+            className={cn(
+              "flex items-center",
+              collapsed ? "flex-col gap-2" : "justify-between",
+            )}
+          >
             {collapsed && <LlmProviderToggle collapsed />}
             <button
-              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="h-11 w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={toggleTheme}
               title="Toggle theme"
-              aria-label="Toggle color theme"
+              aria-label="Change color theme"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </button>
             <button
-              className="h-8 w-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              onClick={() => setCollapsed(!collapsed)}
+              className="h-11 w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              onClick={() => onCollapsedChange(!collapsed)}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? (

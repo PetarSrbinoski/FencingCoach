@@ -8,16 +8,17 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from typing import Any
+from uuid import uuid4
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
-from app.models import WorkoutLog, WorkoutOverride
+from app.models import Competition, WorkoutDayRevision, WorkoutLog, WorkoutOverride
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
-from app.services.schedule import weekly_schedule
+from app.services.schedule import day_type_for_weekday, weekly_schedule
 
 
 # ── templates ─────────────────────────────────────────────────────────
@@ -266,16 +267,30 @@ def get_workout_override(db: Session, day: date) -> WorkoutOverride | None:
     return db.get(WorkoutOverride, day)
 
 
+def workout_revision(db: Session, day: date) -> str | None:
+    revision = db.get(WorkoutDayRevision, day)
+    return revision.revision if revision else None
+
+
+def _save_workout_revision(db: Session, day: date, token: str) -> None:
+    db.merge(WorkoutDayRevision(day=day, revision=token))
+    db.flush()
+
+
 def set_workout_override(
     db: Session,
     day: date,
     exercises: list[dict[str, Any]],
     session_name: str | None = None,
     notes: str | None = None,
+    *, commit: bool = True,
 ) -> WorkoutOverride:
     """Upsert a manual replacement for a day's gym session (create or update)."""
+    from app.services.transactions import lock_resource
+    lock_resource(db, "workout", day.isoformat())
+    token = uuid4().hex
     stmt = pg_insert(WorkoutOverride).values(
-        day=day, session_name=session_name, exercises=exercises, notes=notes
+        day=day, session_name=session_name, exercises=exercises, notes=notes, revision=token
     )
     stmt = stmt.on_conflict_do_update(
         index_elements=["day"],
@@ -283,18 +298,31 @@ def set_workout_override(
             "session_name": stmt.excluded.session_name,
             "exercises": stmt.excluded.exercises,
             "notes": stmt.excluded.notes,
+            "revision": token,
             "updated_at": func.now(),
         },
     )
     db.execute(stmt)
-    db.commit()
+    _save_workout_revision(db, day, token)
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    db.expire_all()
     return db.get(WorkoutOverride, day)  # type: ignore[return-value]
 
 
-def clear_workout_override(db: Session, day: date) -> None:
+def clear_workout_override(db: Session, day: date, *, commit: bool = True) -> None:
     """Remove a manual override so the day reverts to the auto-generated plan."""
+    from app.services.transactions import lock_resource
+    lock_resource(db, "workout", day.isoformat())
     db.execute(delete(WorkoutOverride).where(WorkoutOverride.day == day))
-    db.commit()
+    _save_workout_revision(db, day, uuid4().hex)
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    db.expire_all()
 
 
 def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
@@ -302,31 +330,48 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
     day = day or athlete_today()
     phase = compute_phase(db, day)
     readiness = compute_readiness(db, day)
+    events = db.scalars(select(Competition).where(
+        Competition.event_date <= day,
+        or_(Competition.end_date >= day,
+            and_(Competition.end_date.is_(None), Competition.event_date == day)),
+    ).order_by(Competition.priority, Competition.event_date, Competition.id)).all()
+    competitions = [
+        {"id": event.id, "name": event.name, "location": event.location,
+         "event_date": event.event_date.isoformat(),
+         "end_date": event.end_date.isoformat() if event.end_date else None,
+         "priority": event.priority}
+        for event in events
+    ]
+    base = {
+        "day": day.isoformat(), "weekday": day.strftime("%A"),
+        "phase": phase.to_dict(),
+        "readiness": {"score": readiness.score, "band": readiness.band},
+        "activity_type": "competition" if events else day_type_for_weekday(day.weekday()),
+        "competitions": competitions,
+    }
 
     override = get_workout_override(db, day)
     if override is not None:
         return {
-            "day": day.isoformat(),
-            "weekday": day.strftime("%A"),
+            **base,
             "session": {
                 "name": override.session_name or "custom",
                 "exercises": override.exercises,
                 "rationale": override.notes or "Manually set.",
             },
-            "phase": phase.to_dict(),
-            "readiness": {"score": readiness.score, "band": readiness.band},
+            "activity_type": "competition" if events else "gym",
             "source": "manual",
         }
+
+    if events:
+        return {**base, "session": None, "reason": "Competition is the primary activity.", "source": "auto"}
 
     tpl = _template_for(day)
 
     if tpl is None:
         return {
-            "day": day.isoformat(),
-            "weekday": day.strftime("%A"),
+            **base,
             "session": None,
-            "phase": phase.to_dict(),
-            "readiness": {"score": readiness.score, "band": readiness.band},
             "reason": "Not a gym day per the configured weekly schedule.",
             "source": "auto",
         }
@@ -376,14 +421,12 @@ def build_session(db: Session, day: date | None = None) -> dict[str, Any]:
     )
 
     return {
-        "day": day.isoformat(),
-        "weekday": day.strftime("%A"),
+        **base,
         "session": {
             "name": session_name,
             "exercises": [r.to_dict() for r in rx_list],
             "rationale": rationale,
         },
-        "phase": phase.to_dict(),
-        "readiness": {"score": readiness.score, "band": readiness.band},
+        "activity_type": "gym",
         "source": "auto",
     }

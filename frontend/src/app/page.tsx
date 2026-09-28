@@ -1,71 +1,132 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { PageHeading } from "@/components/page-heading";
+import { Gauge } from "@/components/charts";
+import { StaleDataBanner } from "@/components/data-coverage-panel";
+import { ErrorNotice, ReadMore } from "@/components/mobile-ui";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Markdown } from "@/components/ui/markdown";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import {
   api,
-  Activity,
   Brief,
   Competition,
   MetricSeries,
   Phase,
   Readiness,
 } from "@/lib/api";
-import { Gauge } from "@/components/charts";
-import { BandPill } from "@/components/ui";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Markdown } from "@/components/ui/markdown";
-import { StaleDataBanner } from "@/components/data-coverage-panel";
-import { useToast } from "@/components/ui/toast";
 import {
-  Heart,
-  Activity as ActivityIcon,
-  Target,
-  Star,
-  Flame,
-  ArrowRight,
-  Send,
-  RefreshCw,
-  MapPin,
-} from "lucide-react";
+  announceGarminSync,
+  useGarminSyncObserver,
+} from "@/lib/garmin-refresh";
+import { useWorkflowRefresh } from "@/lib/workflow-refresh";
+import { RefreshCw, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 export default function Home() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const [loadErrors, setLoadErrors] = useState<Record<string, string>>({});
   const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [brief, setBrief] = useState<Brief | null>(null);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [hrv, setHrv] = useState<MetricSeries | null>(null);
   const [sleepScore, setSleepScore] = useState<MetricSeries | null>(null);
   const [rhr, setRhr] = useState<MetricSeries | null>(null);
-  const [readinessSeries, setReadinessSeries] = useState<MetricSeries | null>(null);
+  const [readinessSeries, setReadinessSeries] = useState<MetricSeries | null>(
+    null,
+  );
   const [calories, setCalories] = useState<MetricSeries | null>(null);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [nextComp, setNextComp] = useState<Competition | null | undefined>(undefined);
+  const [nextComp, setNextComp] = useState<Competition | null | undefined>(
+    undefined,
+  );
   const [generating, setGenerating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncState, setSyncState] = useState<string | null>(null);
+  const [coverageRevision, setCoverageRevision] = useState(0);
+  const loadVersion = useRef(0);
   const [chatInput, setChatInput] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   function loadAll() {
+    const version = ++loadVersion.current;
+    const current = () => loadVersion.current === version;
     setErr(null);
-    api.readiness.today().then(setReadiness).catch((e) => setErr(String(e)));
-    api.brief.today().then(setBrief).catch(() => {});
-    api.phase.today().then(setPhase).catch(() => {});
-    api.metrics.series("hrv", 7).then(setHrv).catch(() => {});
-    api.metrics.series("sleep_score", 7).then(setSleepScore).catch(() => {});
-    api.metrics.series("resting_hr", 7).then(setRhr).catch(() => {});
-    api.metrics.series("training_readiness", 7).then(setReadinessSeries).catch(() => {});
-    api.metrics.series("calories", 7).then(setCalories).catch(() => {});
-    api.activities.recent(3).then(setActivities).catch(() => {});
-    api.competitions.list(true).then((list) => setNextComp(list[0] ?? null)).catch(() => setNextComp(null));
+    setLoadErrors({});
+    const failed = (key: string, error: unknown) => {
+      if (current())
+        setLoadErrors((previous) => ({
+          ...previous,
+          [key]: error instanceof Error ? error.message : String(error),
+        }));
+    };
+    api.readiness
+      .today()
+      .then((value) => {
+        if (current()) setReadiness(value);
+      })
+      .catch((e) => {
+        if (current()) setErr(String(e));
+      });
+    api.brief
+      .today()
+      .then((value) => {
+        if (current()) setBrief(value);
+      })
+      .catch((error) => failed("brief", error));
+    api.phase
+      .today()
+      .then((value) => {
+        if (current()) setPhase(value);
+      })
+      .catch((error) => failed("phase", error));
+    api.metrics
+      .series("hrv", 7)
+      .then((value) => {
+        if (current()) setHrv(value);
+      })
+      .catch((error) => failed("hrv", error));
+    api.metrics
+      .series("sleep_score", 7)
+      .then((value) => {
+        if (current()) setSleepScore(value);
+      })
+      .catch((error) => failed("sleep", error));
+    api.metrics
+      .series("resting_hr", 7)
+      .then((value) => {
+        if (current()) setRhr(value);
+      })
+      .catch((error) => failed("rhr", error));
+    api.metrics
+      .series("training_readiness", 7)
+      .then((value) => {
+        if (current()) setReadinessSeries(value);
+      })
+      .catch((error) => failed("readiness", error));
+    api.metrics
+      .series("calories", 7)
+      .then((value) => {
+        if (current()) setCalories(value);
+      })
+      .catch((error) => failed("calories", error));
+    api.competitions
+      .list(true)
+      .then((list) => {
+        if (current()) setNextComp(list[0] ?? null);
+      })
+      .catch((error) => failed("competitions", error));
+    setCoverageRevision((value) => value + 1);
   }
 
   useEffect(loadAll, []);
+  useGarminSyncObserver(loadAll);
+  useWorkflowRefresh(loadAll);
 
   async function generateBrief() {
     setGenerating(true);
@@ -86,17 +147,51 @@ export default function Home() {
     try {
       const status = await api.garmin.status();
       const days = status.last_fetch
-        ? Math.max(1, Math.ceil((Date.now() - new Date(status.last_fetch).getTime()) / 86400000))
+        ? Math.max(
+            1,
+            Math.ceil(
+              (Date.now() - new Date(status.last_fetch).getTime()) / 86400000,
+            ),
+          )
         : 2;
       const res = await api.garmin.syncRecent(days);
-      if (res.ok) {
-        toast({ title: `Synced last ${days} day${days === 1 ? "" : "s"}`, variant: "success" });
-        loadAll();
+      announceGarminSync();
+      if (res.outcome === "partial") {
+        setSyncState(
+          "Sync partially completed. Usable readings remain visible; some endpoints are unavailable. Retry is available.",
+        );
+        toast({
+          title: "Partial sync",
+          description: "Some Garmin endpoints could not be fetched.",
+        });
+      } else if (res.ok) {
+        const latest = await api.readiness.today();
+        setSyncState(
+          latest.score === null
+            ? "Sync complete; today's readiness is unavailable."
+            : `Sync complete; today's readiness is ${latest.score} (${latest.band}).`,
+        );
+        toast({
+          title: `Synced last ${days} day${days === 1 ? "" : "s"}`,
+          variant: "success",
+        });
       } else {
-        toast({ title: "Sync failed", description: res.error, variant: "destructive" });
+        setSyncState(
+          "Sync failed. Any committed readings remain visible; retry is available.",
+        );
+        toast({
+          title: "Sync failed",
+          description: res.error,
+          variant: "destructive",
+        });
       }
     } catch (e: unknown) {
-      toast({ title: "Sync failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      setSyncState("Sync failed. Retry is available.");
+      toast({
+        title: "Sync failed",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
     } finally {
       setSyncing(false);
     }
@@ -111,230 +206,388 @@ export default function Home() {
   }
 
   const daysToComp = nextComp
-    ? Math.round((new Date(nextComp.event_date).getTime() - Date.now()) / 86400000)
+    ? Math.round(
+        (new Date(nextComp.event_date).getTime() - Date.now()) / 86400000,
+      )
     : null;
 
   return (
-    <div className="space-y-16 md:space-y-20">
-      {/* ── Hero header ───────────────────────────────────────────── */}
-      <header className="relative">
-        <div className="flex items-start justify-between gap-6 flex-wrap">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3 font-mono">
-              {new Date().toLocaleDateString(undefined, {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </p>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tighter leading-none">
-              Today
-            </h1>
-            {phase && (
-              <p className="mt-4 text-sm text-muted-foreground font-mono">{phase.name} phase</p>
-            )}
-          </div>
-          <Button variant="outline" onClick={syncSinceLastSync} disabled={syncing} className="shrink-0">
-            <RefreshCw className={syncing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+    <div className="space-y-8 md:space-y-10">
+      <PageHeading
+        title="Today"
+        eyebrow={new Date().toLocaleDateString(undefined, {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })}
+        action={
+          <Button
+            variant="outline"
+            onClick={syncSinceLastSync}
+            disabled={syncing}
+          >
+            <RefreshCw className={syncing ? "animate-spin" : ""} />
             {syncing ? "Syncing…" : "Sync"}
           </Button>
-        </div>
-        <div className="h-1 w-16 bg-accent mt-6" />
-      </header>
-
-      {err && (
-        <div className="border border-accent/30 bg-accent/5 px-5 py-4">
-          <p className="text-accent text-sm">{err}</p>
-        </div>
+        }
+      />
+      {err && <ErrorNotice message={err} retry={loadAll} />}
+      {syncState && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {syncState}
+        </p>
       )}
-
-      {/* ── Ask the coach ─────────────────────────────────────────── */}
-      <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4">
+      <section
+        className="performance-panel space-y-4"
+        aria-label="Today's readiness"
+      >
+        <svg
+          className="fencing-illustration"
+          viewBox="0 0 240 145"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 131H232M32 139H208"
+            stroke="currentColor"
+            strokeOpacity=".25"
+          />
+          <g
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <ellipse
+              cx="105"
+              cy="29"
+              rx="12"
+              ry="15"
+              transform="rotate(15 105 29)"
+            />
+            <path d="M99 44L77 76L112 82L142 121L160 125M77 76L57 106L30 126L15 128M84 74L64 111L35 132M111 83L132 125L158 129M98 47L127 62L162 51M96 54L125 69L165 56M96 46L69 40L53 22M91 51L66 46L48 26M164 46L169 61M167 52L228 29" />
+          </g>
+        </svg>
+        <div className="performance-overview flex flex-wrap items-center gap-4">
+          {readiness?.score != null && (
+            <Gauge score={readiness.score} size={120} />
+          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="font-sans font-bold tracking-tight text-2xl">
+              Readiness
+            </h2>
+            {readiness ? (
+              <>
+                <p className="text-sm">
+                  {readiness.score === null
+                    ? "Unavailable today"
+                    : `Today’s band: ${readiness.band}`}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {readiness.day}
+                  {phase ? ` · ${phase.name} phase` : ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {err ? "Could not load readiness" : "Loading readiness…"}
+              </p>
+            )}
+          </div>
+        </div>
+        {readiness && (
+          <details className="text-sm">
+            <summary>Readiness details</summary>
+            <div className="space-y-3">
+              {Object.entries(readiness.advisories).map(([key, advice]) => (
+                <div key={key}>
+                  <strong className="capitalize">
+                    {key.replaceAll("_", " ")}
+                  </strong>
+                  <p className="text-muted-foreground">{advice.detail}</p>
+                </div>
+              ))}
+              <p className="text-muted-foreground">
+                {readiness.reading_fetched_at
+                  ? `Fetched ${new Date(readiness.reading_fetched_at).toLocaleString()}`
+                  : "No reading time available."}
+              </p>
+            </div>
+          </details>
+        )}
+        <StaleDataBanner revision={coverageRevision} />
+        <div className="grid grid-cols-[1.5fr_1fr] gap-2 sm:grid-cols-2">
+          <Button
+            asChild
+            className="bg-accent text-accent-foreground border-accent hover:bg-accent/90"
+          >
+            <a href="/training">
+              Today&apos;s training <span aria-hidden="true">↗</span>
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/nutrition">Log food</a>
+          </Button>
+        </div>
+      </section>
+      <section className="dashboard-section" aria-labelledby="ask-coach-title">
+        <h2
+          id="ask-coach-title"
+          className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
+        >
           Ask your coach
         </h2>
-        <form onSubmit={sendToCoach} className="flex gap-2">
+        <form onSubmit={sendToCoach} className="flex gap-3">
           <Input
             value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
+            onChange={(event) => setChatInput(event.target.value)}
             placeholder="Should I skip gym today?"
             aria-label="Message the coach"
-            className="flex-1 h-12 text-base"
+            className="flex-1"
           />
-          <Button type="submit" size="icon" className="h-12 w-12 shrink-0" disabled={!chatInput.trim()} aria-label="Send message">
-            <Send className="h-4 w-4" />
+          <Button
+            type="submit"
+            size="icon"
+            className="h-12 w-12 shrink-0"
+            disabled={!chatInput.trim()}
+            aria-label="Send message"
+          >
+            <Send />
           </Button>
         </form>
       </section>
-
-      <StaleDataBanner />
-
-      {/* ── Stat cards ────────────────────────────────────────────── */}
-      <section>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
-          <StatCard title="HRV" icon={<ActivityIcon className="h-3.5 w-3.5" />} series={hrv} unit="ms" />
-          <StatCard title="Resting HR" icon={<Heart className="h-3.5 w-3.5" />} series={rhr} unit="bpm" />
-          <StatCard title="Sleep Score" icon={<Star className="h-3.5 w-3.5" />} series={sleepScore} unit="" />
-          <StatCard title="Readiness" icon={<Target className="h-3.5 w-3.5" />} series={readinessSeries} unit="" />
-          <StatCard title="Calories" icon={<Flame className="h-3.5 w-3.5" />} series={calories} unit="kcal" />
+      <section
+        aria-labelledby="recovery-metrics-title"
+        className="dashboard-section"
+      >
+        <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
+          <h2
+            id="recovery-metrics-title"
+            className="font-sans font-bold tracking-tight text-2xl"
+          >
+            Recovery metrics
+          </h2>
+          <Button variant="link" size="sm" asChild>
+            <a href="/weekly">View trends</a>
+          </Button>
         </div>
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-5">
+          <StatCard title="HRV" series={hrv} unit="ms" error={loadErrors.hrv} />
+          <StatCard
+            title="Resting HR"
+            series={rhr}
+            unit="bpm"
+            error={loadErrors.rhr}
+          />
+          <StatCard
+            title="Sleep score"
+            series={sleepScore}
+            unit=""
+            error={loadErrors.sleep}
+          />
+          <StatCard
+            title="Readiness"
+            series={readinessSeries}
+            unit=""
+            error={loadErrors.readiness}
+          />
+          <StatCard
+            title="Calories"
+            series={calories}
+            unit="kcal"
+            error={loadErrors.calories}
+          />
+        </div>
+        {Object.keys(loadErrors).length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={loadAll}
+          >
+            Retry unavailable data
+          </Button>
+        )}
       </section>
-
-      {/* ── Readiness gauge ───────────────────────────────────────── */}
-      {readiness && readiness.score !== null && (
-        <section className="flex items-center gap-8 border-t border-border pt-10">
-          <Gauge score={readiness.score} size={120} />
-          <div className="flex flex-col gap-3 min-w-0">
-            <BandPill band={readiness.band} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-              {Object.entries(readiness.advisories).map(([k, a]) => (
-                <div key={k} className="flex items-baseline gap-2 text-xs">
-                  <span className="text-muted-foreground text-[10px] uppercase tracking-widest shrink-0">
-                    {k.replace(/_/g, " ")}
-                  </span>
-                  <span className="text-foreground/80 truncate">{a.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Brief + next competition ─────────────────────────────── */}
-      <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-12 border-t border-border pt-16">
-        {/* Coach brief */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coach Brief</h2>
+      <div className="dashboard-editorial">
+        <section
+          className="dashboard-section coach-brief"
+          aria-labelledby="coach-brief-title"
+        >
+          <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
+            <h2
+              id="coach-brief-title"
+              className="font-sans font-bold tracking-tight text-2xl"
+            >
+              Coach brief
+            </h2>
             <Button
-              variant={brief ? "ghost" : "default"}
+              variant="ghost"
               size="sm"
               onClick={generateBrief}
               disabled={generating}
             >
-              {generating ? "Generating..." : brief ? "Regenerate" : "Generate"}
-              <ArrowRight className="h-3.5 w-3.5" />
+              {generating ? "Generating…" : brief ? "Regenerate" : "Generate"}
             </Button>
           </div>
+          {loadErrors.brief && (
+            <ErrorNotice
+              message={`Could not load the brief: ${loadErrors.brief}`}
+              retry={loadAll}
+            />
+          )}
           {brief ? (
-            <div className="max-w-2xl text-base text-foreground/90">
+            <ReadMore label="Read full brief">
               <Markdown>{brief.summary}</Markdown>
-            </div>
+            </ReadMore>
           ) : (
-            <div className="py-12 text-center border border-border">
-              <p className="text-muted-foreground text-sm uppercase tracking-wider">No brief for today</p>
-              <p className="text-muted-foreground/60 text-xs mt-2 font-mono">Click generate to create one</p>
-            </div>
+            !loadErrors.brief && (
+              <p className="text-sm text-muted-foreground">
+                Generate today&apos;s brief for guidance on your training and
+                recovery.
+              </p>
+            )
           )}
           {brief?.payload?.model && (
-            <p className="text-[11px] text-muted-foreground/40 mt-6 font-mono">
-              model: {brief.payload.model}
-            </p>
+            <details className="mt-4 border-t border-border pt-2 text-sm text-muted-foreground">
+              <summary>Brief source</summary>
+              <p>{brief.payload.model}</p>
+            </details>
           )}
-        </div>
-
-        {/* Next competition */}
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6">
-            Next Competition
-          </h2>
-          {nextComp === undefined ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-5 w-full" />
-              ))}
-            </div>
-          ) : nextComp ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline">T-{daysToComp}d</Badge>
-                <BandPill band={nextComp.priority === "A" ? "red" : nextComp.priority === "B" ? "amber" : "green"} />
-              </div>
-              <div className="text-foreground font-semibold text-xl leading-snug">{nextComp.name}</div>
-              {(nextComp.location || nextComp.level) && (
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-mono">
-                  {nextComp.location && (
-                    <>
-                      <MapPin className="h-3 w-3" />
-                      <span>{nextComp.location}</span>
-                    </>
-                  )}
-                  {nextComp.location && nextComp.level && <span className="text-border">·</span>}
-                  {nextComp.level && <span className="uppercase">{nextComp.level}</span>}
-                </div>
-              )}
-              <a href="/competitions" className="inline-flex items-center gap-2 mt-4 text-xs font-semibold uppercase tracking-wider text-accent hover:text-accent/80 transition-colors duration-150">
-                View all <ArrowRight className="h-3 w-3" />
-              </a>
-            </div>
-          ) : (
-            <div className="py-8 text-center border border-border">
-              <p className="text-muted-foreground text-sm">No upcoming competitions</p>
-              <a href="/competitions" className="inline-flex items-center gap-2 mt-4 text-xs font-semibold uppercase tracking-wider text-accent hover:text-accent/80 transition-colors duration-150">
-                Add one <ArrowRight className="h-3 w-3" />
-              </a>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── Recent activities ─────────────────────────────────────── */}
-      {activities.length > 0 && (
-        <section className="border-t border-border pt-16">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-8">Recent Activities</h2>
-          <div className="divide-y divide-border">
-            {activities.slice(0, 5).map((a) => (
-              <div key={a.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-2">
-                <div className="flex items-center gap-4 min-w-0">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground border border-border px-2 py-0.5 shrink-0">
-                    {a.activity_type ?? "activity"}
-                  </span>
-                  <span className="truncate text-sm font-medium">{a.name ?? "Untitled"}</span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 font-mono pl-0 sm:pl-4">
-                  {a.duration_s != null && <span>{Math.round(a.duration_s / 60)}m</span>}
-                  {a.calories != null && <span>{a.calories} kcal</span>}
-                  {a.avg_hr != null && <span>{a.avg_hr} bpm</span>}
-                  <span className="text-muted-foreground/50">
-                    {new Date(a.start_time).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
+        <section
+          className="competition-feature space-y-4"
+          aria-labelledby="next-competition-title"
+        >
+          <h2
+            id="next-competition-title"
+            className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
+          >
+            Next competition
+          </h2>
+          {loadErrors.competitions ? (
+            <ErrorNotice
+              message="Could not load competitions."
+              retry={loadAll}
+            />
+          ) : nextComp === undefined ? (
+            <Skeleton className="h-14 w-full" />
+          ) : nextComp ? (
+            <>
+              <div className="competition-countdown">
+                <p className="countdown-number">
+                  {Math.max(0, daysToComp ?? 0)
+                    .toString()
+                    .padStart(2, "0")}
+                </p>
+                <span className="eyebrow">
+                  {daysToComp !== null && daysToComp <= 0
+                    ? "Competition time"
+                    : "Days to go"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">Priority {nextComp.priority}</Badge>
+              </div>
+              <p className="text-xl font-semibold leading-snug">
+                {nextComp.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {[nextComp.event_date, nextComp.location, nextComp.level]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <a href={`/competitions#competition-${nextComp.id}`}>
+                  View event
+                </a>
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                No upcoming competitions.
+              </p>
+              <Button variant="outline" asChild>
+                <a href="/competitions">Add a competition</a>
+              </Button>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  series,
+  unit,
+  error,
+}: {
+  title: string;
+  series: MetricSeries | null;
+  unit: string;
+  error?: string;
+}) {
+  const last = series?.points.filter((point) => point.value !== null).at(-1);
+  return (
+    <div className="min-w-0 bg-card p-3 sm:p-4 space-y-2 last:col-span-2 sm:last:col-span-1">
+      <h3 className="text-sm text-muted-foreground">{title}</h3>
+      {error ? (
+        <p className="text-sm">Unavailable</p>
+      ) : !series ? (
+        <Skeleton className="h-7 w-14" />
+      ) : (
+        <>
+          <p className="text-3xl font-semibold tracking-tight tabular-nums">
+            {last?.value != null
+              ? last.value.toFixed(last.value >= 100 ? 0 : 1)
+              : "—"}{" "}
+            <span className="text-xs font-normal">{unit}</span>
+          </p>
+          <MetricTrace points={series.points} />
+          <p className="text-xs text-muted-foreground">
+            {last?.day ?? "No readings"}
+          </p>
+        </>
       )}
     </div>
   );
 }
 
-/* ── Helpers ────────────────────────────────────────────────────────── */
-function StatCard({ title, icon, series, unit }: {
-  title: string; icon: React.ReactNode; series: MetricSeries | null; unit: string;
-}) {
-  const last = series?.points.filter((p) => p.value !== null).slice(-1)[0];
-  const value = last?.value;
-
+/** Small noninteractive preview; the Trends screen provides exact dated values. */
+function MetricTrace({ points }: { points: MetricSeries["points"] }) {
+  const recent = points.slice(-14);
+  const values = recent.flatMap((point) =>
+    point.value == null ? [] : [point.value],
+  );
+  if (values.length < 2) return null;
+  const min = Math.min(...values),
+    range = Math.max(...values) - min || 1;
+  const x = (index: number) =>
+    2 + (index / Math.max(1, recent.length - 1)) * 116;
+  const y = (value: number) => 25 - ((value - min) / range) * 22;
   return (
-    <div className="border border-border p-3 sm:p-4 flex flex-col items-center justify-center gap-1.5 min-h-[4.5rem] overflow-hidden transition-colors duration-150 hover:border-foreground/25">
-      <div className="flex items-center gap-1 text-muted-foreground/70">
-        {icon}
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground leading-tight whitespace-nowrap">
-          {title}
-        </span>
-      </div>
-      {series ? (
-        <span className="flex items-baseline gap-1 font-mono font-bold tracking-tight tabular-nums leading-none">
-          <span className="text-xl sm:text-2xl">
-            {value != null ? value.toFixed(value >= 100 ? 0 : 1) : "\u2014"}
-          </span>
-          {value != null && unit && (
-            <span className="text-[10px] text-muted-foreground font-sans font-medium">{unit}</span>
-          )}
-        </span>
-      ) : (
-        <Skeleton className="h-7 w-14" />
-      )}
-    </div>
+    <svg
+      viewBox="0 0 120 28"
+      className="h-7 w-full text-accent"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {recent.map((point, index) => {
+        const previous = recent[index - 1];
+        return index > 0 && previous.value != null && point.value != null ? (
+          <path
+            key={index}
+            d={`M${x(index - 1)},${y(previous.value)} L${x(index)},${y(point.value)}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : null;
+      })}
+    </svg>
   );
 }

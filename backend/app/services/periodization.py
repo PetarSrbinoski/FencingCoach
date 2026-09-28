@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.clock import athlete_today
@@ -41,7 +41,7 @@ class Phase:
 def _next_a_event(db: Session, today: date) -> Competition | None:
     return db.scalar(
         select(Competition)
-        .where(Competition.priority == "A", Competition.event_date >= today)
+        .where(Competition.priority == "A", func.coalesce(Competition.end_date, Competition.event_date) >= today)
         .order_by(Competition.event_date)
         .limit(1)
     )
@@ -51,10 +51,10 @@ def _last_event(db: Session, today: date, lookback_days: int = 7) -> Competition
     return db.scalar(
         select(Competition)
         .where(
-            Competition.event_date >= today - timedelta(days=lookback_days),
-            Competition.event_date < today,
+            func.coalesce(Competition.end_date, Competition.event_date) >= today - timedelta(days=lookback_days),
+            func.coalesce(Competition.end_date, Competition.event_date) < today,
         )
-        .order_by(Competition.event_date.desc())
+        .order_by(func.coalesce(Competition.end_date, Competition.event_date).desc())
         .limit(1)
     )
 
@@ -71,7 +71,7 @@ def compute_phase(db: Session, day: date | None = None) -> Phase:
             next_event_id=last.id,
             next_event_name=last.name,
             next_event_date=last.event_date,
-            notes=f"Post-event recovery — {(day - last.event_date).days}d after {last.name}",
+            notes=f"Post-event recovery — {(day - (last.end_date or last.event_date)).days}d after {last.name}",
         )
 
     nxt = _next_a_event(db, day)
@@ -85,7 +85,7 @@ def compute_phase(db: Session, day: date | None = None) -> Phase:
             notes="No upcoming A-event — general base phase",
         )
 
-    days = (nxt.event_date - day).days
+    days = max(0, (nxt.event_date - day).days)
     if days <= 6:
         name = "comp_week"
     elif days <= 13:
