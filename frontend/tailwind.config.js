@@ -7,8 +7,6 @@ module.exports = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         display: ["var(--font-inter)", "system-ui", "sans-serif"],
-        serif: ["var(--font-playfair)", "Georgia", "serif"],
-        mono: ["var(--font-mono)", '"Fira Code"', "monospace"],
       },
       colors: {
         success: "hsl(var(--success))",

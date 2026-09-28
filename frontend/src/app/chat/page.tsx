@@ -380,7 +380,7 @@ export default function ChatPage() {
     return (
       <div className="p-2">
         {loadingHistory && (
-          <div className="px-3 py-4 text-xs font-mono text-muted-foreground">
+          <div className="px-3 py-4 text-xs font-sans text-muted-foreground">
             Loading history…
           </div>
         )}
@@ -432,7 +432,7 @@ export default function ChatPage() {
                     <p className="text-sm font-medium leading-tight text-foreground truncate">
                       {conversationLabel(conversation)}
                     </p>
-                    <div className="mt-1.5 flex items-center gap-2 text-sm font-mono text-muted-foreground">
+                    <div className="mt-1.5 flex items-center gap-2 text-sm font-sans text-muted-foreground">
                       <span>{conversation.message_count} msgs</span>
                       <span>·</span>
                       <span>{relativeDate(conversation.updated_at)}</span>
@@ -647,11 +647,11 @@ export default function ChatPage() {
                           )}
                         {m.contextSnapshot && (
                           <details className="group">
-                            <summary className="flex items-center gap-1 text-sm font-mono uppercase tracking-wider text-muted-foreground cursor-pointer select-none">
+                            <summary className="flex items-center gap-1 text-sm font-sans uppercase tracking-wider text-muted-foreground cursor-pointer select-none">
                               <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
                               What the coach saw
                             </summary>
-                            <pre className="mt-1.5 whitespace-pre-wrap text-xs font-mono text-muted-foreground bg-muted/40 border border-border p-2.5 max-h-64 overflow-auto">
+                            <pre className="mt-1.5 whitespace-pre-wrap text-xs font-sans text-muted-foreground bg-muted/40 border border-border p-2.5 max-h-64 overflow-auto">
                               {m.contextSnapshot}
                             </pre>
                           </details>

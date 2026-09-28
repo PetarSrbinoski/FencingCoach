@@ -38,8 +38,8 @@ function SparklineTooltip({
   if (d.value == null) return null;
   return (
     <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
-      <p className="text-muted-foreground font-mono text-xs">{d.day}</p>
-      <p className="font-semibold font-mono mt-0.5 text-foreground">
+      <p className="text-muted-foreground font-sans text-xs">{d.day}</p>
+      <p className="font-semibold font-sans mt-0.5 text-foreground">
         {d.value.toLocaleString()}
         {unit ? ` ${unit}` : ""}
       </p>
@@ -130,7 +130,7 @@ function BarTooltip({
   if (!active || !payload?.length) return null;
   return (
     <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
-      <p className="font-semibold font-mono text-foreground">
+      <p className="font-semibold font-sans text-foreground">
         {payload[0].value.toLocaleString()}
         {unit ? ` ${unit}` : ""}
       </p>
@@ -295,7 +295,7 @@ export function MacroProgress({
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
         <span className="font-medium text-muted-foreground">{label}</span>
-        <span className="text-foreground font-mono font-medium">
+        <span className="text-foreground font-sans font-medium">
           {actual} / {target} {unit}{" "}
           <span className="text-muted-foreground">({Math.round(pct)}%)</span>
         </span>

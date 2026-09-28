@@ -68,6 +68,13 @@
     @apply bg-background text-foreground;
   }
 
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: inherit;
+  }
+
   /* Subtle noise grain texture overlay */
   body::before {
     content: "";
@@ -153,7 +160,7 @@
 /* Athletic editorial system: paper, ink, orange, and piste markings. */
 @layer components {
   .eyebrow {
-    @apply font-mono text-xs font-medium uppercase tracking-wider;
+    @apply font-sans text-xs font-medium uppercase tracking-wider;
   }
   .page-heading {
     position: relative;

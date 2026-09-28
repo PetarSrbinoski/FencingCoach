@@ -111,7 +111,7 @@ export function DataCoveragePanel({
                   <p className="text-sm font-medium text-warning">
                     {staleMessage(m)}
                   </p>
-                  <p className="text-sm text-muted-foreground font-mono mt-0.5">
+                  <p className="text-sm text-muted-foreground font-sans mt-0.5">
                     coverage {m.coverage_days}/{m.window_days}d
                     {m.last_ok_day && ` · last ok ${m.last_ok_day}`}
                   </p>
@@ -137,7 +137,7 @@ export function DataCoveragePanel({
                 )}
               >
                 <span className="text-muted-foreground">{label(m.kind)}</span>
-                <span className="font-mono text-foreground/80">
+                <span className="font-sans text-foreground/80">
                   {m.last_ok_value ?? "—"} · {m.coverage_days}/{m.window_days}d
                 </span>
               </li>

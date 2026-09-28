@@ -93,7 +93,7 @@ export function StatRow({
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm py-2.5 border-b border-border last:border-0">
       <span className="text-muted-foreground text-sm font-medium">{label}</span>
-      <span className="font-mono text-foreground font-medium text-sm">
+      <span className="font-sans text-foreground font-medium text-sm">
         {value}
         {hint && (
           <span className="text-muted-foreground text-xs ml-1.5">{hint}</span>

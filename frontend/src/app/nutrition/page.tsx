@@ -742,7 +742,7 @@ export default function NutritionPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline">{slotLabel(mealItem.slot)}</Badge>
                   {mealItem.time && (
-                    <span className="font-mono text-xs text-muted-foreground">
+                    <span className="font-sans text-xs text-muted-foreground">
                       {mealItem.time}
                     </span>
                   )}
@@ -754,7 +754,7 @@ export default function NutritionPage() {
                   {mealItem.ingredients.map((ing, j) => (
                     <li key={j} className="flex justify-between gap-3">
                       <span className="capitalize">{ing.name}</span>
-                      <span className="font-mono text-xs text-muted-foreground/80">
+                      <span className="font-sans text-xs text-muted-foreground/80">
                         {ing.qty_g} g
                       </span>
                     </li>
@@ -762,7 +762,7 @@ export default function NutritionPage() {
                 </ul>
               )}
 
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
                 <span className="text-foreground/90">
                   {nutrient(mealItem.kcal, "kcal")}
                 </span>
@@ -781,7 +781,7 @@ export default function NutritionPage() {
         })}
 
         {totals && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground border-t border-border pt-3 mt-1">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-xs text-muted-foreground border-t border-border pt-3 mt-1">
             <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
               Day totals
             </span>
@@ -1121,7 +1121,7 @@ export default function NutritionPage() {
                     <div className="text-foreground mt-1.5 font-medium">
                       {l.raw_text}
                     </div>
-                    <div className="text-muted-foreground text-xs mt-1 font-mono">
+                    <div className="text-muted-foreground text-xs mt-1 font-sans">
                       {l.kcal?.toFixed(0)} kcal · P {l.protein_g?.toFixed(0)} /
                       C {l.carbs_g?.toFixed(0)} / F {l.fat_g?.toFixed(0)}
                     </div>
@@ -1334,7 +1334,7 @@ export default function NutritionPage() {
                     <p className="text-muted-foreground text-sm font-medium">
                       No plan for today yet
                     </p>
-                    <p className="text-muted-foreground text-xs mt-1 font-mono">
+                    <p className="text-muted-foreground text-xs mt-1 font-sans">
                       Click generate to have the coach build one
                     </p>
                   </div>
@@ -1373,13 +1373,13 @@ export default function NutritionPage() {
                     <p className="text-muted-foreground text-sm font-medium">
                       Weekly shopping aggregator
                     </p>
-                    <p className="text-muted-foreground text-xs mt-1 font-mono">
+                    <p className="text-muted-foreground text-xs mt-1 font-sans">
                       Aggregates ingredients from generated meal plans for the
                       next 7 days
                     </p>
                   </div>
                 ) : shopping.item_count === 0 ? (
-                  <p className="text-muted-foreground text-sm font-mono">
+                  <p className="text-muted-foreground text-sm font-sans">
                     No usable shopping quantities for {shopping.start} →{" "}
                     {shopping.end}.
                     {shopping.missing_days.length > 0 && (
@@ -1392,7 +1392,7 @@ export default function NutritionPage() {
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs text-muted-foreground mb-3 font-mono">
+                    <p className="text-xs text-muted-foreground mb-3 font-sans">
                       {shopping.start} → {shopping.end} · {shopping.item_count}{" "}
                       items · covered: {shopping.days_covered.length}/7 days{" "}
                       {shopping.missing_days.length > 0
@@ -1415,7 +1415,7 @@ export default function NutritionPage() {
                           <span className="text-foreground font-medium">
                             {it.name}
                           </span>
-                          <span className="font-mono text-muted-foreground text-xs">
+                          <span className="font-sans text-muted-foreground text-xs">
                             {it.qty_g} g
                           </span>
                         </li>

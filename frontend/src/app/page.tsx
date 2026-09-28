@@ -273,7 +273,9 @@ export default function Home() {
             <Gauge score={readiness.score} size={120} />
           )}
           <div className="min-w-0 flex-1">
-            <h2 className="font-serif text-2xl">Readiness</h2>
+            <h2 className="font-sans font-bold tracking-tight text-2xl">
+              Readiness
+            </h2>
             {readiness ? (
               <>
                 <p className="text-sm">
@@ -331,7 +333,7 @@ export default function Home() {
       <section className="dashboard-section" aria-labelledby="ask-coach-title">
         <h2
           id="ask-coach-title"
-          className="dashboard-section-heading font-serif text-2xl"
+          className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
         >
           Ask your coach
         </h2>
@@ -359,7 +361,10 @@ export default function Home() {
         className="dashboard-section"
       >
         <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
-          <h2 id="recovery-metrics-title" className="font-serif text-2xl">
+          <h2
+            id="recovery-metrics-title"
+            className="font-sans font-bold tracking-tight text-2xl"
+          >
             Recovery metrics
           </h2>
           <Button variant="link" size="sm" asChild>
@@ -410,7 +415,10 @@ export default function Home() {
           aria-labelledby="coach-brief-title"
         >
           <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
-            <h2 id="coach-brief-title" className="font-serif text-2xl">
+            <h2
+              id="coach-brief-title"
+              className="font-sans font-bold tracking-tight text-2xl"
+            >
               Coach brief
             </h2>
             <Button
@@ -453,7 +461,7 @@ export default function Home() {
         >
           <h2
             id="next-competition-title"
-            className="dashboard-section-heading font-serif text-2xl"
+            className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
           >
             Next competition
           </h2>

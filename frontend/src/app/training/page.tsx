@@ -122,7 +122,7 @@ function FencingAnalysisSection() {
               <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
                 Sessions ({analysis.window_days}d)
               </span>
-              <span className="text-2xl font-mono font-medium">
+              <span className="text-2xl font-sans font-medium">
                 {analysis.session_count}
               </span>
             </div>
@@ -130,7 +130,7 @@ function FencingAnalysisSection() {
               <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
                 Avg duration
               </span>
-              <span className="text-2xl font-mono font-medium">
+              <span className="text-2xl font-sans font-medium">
                 {analysis.avg_duration_min != null
                   ? `${analysis.avg_duration_min.toFixed(0)}m`
                   : "—"}
@@ -140,7 +140,7 @@ function FencingAnalysisSection() {
               <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
                 Avg load
               </span>
-              <span className="text-2xl font-mono font-medium">
+              <span className="text-2xl font-sans font-medium">
                 {analysis.avg_training_load != null
                   ? analysis.avg_training_load.toFixed(0)
                   : "—"}
@@ -227,21 +227,21 @@ function FencingAnalysisSection() {
                           key={s.activity_id}
                           className="border-t border-border"
                         >
-                          <td className="py-2 font-mono text-xs">{s.day}</td>
-                          <td className="py-2 font-mono text-xs">
+                          <td className="py-2 font-sans text-xs">{s.day}</td>
+                          <td className="py-2 font-sans text-xs">
                             {s.duration_min != null
                               ? `${s.duration_min.toFixed(0)}m`
                               : "—"}
                           </td>
-                          <td className="py-2 font-mono text-xs">
+                          <td className="py-2 font-sans text-xs">
                             {s.avg_hr ?? "—"}
                             {s.avg_hr_zone ? ` (${s.avg_hr_zone})` : ""}
                           </td>
-                          <td className="py-2 font-mono text-xs">
+                          <td className="py-2 font-sans text-xs">
                             {s.max_hr ?? "—"}
                             {s.max_hr_zone ? ` (${s.max_hr_zone})` : ""}
                           </td>
-                          <td className="py-2 font-mono text-xs">
+                          <td className="py-2 font-sans text-xs">
                             {s.training_load ?? "—"}
                           </td>
                         </tr>
@@ -363,7 +363,7 @@ function MentalTrainingSection() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
           <Brain className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground font-mono">
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground font-sans">
             Mental training
           </p>
         </div>
@@ -428,10 +428,10 @@ function MentalTrainingSection() {
               ).map(([label, value, setter]) => (
                 <div key={label} className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
+                    <span className="text-xs uppercase tracking-widest text-muted-foreground font-sans">
                       {label}
                     </span>
-                    <span className="text-xs font-mono text-foreground">
+                    <span className="text-xs font-sans text-foreground">
                       {value}
                     </span>
                   </div>
@@ -465,7 +465,7 @@ function MentalTrainingSection() {
                     : "Reflect on today's training or competition..."
               }
               rows={3}
-              className="w-full bg-transparent border border-border px-3 py-2 rounded-xl text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground resize-none font-mono"
+              className="w-full bg-transparent border border-border px-3 py-2 rounded-xl text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground resize-none font-sans"
               aria-label="Mental training content"
             />
 
@@ -509,7 +509,7 @@ function MentalTrainingSection() {
                         {ENTRY_TYPE_LABELS[entry.entry_type] ||
                           entry.entry_type}
                       </span>
-                      <span className="text-xs text-muted-foreground font-mono">
+                      <span className="text-xs text-muted-foreground font-sans">
                         {formatDate(entry.day)}
                       </span>
                     </div>
@@ -566,11 +566,11 @@ function MentalTrainingSection() {
                   strokeWidth={1.5}
                 />
                 <span
-                  className={`text-xs font-mono uppercase tracking-wide ${trendColor}`}
+                  className={`text-xs font-sans uppercase tracking-wide ${trendColor}`}
                 >
                   {insight.trend}
                 </span>
-                <span className="text-xs text-muted-foreground font-mono">
+                <span className="text-xs text-muted-foreground font-sans">
                   ({insight.entry_count} entries / {insight.period_days}d)
                 </span>
               </div>
@@ -586,7 +586,7 @@ function MentalTrainingSection() {
                   ] as [string, number | null][]
                 ).map(([label, val]) => (
                   <div key={label} className="border border-border p-2">
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
+                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-sans">
                       {label}
                     </p>
                     <p className="text-lg font-bold tracking-tight">
@@ -752,7 +752,7 @@ export default function TrainingPage() {
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
             </button>
-            <span className="text-sm font-mono text-muted-foreground tracking-wide">
+            <span className="text-sm font-sans text-muted-foreground tracking-wide">
               {formatDate(isoDate(weekStart))} —{" "}
               {formatDate(isoDate(weekEndDate))}
             </span>
@@ -875,7 +875,7 @@ export default function TrainingPage() {
                             {session.weekday}
                           </span>
                         </div>
-                        <span className="text-xs text-foreground/75 font-mono tracking-wide">
+                        <span className="text-xs text-foreground/75 font-sans tracking-wide">
                           {formatDate(session.day)}
                         </span>
                       </div>
@@ -919,7 +919,7 @@ export default function TrainingPage() {
                           <p className="text-base text-foreground/90 leading-relaxed">
                             Club session — conditioning + sparring (~2h)
                           </p>
-                          <p className="text-xs text-foreground/70 font-mono">
+                          <p className="text-xs text-foreground/70 font-sans">
                             {session.weekday === "Saturday" ? "11:00" : "20:00"}
                           </p>
                         </div>
@@ -947,7 +947,7 @@ export default function TrainingPage() {
                                   ? "Additional planned work"
                                   : "Gym"}
                               </span>
-                              <span className="text-xs text-foreground/75 capitalize font-mono">
+                              <span className="text-xs text-foreground/75 capitalize font-sans">
                                 {session.session.name.replace(/_/g, " ")}
                               </span>
                               {session.source === "manual" && (
@@ -969,7 +969,7 @@ export default function TrainingPage() {
                                   <span className="text-foreground text-base leading-snug">
                                     {rx.exercise}
                                   </span>
-                                  <span className="font-mono text-foreground/75 text-xs whitespace-nowrap">
+                                  <span className="font-sans text-foreground/75 text-xs whitespace-nowrap">
                                     {rx.sets}x{rx.reps}
                                     {rx.load_kg != null
                                       ? ` @${rx.load_kg}kg`
@@ -1006,7 +1006,7 @@ export default function TrainingPage() {
                       {/* Phase & readiness (today only) */}
                       {isToday && (
                         <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-                          <span className="text-xs font-mono text-foreground/75">
+                          <span className="text-xs font-sans text-foreground/75">
                             {(session.phase as any)?.name ?? "\u2014"}
                           </span>
                           {(session.readiness as any)?.band && (

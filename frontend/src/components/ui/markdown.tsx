@@ -45,7 +45,7 @@ const components: Components = {
   ),
   hr: () => <hr className="my-4 border-border" />,
   pre: ({ children }) => (
-    <pre className="mb-3 overflow-x-auto border border-border bg-muted p-3 font-mono text-xs last:mb-0">
+    <pre className="mb-3 overflow-x-auto border border-border bg-muted p-3 font-sans text-xs last:mb-0">
       {children}
     </pre>
   ),
@@ -55,13 +55,13 @@ const components: Components = {
     const isBlock = /language-/.test(className || "");
     if (isBlock) {
       return (
-        <code className={cn("font-mono text-xs", className)} {...props}>
+        <code className={cn("font-sans text-xs", className)} {...props}>
           {children}
         </code>
       );
     }
     return (
-      <code className="border border-border bg-muted px-1 py-0.5 font-mono text-[0.85em]" {...props}>
+      <code className="border border-border bg-muted px-1 py-0.5 font-sans text-[0.85em]" {...props}>
         {children}
       </code>
     );
