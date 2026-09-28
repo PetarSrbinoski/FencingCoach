@@ -1,5 +1,7 @@
 "use client";
 
+import { randomUUID } from "@/lib/uuid";
+
 import { useCallback, useEffect, useState } from "react";
 import { api, type CompetitionMeal, type CompetitionMealDraft, type CompetitionMealInputs, type CompetitionMealPlan, type CompetitionNutritionPlan } from "@/lib/api";
 import { useWorkflowRefresh } from "@/lib/workflow-refresh";
@@ -72,7 +74,7 @@ export function CompetitionMeals({ plan }: { plan: CompetitionNutritionPlan }) {
   async function accept(draft: CompetitionMealDraft) {
     setBusy(true); setError(null);
     try {
-      const saved = await api.competitionMeals.accept(plan.id, draft, crypto.randomUUID());
+      const saved = await api.competitionMeals.accept(plan.id, draft, randomUUID());
       setDrafts(current => current.filter(item => item !== draft));
       setReceipt(`Accepted meals for ${saved[0].day}, version ${saved[0].version}. No food was logged as consumed.`);
       await refresh();

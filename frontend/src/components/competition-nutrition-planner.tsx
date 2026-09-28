@@ -1,5 +1,7 @@
 "use client";
 
+import { randomUUID } from "@/lib/uuid";
+
 import { useEffect, useState } from "react";
 import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { api, type Competition, type CompetitionNutritionInputs, type CompetitionNutritionPlan, type CompetitionNutritionPreview } from "@/lib/api";
@@ -19,19 +21,21 @@ export function CompetitionNutritionPlanner({ onChanged, onSelectDay }: { onChan
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
-  const [acceptanceId, setAcceptanceId] = useState(() => crypto.randomUUID());
+  const [acceptanceId, setAcceptanceId] = useState(() => randomUUID());
   const [linkedPlanId, setLinkedPlanId] = useState<number | null>(null);
   const [deactivation, setDeactivation] = useState<{ plan_id: number; version: number; days: { day: string; old_targets: Record<string, unknown> }[]; token: string } | null>(null);
 
   function refresh() {
-    Promise.all([api.competitions.list(false), api.competitionNutrition.plans()])
+    Promise.all([api.competitions.list(true), api.competitionNutrition.plans()])
       .then(([nextEvents, nextPlans]) => {
         setEvents(nextEvents); setPlans(nextPlans);
         const query = new URLSearchParams(window.location.search);
         const fromUrl = Number(query.get("competition"));
         const planId = Number(query.get("plan"));
         setLinkedPlanId(planId || null);
-        setEventId(current => current ?? (nextEvents.some(event => event.id === fromUrl) ? fromUrl : nextEvents[0]?.id ?? null));
+        setEventId(current => nextEvents.some(event => event.id === current)
+          ? current
+          : nextEvents.some(event => event.id === fromUrl) ? fromUrl : nextEvents[0]?.id ?? null);
       }).catch(error => setError(errorText(error)));
   }
   useEffect(refresh, []);
@@ -53,7 +57,7 @@ export function CompetitionNutritionPlanner({ onChanged, onSelectDay }: { onChan
   async function generatePreview() {
     if (eventId === null || busy) return;
     setBusy(true); setError(null); setReceipt(null);
-    try { setDraft(await api.competitionNutrition.preview(eventId, inputs)); setAcceptanceId(crypto.randomUUID()); }
+    try { setDraft(await api.competitionNutrition.preview(eventId, inputs)); setAcceptanceId(randomUUID()); }
     catch (error) { setError(errorText(error)); }
     finally { setBusy(false); }
   }
@@ -96,7 +100,7 @@ export function CompetitionNutritionPlanner({ onChanged, onSelectDay }: { onChan
         <p className="font-medium">Accepted target history for this event</p>
         <p>{plans.filter(plan => plan.active && plan.event_id === eventId).map(plan => `Plan #${plan.id} v${plan.version} · ${plan.days[0]?.day} through ${plan.days[plan.days.length - 1]?.day}`).join("; ")}. Open history below for dated assignments and meals.</p>
       </div>}
-      {events.length === 0 ? <p className="text-sm text-muted-foreground">No competitions yet. <a href="/competitions" className="underline">Add an event</a> to preview nutrition.</p> : <>
+      {events.length === 0 ? <p className="text-sm text-muted-foreground">No upcoming competitions. <a href="/competitions" className="underline">Add an event</a> to preview nutrition.</p> : <>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <label className="text-xs">Competition
             <select className="block h-10 w-full border border-input bg-background px-2 text-sm" value={eventId ?? ""} onChange={event => chooseEvent(Number(event.target.value))}>

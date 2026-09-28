@@ -1,5 +1,7 @@
 "use client";
 
+import { randomUUID } from "@/lib/uuid";
+
 import { useEffect, useRef, useState } from "react";
 import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import { createJobObserver, type JobObservation } from "@/lib/job-observer";
@@ -359,7 +361,7 @@ export default function NutritionPage() {
     setEditing(kind === "edit" ? entry : null);
     setRepeating(kind === "repeat" ? entry : null);
     setManualMode(false);
-    setRepeatRequestId(crypto.randomUUID());
+    setRepeatRequestId(randomUUID());
     setEntryDraft({
       day: kind === "edit" ? entry.day : selectedDay,
       meal: entry.meal || "", raw_text: entry.raw_text,
