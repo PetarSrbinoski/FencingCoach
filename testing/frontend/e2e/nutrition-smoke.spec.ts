@@ -6,8 +6,7 @@ const resetScript = path.resolve(__dirname, "../../scripts/reset_db.sh");
 
 test.beforeEach(async ({ page }) => {
   execFileSync("bash", [resetScript], { stdio: "inherit" });
-  // Playwright creates a fresh browser context for every test, so local and
-  // session storage cannot carry a pending estimate into the next case.
+  
   const day = process.env.TEST_ATHLETE_DAY;
   if (!day) throw new Error("TEST_ATHLETE_DAY is required");
   await page.clock.setFixedTime(new Date(`${day}T12:00:00.000Z`));
