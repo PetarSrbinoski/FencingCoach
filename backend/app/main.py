@@ -14,6 +14,7 @@ from app.api import (
     agent_actions,
     brief,
     chat,
+    coach_memory,
     coach_plan_proposals,
     competition_meals,
     competition_nutrition,
@@ -93,6 +94,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(chat.router)
+app.include_router(coach_memory.router)
 app.include_router(coach_plan_proposals.router)
 app.include_router(agent_actions.router)
 app.include_router(garmin.router)

@@ -6,6 +6,7 @@ from app.models.models import (  # noqa: F401
     AppSetting,
     AthleteProfile,
     CoachConversation,
+    CoachMemory,
     CoachMessage,
     CoachPlanProposal,
     Competition,

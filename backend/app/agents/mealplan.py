@@ -25,6 +25,7 @@ from app.agents.retry import call_with_transient_retry
 from app.core.clock import athlete_today
 from app.core.config import settings
 from app.models import AthleteProfile, NutritionPlan
+from app.services.coach_memory import context_section as memory_context
 from app.services.dietary_rules import ingredient_conflicts, resolved_rules
 from app.services.mealplan import plan_meals
 from app.services.targets import NutritionTargets, resolve_effective_targets
@@ -147,6 +148,7 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
         + "List every ingredient in grams. Ingredient-name screening cannot verify packaged allergens or cross-contact.\nGenerate the meal plan."
     )
 
+    user_msg += "\n" + memory_context(db, day)
     deps = CoachDeps(db=db)
 
     plan_data: dict = {}

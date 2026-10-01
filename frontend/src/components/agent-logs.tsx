@@ -14,6 +14,7 @@ type Props = {
   onOpenConversation: (id: number) => void;
 };
 const kindLabels: Record<AgentAction["kind"], string> = {
+  memory: "Coach memory",
   workout: "Workout",
   competition: "Competition",
   food_create: "Food added",
@@ -27,6 +28,7 @@ const errorText = (error: unknown) =>
 
 function resourceUrl(action: AgentAction): string | null {
   if (action.status === "failed") return null;
+  if (action.kind === "memory") return `/chat/memory#memory-${action.resource_id}`;
   if (action.kind === "workout") return `/training?day=${action.resource_id}`;
   if (action.kind === "competition")
     return `/competitions#competition-${action.resource_id}`;
@@ -47,6 +49,8 @@ function stateSummary(
     return kind === "workout"
       ? "Automatic workout (no manual override)"
       : "No entry";
+  if (kind === "memory")
+    return `${state.content} · ${state.provenance}${state.deleted ? " · deleted" : ""}${state.expires_on ? ` · last active ${state.expires_on}` : ""}${state.last_confirmed_at ? " · confirmed" : " · unconfirmed"}`;
   if (kind === "workout") {
     const exercises = Array.isArray(state.exercises)
       ? state.exercises.filter(
@@ -294,7 +298,9 @@ export function AgentLogs({
                     href={resourceUrl(action)!}
                   >
                     Open{" "}
-                    {action.kind === "meal"
+                    {action.kind === "memory"
+                      ? "memory"
+                      : action.kind === "meal"
                       ? "diary entry"
                       : action.kind.startsWith("food")
                         ? "food"

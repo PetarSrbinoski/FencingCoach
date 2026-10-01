@@ -43,6 +43,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type Msg = {
@@ -114,7 +115,8 @@ export default function ChatPage() {
     const pending = sessionStorage.getItem("pendingChatMessage");
     if (pending) sessionStorage.removeItem("pendingChatMessage");
     (async () => {
-      await loadConversations();
+      const requested = Number(new URLSearchParams(window.location.search).get("conversation"));
+      await loadConversations(Number.isSafeInteger(requested) && requested > 0 ? requested : undefined);
       if (active && pending) {
         startNewConversation();
         send(pending);
@@ -515,6 +517,9 @@ export default function ChatPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/chat/memory">What my coach knows</Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
                   setSelectedActionId(null);

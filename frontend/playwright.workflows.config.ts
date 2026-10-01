@@ -3,6 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 // Workflow checks and their artifacts stay outside the protected testing/ tree.
 export default defineConfig({
   testDir: "./e2e",
+  // Memory uses its own disposable API/provider servers.
+  testIgnore: "coach-memory.spec.ts",
   workers: 1,
   retries: 0,
   timeout: 60_000,

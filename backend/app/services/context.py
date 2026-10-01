@@ -23,6 +23,7 @@ from app.models import (
     TrainingPlan,
 )
 from app.services.activity_types import display_label
+from app.services.coach_memory import context_section as memory_context
 from app.services.mental import mental_context_section
 from app.services.periodization import compute_phase
 from app.services.readiness import compute_readiness
@@ -334,6 +335,7 @@ def build_context(
 
     sections_in_order = [
         ("profile", lambda: _profile_section(db)),
+        ("memory", lambda: memory_context(db)),
         ("readiness", lambda: _readiness_section(db, today)),
         ("phase", lambda: _phase_section(db, today)),
         ("targets", lambda: _targets_section(db, today)),

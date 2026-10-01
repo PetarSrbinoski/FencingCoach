@@ -92,6 +92,11 @@ def undo(db: Session, action_id: int) -> tuple[dict[str, Any], bool]:
         return present(db, action), True
     if action.status == "failed":
         raise ValueError("A failed attempt made no change and cannot be undone")
+    if action.kind == "memory":
+        from app.services.coach_memory import undo_memory
+
+        success = undo_memory(db, action)
+        return present(db, action), success
     if action.kind == "nutrition_plan":
         return _undo_nutrition_plan(db, action)
     if action.kind not in {"workout", "competition", "food_create", "food_update", "meal"}:

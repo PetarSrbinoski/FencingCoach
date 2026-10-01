@@ -8,7 +8,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date as Date
-from typing import Any
+from typing import Any, Literal
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
@@ -44,8 +44,9 @@ from app.agents.retry import (
 )
 from app.models import CoachPlanProposal, Competition, WorkoutOverride
 from app.schemas import ExerciseOverrideIn
+from app.schemas.coach_memory import MemoryContent
 from app.schemas.foods import FoodPortion, PositiveAmount, SavedFoodInput, SavedFoodOut
-from app.services import foods
+from app.services import coach_memory, foods
 from app.services.agent_actions import record_action, snapshot
 from app.services.competition_nutrition import preview as preview_competition_nutrition
 from app.services.grounding import find_ungrounded_claims
@@ -491,6 +492,42 @@ async def propose_competition_nutrition_plan(
     return result
 
 
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def remember_context(
+    ctx: RunContext[CoachDeps], memory: MemoryContent,
+    provenance: Literal["explicit", "inferred"], evidence: str,
+    memory_id: int | None = None, expected_revision: str | None = None,
+) -> dict[str, Any]:
+    """Remember practical context from the CURRENT athlete message only.
+
+    Explicit: an athlete-requested fact/preference/constraint. Inferred: only a
+    durable food preference supported by current first-person habitual language
+    (prefer, usually, always), never health facts or a transient/uncertain remark.
+    Quote evidence verbatim from this turn; never mine history or audit records.
+    For updates supply the existing ID and revision; never overwrite a confirmed
+    fact with an inference. Preserve unchanged content and expiration on updates.
+    expires_on is the inclusive last active date in the athlete timezone. Resolve
+    unambiguous relative dates from context; ask about ambiguous dates first.
+    Temporary circumstances require an explicit expiration. If a fact conflicts
+    with Profile restrictions/current constraints, clarify instead of saving it.
+    Returned deleted=true means an old operation was already removed, NOT saved.
+    """
+    try:
+        result = coach_memory.remember(
+            ctx.deps.db, memory, provenance=provenance, evidence=evidence,
+            conversation_id=ctx.deps.extra.get("conversation_id"),
+            message_id=ctx.deps.extra.get("message_id"),
+            current_message=ctx.deps.extra.get("current_message", ""),
+            memory_id=memory_id, expected_revision=expected_revision,
+        )
+    except (ValueError, LookupError) as exc:
+        ctx.deps.db.rollback()
+        raise ModelRetry(str(exc)) from exc
+    ctx.deps.side_effect_committed = True
+    return result
+
+
 # ── History conversion ────────────────────────────────────────────────
 def _db_messages_to_history(
     messages: list[Any],
@@ -532,7 +569,7 @@ async def run_coach_chat(
     """Run the coach chat agent asynchronously, returning the reply, model
     used, and any heuristically flagged ungrounded claims."""
     deps = CoachDeps(db=db, context_text=context_text)
-    deps.extra.update(conversation_id=conversation_id, message_id=message_id)
+    deps.extra.update(conversation_id=conversation_id, message_id=message_id, current_message=user_message)
 
     # Convert DB message history to PydanticAI format
     message_history: list[ModelMessage] | None = None

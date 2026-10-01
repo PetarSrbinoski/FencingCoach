@@ -435,7 +435,32 @@ export type NutritionAnswerReference = {
   days?: Array<{ day: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number; training_type: string; context: string; explanation: string; target_source: string; plan_url: string | null; diary_url: string; plan_version: number | null }>;
 };
 
-export type AgentActionKind = "workout" | "competition" | "food_create" | "food_update" | "meal" | "nutrition_plan" | "reversal";
+export type CoachMemorySource = {
+  label: string;
+  conversation_id?: number;
+  message_id?: number;
+  excerpt?: string;
+  last_update?: CoachMemorySource;
+};
+export type CoachMemory = {
+  id: number;
+  content: string;
+  provenance: "explicit" | "inferred";
+  source: CoachMemorySource;
+  created_at: string;
+  updated_at: string;
+  last_confirmed_at: string | null;
+  expires_on: string | null;
+  revision: string;
+  deleted: boolean;
+  expired: boolean;
+  active: boolean;
+};
+export type CoachMemoryList = { enabled: boolean; timezone: string; items: CoachMemory[] };
+export type MemoryContent = { content: string; expires_on: string | null };
+export type MemoryGuard = { request_id: string; expected_revision: string };
+
+export type AgentActionKind = "memory" | "workout" | "competition" | "food_create" | "food_update" | "meal" | "nutrition_plan" | "reversal";
 export type AgentActionStatus = "committed" | "undone" | "failed" | "conflict" | "missing";
 
 export type AgentAction = {
@@ -519,6 +544,14 @@ export const api = {
     list: () => request<CoachConversationSummary[]>("/chat/conversations"),
     get: (id: number) => request<CoachConversation>(`/chat/conversations/${id}`),
     delete: (id: number) => request<void>(`/chat/conversations/${id}`, { method: "DELETE" }),
+  },
+  coachMemory: {
+    list: () => request<CoachMemoryList>("/coach-memory"),
+    setEnabled: (enabled: boolean) => request<CoachMemoryList>("/coach-memory/settings", { method: "PUT", body: JSON.stringify({ enabled }) }),
+    create: (body: MemoryContent & { request_id: string }) => request<CoachMemory>("/coach-memory", { method: "POST", body: JSON.stringify(body) }),
+    edit: (id: number, body: MemoryContent & MemoryGuard) => request<CoachMemory>(`/coach-memory/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+    confirm: (id: number, body: MemoryGuard) => request<CoachMemory>(`/coach-memory/${id}/confirm`, { method: "POST", body: JSON.stringify(body) }),
+    delete: (id: number, body: MemoryGuard) => request<CoachMemory>(`/coach-memory/${id}`, { method: "DELETE", body: JSON.stringify(body) }),
   },
   agentActions: {
     list: (params: { page?: number; kind?: string; status?: string; start?: string; end?: string } = {}) =>
