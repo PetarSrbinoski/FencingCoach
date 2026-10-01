@@ -169,6 +169,21 @@ class NutritionEstimate(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
 
+class VoiceDraft(Base):
+    """Reviewable voice interpretation; the uploaded audio is never persisted."""
+
+    __tablename__ = "voice_drafts"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    error: Mapped[str | None] = mapped_column(Text)
+    transcript: Mapped[str | None] = mapped_column(Text)
+    interpretation: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex)
+    accepted_action_id: Mapped[int | None] = mapped_column(Integer)
+
+
 class NutritionPlan(Base):
     __tablename__ = "nutrition_plans"
 

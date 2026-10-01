@@ -7,6 +7,7 @@ import { randomUUID } from "@/lib/uuid";
 import { MacroProgress } from "@/components/charts";
 import { CompetitionNutritionPlanner } from "@/components/competition-nutrition-planner";
 import { FoodLibrary } from "@/components/food-library";
+import { VoiceLogging } from "@/components/voice-logging";
 import {
   Editor,
   ErrorNotice,
@@ -141,7 +142,7 @@ export default function NutritionPage() {
     "planView",
   );
   const [addOpen, setAddOpen] = useState(false);
-  const [addMode, setAddMode] = useState<"describe" | "saved">("saved");
+  const [addMode, setAddMode] = useState<"describe" | "saved" | "voice">("saved");
   const [today, setToday] = useState("");
   const [selectedDay, setSelectedDay] = useState("");
   const [text, setText] = useState("");
@@ -1442,6 +1443,7 @@ export default function NutritionPage() {
           items={[
             { value: "saved", label: "Saved foods" },
             { value: "describe", label: "Describe meal" },
+            { value: "voice", label: "Voice" },
           ]}
         />
         {addMode === "saved" ? (
@@ -1456,6 +1458,11 @@ export default function NutritionPage() {
             meal={meal}
             day={selectedDay}
           />
+        ) : addMode === "voice" ? (
+          <VoiceLogging day={selectedDay} meal={meal} onCommitted={(loggedDay) => {
+            setSelectedDay(loggedDay);
+            refresh();
+          }} />
         ) : (
           <div className="space-y-4 pt-4">
             <div className="flex flex-col gap-3">

@@ -86,6 +86,33 @@ export type SavedFoodInput = {
 };
 export type SavedFood = SavedFoodInput & { id: number };
 export type FoodPortion = { food_id: number; grams?: number; servings?: number };
+export type VoiceFood = SavedFoodInput & {
+  basis: "per_100g" | "per_serving";
+  basis_grams: number | null;
+  consumed_grams: number | null;
+};
+export type VoiceInterpretation = {
+  intent: "save_food" | "log_consumption" | "clarify";
+  question: string | null;
+  food: VoiceFood | null;
+  portions: FoodPortion[];
+  other_foods: string;
+  preview?: {
+    kcal: number; protein_g: number; carbs_g: number; fat_g: number;
+    fiber_g: number | null; items: NutritionEstimateItem[];
+    incomplete_micros: string[];
+  };
+  food_revisions?: Record<string, string>;
+};
+export type VoiceDraft = {
+  id: number;
+  status: "pending" | "done" | "error" | "cancelled";
+  error: string | null;
+  transcript: string | null;
+  interpretation: VoiceInterpretation | null;
+  revision: string;
+  accepted_action_id: number | null;
+};
 export type NutritionEstimateItem = {
   name: string; qty_g: number; source?: string; food_id?: number | null;
   nutrients?: Record<string, number>;
@@ -554,6 +581,7 @@ export const api = {
     delete: (id: number, body: MemoryGuard) => request<CoachMemory>(`/coach-memory/${id}`, { method: "DELETE", body: JSON.stringify(body) }),
   },
   agentActions: {
+    get: (id: number) => request<AgentAction>(`/agent-actions/${id}`),
     list: (params: { page?: number; kind?: string; status?: string; start?: string; end?: string } = {}) =>
       request<{ items: AgentAction[]; total: number; page: number; page_size: number }>(`/agent-actions?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => [key, String(value)])).toString()}`),
     undo: (id: number, requestId: string) => request<AgentAction>(`/agent-actions/${id}/undo`, { method: "POST", body: JSON.stringify({ request_id: requestId }) }),
@@ -647,6 +675,25 @@ export const api = {
     log: (portions: FoodPortion[], meal?: string, day?: string) => request<NutritionLog>("/nutrition/foods/log", {
       method: "POST", body: JSON.stringify({ portions, meal, day }),
     }),
+  },
+
+  voice: {
+    submit: (audio: Blob) => request<VoiceDraft>("/nutrition/voice", {
+      method: "POST", headers: { "Content-Type": audio.type || "audio/webm" }, body: audio,
+    }),
+    get: (id: number) => request<VoiceDraft>(`/nutrition/voice/${id}`),
+    correct: (id: number, transcript: string, expected_revision: string) =>
+      request<VoiceDraft>(`/nutrition/voice/${id}/transcript`, {
+        method: "PUT", body: JSON.stringify({ transcript, expected_revision }),
+      }),
+    review: (id: number, interpretation: VoiceInterpretation, expected_revision: string) =>
+      request<VoiceDraft>(`/nutrition/voice/${id}/review`, {
+        method: "PUT", body: JSON.stringify({ interpretation, expected_revision }),
+      }),
+    cancel: (id: number) => request<VoiceDraft>(`/nutrition/voice/${id}/cancel`, { method: "POST" }),
+    accept: (id: number, body: { expected_revision: string; action: "save_food" | "log_consumption";
+      request_id: string; day?: string; meal?: string }) =>
+      request<AgentAction>(`/nutrition/voice/${id}/accept`, { method: "POST", body: JSON.stringify(body) }),
   },
 
   brief: {

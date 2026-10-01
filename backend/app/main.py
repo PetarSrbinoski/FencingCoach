@@ -35,6 +35,7 @@ from app.api import (
     targets,
     training,
     usda,
+    voice,
 )
 from app.api import settings as settings_api
 from app.core.config import settings
@@ -78,6 +79,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     with SessionLocal() as recovery_db:
         fail_interrupted_generations(recovery_db)
+        from sqlalchemy import update
+
+        from app.models import VoiceDraft
+
+        recovery_db.execute(update(VoiceDraft).where(VoiceDraft.status == "pending").values(
+            status="error", error="Voice processing was interrupted. Record again or correct the transcript."
+        ))
+        recovery_db.commit()
 
     yield
 
@@ -103,6 +112,7 @@ app.include_router(metrics.router)
 app.include_router(activities.router)
 app.include_router(nutrition.router)
 app.include_router(foods.router)
+app.include_router(voice.router)
 app.include_router(brief.router)
 app.include_router(phase.router)
 app.include_router(targets.router)

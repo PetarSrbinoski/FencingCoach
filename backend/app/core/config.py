@@ -48,6 +48,11 @@ class Settings(BaseSettings):
   
     LLM_MAX_CONCURRENCY: int = 8
 
+    # Speech uses a separate provider; the configured text model may not accept audio.
+    VOICE_TRANSCRIPTION_API_KEY: str = ""
+    VOICE_TRANSCRIPTION_BASE_URL: str = "https://api.openai.com/v1"
+    VOICE_TRANSCRIPTION_MODEL: str = "whisper-1"
+
     # ── Garmin ────────────────────────────────────────────────────────
     GARMIN_EMAIL: str = ""
     GARMIN_PASSWORD: str = ""
