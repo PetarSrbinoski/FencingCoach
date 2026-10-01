@@ -118,7 +118,7 @@ export type NutritionEstimateItem = {
   nutrients?: Record<string, number>;
 };
 
-export type NutritionEstimateStatus = "pending" | "done" | "error";
+export type NutritionEstimateStatus = "pending" | "done" | "error" | "cancelled";
 
 /** Returned immediately by `POST /nutrition/estimate` — poll
  * `api.nutrition.pollEstimate` for the actual result. */
@@ -444,7 +444,7 @@ export type MentalInsight = {
   insight: string;
 };
 
-export type ChatMessageStatusValue = "pending" | "done" | "error";
+export type ChatMessageStatusValue = "pending" | "done" | "error" | "cancelled";
 
 export type CoachMessage = {
   id: number;
@@ -565,6 +565,7 @@ export const api = {
       body: JSON.stringify({ message, conversation_id, include_context }),
     }),
   chatMessages: {
+    cancel: (messageId: number) => request<ChatMessagePoll>(`/chat/messages/${messageId}/cancel`, { method: "POST" }),
     poll: (messageId: number) => request<ChatMessagePoll>(`/chat/messages/${messageId}`),
   },
   chatConversations: {
@@ -644,6 +645,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ text }),
       }),
+    cancelEstimate: (id: number) => request<NutritionEstimate>(`/nutrition/estimate/${id}/cancel`, { method: "POST" }),
     pollEstimate: (id: number) => request<NutritionEstimate>(`/nutrition/estimate/${id}`),
     log: (entry: NutritionLogInput) =>
       request<NutritionLog>("/nutrition/log", {

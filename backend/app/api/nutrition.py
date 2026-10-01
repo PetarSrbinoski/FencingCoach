@@ -29,7 +29,7 @@ from app.schemas import (
     NutritionLogRepeat,
 )
 from app.services import usda as usda_service
-from app.services.generation import submit_generation
+from app.services.generation import cancel_generation, submit_generation
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +100,15 @@ def get_estimate(estimate_id: int, db: Session = Depends(get_db)) -> NutritionEs
     row = db.get(NutritionEstimate, estimate_id)
     if row is None:
         raise HTTPException(404, "estimate not found")
+    return _estimate_out(row)
+
+
+@router.post("/estimate/{estimate_id}/cancel", response_model=NutritionEstimateOut)
+async def cancel_estimate(estimate_id: int, db: Session = Depends(get_db)) -> NutritionEstimateOut:
+    row = db.get(NutritionEstimate, estimate_id)
+    if row is None:
+        raise HTTPException(404, "estimate not found")
+    await cancel_generation(db, row)
     return _estimate_out(row)
 
 

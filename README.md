@@ -42,6 +42,17 @@ Postgres database, and external services (LLM, USDA MCP, Garmin Connect).
 - Nutrition and meal-plan agents return structured Pydantic output and can call USDA MCP tools (local stdio subprocess, [rpassafaro/usda-api-mcp](https://github.com/rpassafaro/usda-api-mcp)) plus web search
 - Brief and mental agents are text-only, but still use the same prompt and output cleanup flow
 
+Chat replies and nutrition estimates have a **Cancel** control that terminates
+the backend agent task and closes its upstream LLM stream, including while a job
+is queued. Cancelled jobs cannot save a late result or start another retry.
+Deleting a chat also cancels its pending replies. Actions already committed by
+coach tools remain saved. Navigating away still lets a job finish.
+
+Stopping inference on the provider itself requires it to honor stream
+disconnects; the app cannot guarantee that behavior for every OpenAI-compatible
+cloud service. For example, [llama.cpp binds streaming generation to its HTTP
+connection by default](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README-dev.md).
+
 ## Run locally
 
 ```bash

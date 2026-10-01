@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.agents.deps import (
     CoachDeps,
     active_model_label,
+    consume_generation_stream,
     get_active_model,
     get_model,
     strip_think_tags,
@@ -587,6 +588,7 @@ async def run_coach_chat(
                     deps=deps,
                     message_history=message_history,
                     model=get_active_model(),
+                    event_stream_handler=consume_generation_stream,
                 )
             break
         except Exception as e:  # noqa: BLE001

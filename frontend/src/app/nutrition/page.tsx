@@ -154,6 +154,8 @@ export default function NutritionPage() {
   const [text, setText] = useState("");
   const [meal, setMeal] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [cancellingEstimate, setCancellingEstimate] = useState(false);
+  const activeEstimate = useRef<{ id: Promise<number>; observation: JobObservation }>();
   const [totals, setTotals] = useState<NutritionDayTotals | null>(null);
   const [logs, setLogs] = useState<NutritionLog[]>([]);
   const [targets, setTargets] = useState<Targets | null>(null);
@@ -406,29 +408,32 @@ export default function NutritionPage() {
     estimateObserver.current.stop();
   }
 
+  function receiveEstimate(est: NutritionEstimate) {
+    setBusy(false);
+    sessionStorage.removeItem("pendingNutritionEstimate");
+    if (est.status === "done") {
+      setEstimate(est);
+      setDraft({
+        kcal: String(est.kcal ?? ""),
+        protein_g: String(est.protein_g ?? ""),
+        carbs_g: String(est.carbs_g ?? ""),
+        fat_g: String(est.fat_g ?? ""),
+        fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
+      });
+    } else {
+      setEstimateDestination(null);
+      setErr(est.status === "cancelled" ? null : est.error ?? "Nutrition estimation failed");
+    }
+  }
+
   function pollEstimateResult(
     id: number,
     observation: JobObservation = estimateObserver.current.begin(),
   ) {
+    activeEstimate.current = { id: Promise.resolve(id), observation };
     observation.poll(
       () => api.nutrition.pollEstimate(id),
-      (est) => {
-        setBusy(false);
-        sessionStorage.removeItem("pendingNutritionEstimate");
-        if (est.status === "done") {
-          setEstimate(est);
-          setDraft({
-            kcal: String(est.kcal ?? ""),
-            protein_g: String(est.protein_g ?? ""),
-            carbs_g: String(est.carbs_g ?? ""),
-            fat_g: String(est.fat_g ?? ""),
-            fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
-          });
-        } else {
-          setEstimateDestination(null);
-          setErr(est.error ?? "Nutrition estimation failed");
-        }
-      },
+      receiveEstimate,
       (error) => {
         setBusy(false);
         // Keep the job reference: a connection failure is not a failed job.
@@ -438,7 +443,7 @@ export default function NutritionPage() {
   }
 
   async function requestEstimate() {
-    if (!text.trim() || busy || estimate || estimateDestination || !selectedDay)
+    if (!text.trim() || busy || cancellingEstimate || estimate || estimateDestination || !selectedDay)
       return;
     const observation = estimateObserver.current.begin();
     const destination = { day: selectedDay, meal };
@@ -453,7 +458,11 @@ export default function NutritionPage() {
 
     try {
       sessionStorage.setItem("pendingNutritionEstimate", pending);
-      const accepted = await api.nutrition.estimate(text.trim());
+      const submission = api.nutrition.estimate(text.trim());
+      const id = submission.then((accepted) => accepted.id);
+      activeEstimate.current = { id, observation };
+      void id.catch(() => {}); // The submission error is handled below.
+      const accepted = await submission;
       // Preserve resumability even if the page closed before acceptance, but
       // never overwrite a newer submission's saved reference.
       if (sessionStorage.getItem("pendingNutritionEstimate") === pending) {
@@ -479,11 +488,26 @@ export default function NutritionPage() {
     }
   }
 
-  function stopWatchingEstimate() {
-    // Client-side only: the estimate keeps generating server-side —
-    // reopening this page while it's still pending resumes watching it.
-    stopEstimatePolling();
-    setBusy(false);
+  async function cancelEstimate() {
+    const request = activeEstimate.current;
+    if (!request || cancellingEstimate) return;
+    setCancellingEstimate(true);
+    setErr(null);
+    try {
+      const id = await request.id;
+      const result = await api.nutrition.cancelEstimate(id);
+      if (!request.observation.isCurrent()) return;
+      stopEstimatePolling();
+      activeEstimate.current = undefined;
+      setCancellingEstimate(false);
+      receiveEstimate(result);
+    } catch (error) {
+      if (request.observation.isCurrent()) {
+        setErr(error instanceof Error ? error.message : "Could not cancel estimate");
+      }
+    } finally {
+      if (request.observation.isCurrent()) setCancellingEstimate(false);
+    }
   }
 
   function discardEstimate() {
@@ -1157,6 +1181,7 @@ export default function NutritionPage() {
                           onClick={requestEstimate}
                           disabled={
                             busy ||
+                            cancellingEstimate ||
                             !!estimate ||
                             !!estimateDestination ||
                             !text.trim() ||
@@ -1171,15 +1196,14 @@ export default function NutritionPage() {
                         </Button>
                       }
                     />
-                    {busy && (
+                    {(busy || (!estimate && estimateDestination)) && activeEstimate.current && (
                       <Button
-                        onClick={stopWatchingEstimate}
+                        onClick={cancelEstimate}
                         variant="ghost"
-                        aria-label="Stop watching (estimate keeps generating)"
-                        title="The estimate keeps generating in the background — this just stops watching it here."
+                        disabled={cancellingEstimate}
                       >
                         <X className="h-3.5 w-3.5" />
-                        Hide progress
+                        {cancellingEstimate ? "Cancelling…" : "Cancel estimate"}
                       </Button>
                     )}
                   </div>
@@ -1352,6 +1376,7 @@ export default function NutritionPage() {
                   <Button
                     variant="outline"
                     className="mt-3"
+                    disabled={cancellingEstimate}
                     onClick={() => {
                       const raw = sessionStorage.getItem(
                         "pendingNutritionEstimate",

@@ -12,7 +12,13 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.capabilities import WebSearch
 from pydantic_ai.mcp import MCPServerStdio
 
-from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
+from app.agents.deps import (
+    CoachDeps,
+    consume_generation_stream,
+    get_active_model,
+    get_model,
+    strip_think_tags,
+)
 from app.agents.retry import acall_with_transient_retry
 from app.core.config import settings
 from app.schemas import NutritionEstimateItemOut
@@ -166,7 +172,9 @@ async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutp
         } for food in catalog],
     })
     result = await acall_with_transient_retry(
-        lambda: food_selection_agent.run(prompt, model=get_active_model()),
+        lambda: food_selection_agent.run(
+            prompt, model=get_active_model(), event_stream_handler=consume_generation_stream
+        ),
         label="saved food matching",
     )
     selection = result.output
@@ -214,7 +222,10 @@ async def _estimate_unlisted(text: str, db: Any = None) -> NutritionEstimateOutp
 
     try:
         result = await acall_with_transient_retry(
-            lambda: nutrition_agent.run(text.strip(), deps=deps, model=get_active_model()),
+            lambda: nutrition_agent.run(
+                text.strip(), deps=deps, model=get_active_model(),
+                event_stream_handler=consume_generation_stream,
+            ),
             label="nutrition agent (primary)",
         )
         return _clean_output(result.output)
@@ -227,7 +238,8 @@ async def _estimate_unlisted(text: str, db: Any = None) -> NutritionEstimateOutp
             try:
                 fallback_result = await acall_with_transient_retry(
                     lambda: nutrition_fallback_agent.run(
-                        text.strip(), deps=deps, model=get_active_model()
+                        text.strip(), deps=deps, model=get_active_model(),
+                        event_stream_handler=consume_generation_stream,
                     ),
                     label="nutrition agent (fallback)",
                 )

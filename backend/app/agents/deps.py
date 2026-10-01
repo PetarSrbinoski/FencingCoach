@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import AsyncIterable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
-from pydantic_ai import InlineDefsJsonSchemaTransformer
+from pydantic_ai import AgentStreamEvent, InlineDefsJsonSchemaTransformer, RunContext
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
@@ -16,6 +17,20 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 
 log = logging.getLogger(__name__)
+
+
+async def consume_generation_stream(
+    ctx: RunContext[Any], events: AsyncIterable[AgentStreamEvent]
+) -> None:
+    """Enable streaming for the full agent run, including tool/fallback turns.
+
+    Results still reach the UI via polling. Streaming keeps an open upstream
+    response that task cancellation closes, allowing the provider to stop
+    inference on disconnect instead of completing a non-streaming request.
+    """
+    async for _ in events:
+        pass
+
 
 # Model-level default settings. DeepSeek V4 Flash (NVIDIA NIM) is a reasoning
 # model whose thinking mode is enabled through provider-specific

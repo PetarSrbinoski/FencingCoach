@@ -24,7 +24,7 @@ from app.schemas import (
     CoachMessageOut,
 )
 from app.services.context import build_context
-from app.services.generation import submit_generation
+from app.services.generation import cancel_generation, submit_generation
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -102,13 +102,19 @@ def get_conversation(
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
 )
-def delete_conversation(
+async def delete_conversation(
     conversation_id: int,
     db: Session = Depends(get_db),
 ) -> Response:
     conv = db.get(CoachConversation, conversation_id)
     if conv is None:
         raise HTTPException(404, "conversation not found")
+    for message in db.scalars(
+        select(CoachMessage).where(
+            CoachMessage.conversation_id == conversation_id, CoachMessage.status == "pending"
+        )
+    ).all():
+        await cancel_generation(db, message)
     db.delete(conv)
     db.commit()
 
@@ -140,9 +146,11 @@ def _history_for_agent(db: Session, conversation_id: int) -> list[CoachMessage]:
     history = db.scalars(
         select(CoachMessage)
         .where(CoachMessage.conversation_id == conversation_id)
-        .order_by(CoachMessage.created_at)
+        .order_by(CoachMessage.created_at, CoachMessage.id)
     ).all()
-    history_for_agent = [m for m in history if m.role in ("user", "assistant")]
+    history_for_agent = [
+        m for m in history if m.role == "user" or (m.role == "assistant" and m.status == "done")
+    ]
     return history_for_agent[-21:-1]
 
 
@@ -224,7 +232,8 @@ def get_message_status(
 ) -> ChatMessageStatus:
     """Poll the result of a `POST /chat` reply. `status` is `"pending"`
     while the background job is still running, `"done"` with `content`
-    filled in once it finishes, or `"error"` with `error` set."""
+    filled in once it finishes, `"cancelled"` after cancellation, or `"error"`
+    with `error` set."""
     msg = db.get(CoachMessage, message_id)
     if msg is None:
         raise HTTPException(404, "message not found")
@@ -239,3 +248,14 @@ def get_message_status(
         nutrition_refs=meta.get("nutrition_refs", []),
         error=msg.error,
     )
+
+
+@router.post("/messages/{message_id}/cancel", response_model=ChatMessageStatus)
+async def cancel_message(message_id: int, db: Session = Depends(get_db)) -> ChatMessageStatus:
+    msg = db.get(CoachMessage, message_id)
+    if msg is None:
+        raise HTTPException(404, "message not found")
+    if msg.role != "assistant":
+        raise HTTPException(409, "only assistant replies can be cancelled")
+    await cancel_generation(db, msg)
+    return get_message_status(message_id, db)

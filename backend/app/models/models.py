@@ -155,7 +155,7 @@ class NutritionEstimate(Base):
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(
         String(10), nullable=False, default="pending"
-    )  # pending|done|error
+    )  # pending|done|error|cancelled
     error: Mapped[str | None] = mapped_column(Text)
 
     kcal: Mapped[float | None] = mapped_column(Float)
@@ -370,7 +370,7 @@ class CoachMessage(Base):
     tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     # For assistant messages: "pending" until the background generation job
-    # (app/services/generation.py) fills `content` and flips to "done"/"error".
+    # (app/services/generation.py) fills `content` and flips to "done"/"error", or cancellation sets "cancelled".
     # User messages are always "done".
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="done")
     error: Mapped[str | None] = mapped_column(Text)

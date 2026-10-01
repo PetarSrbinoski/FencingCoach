@@ -30,7 +30,7 @@ class ChatMessageStatus(BaseModel):
     """Poll response for a (typically assistant) chat message."""
 
     id: int
-    status: str = Field(pattern=r"^(pending|done|error)$")
+    status: str = Field(pattern=r"^(pending|done|error|cancelled)$")
     content: str
     model: str | None = None
     context_snapshot: str | None = None
@@ -177,7 +177,7 @@ class NutritionEstimateOut(BaseModel):
     `POST /nutrition/log` to save."""
 
     id: int
-    status: str = Field(pattern=r"^(pending|done|error)$")
+    status: str = Field(pattern=r"^(pending|done|error|cancelled)$")
     error: str | None = None
     kcal: float | None = None
     protein_g: float | None = None

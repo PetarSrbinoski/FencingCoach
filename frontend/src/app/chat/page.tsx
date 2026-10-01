@@ -25,6 +25,7 @@ import {
   api,
   type AgentAction,
   type ChatMessageStatusValue,
+  type ChatMessagePoll,
   type CoachConversationSummary,
   type CoachPlanProposal,
   type NutritionAnswerReference,
@@ -82,6 +83,7 @@ export default function ChatPage() {
   >([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -100,6 +102,7 @@ export default function ChatPage() {
   >(null);
   const [selectedActionId, setSelectedActionId] = useState<number | null>(null);
   const observer = useRef(createJobObserver());
+  const activeRequest = useRef<{ id: Promise<number>; observation: JobObservation }>();
 
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -135,6 +138,8 @@ export default function ChatPage() {
 
   function stopPolling() {
     observer.current.stop();
+    activeRequest.current = undefined;
+    setCancelling(false);
   }
 
   function refreshConversationSummaries() {
@@ -180,31 +185,34 @@ export default function ChatPage() {
     }
   }
 
+  function receiveReply(messageId: number, poll: ChatMessagePoll) {
+    setBusy(false);
+    setMessages((current) =>
+      current.map((message) =>
+        message.id === messageId
+          ? {
+              ...message,
+              content: poll.content,
+              status: poll.status,
+              contextSnapshot: poll.context_snapshot,
+              ungroundedClaims: poll.ungrounded_claims,
+              nutritionRefs: poll.nutrition_refs,
+            }
+          : message,
+      ),
+    );
+    refreshActionReceipts();
+    refreshPlanProposals();
+    announceWorkflowChange();
+    if (poll.status === "error") setErr(poll.error ?? "Chat failed");
+  }
+
   function pollReply(messageId: number, observation: JobObservation) {
+    activeRequest.current = { id: Promise.resolve(messageId), observation };
     setBusy(true);
     observation.poll(
       () => api.chatMessages.poll(messageId),
-      (poll) => {
-        setBusy(false);
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === messageId
-              ? {
-                  ...message,
-                  content: poll.content,
-                  status: poll.status,
-                  contextSnapshot: poll.context_snapshot,
-                  ungroundedClaims: poll.ungrounded_claims,
-                  nutritionRefs: poll.nutrition_refs,
-                }
-              : message,
-          ),
-        );
-        refreshActionReceipts();
-        refreshPlanProposals();
-        announceWorkflowChange();
-        if (poll.status === "error") setErr(poll.error ?? "Chat failed");
-      },
+      (poll) => receiveReply(messageId, poll),
       (error) => {
         setBusy(false);
         setErr(error instanceof Error ? error.message : "Chat failed");
@@ -245,6 +253,8 @@ export default function ChatPage() {
     nextList = conversations,
     observation = observer.current.begin(),
   ) {
+    activeRequest.current = undefined;
+    setCancelling(false);
     setErr(null);
     nearBottom.current = true;
     setBusy(true);
@@ -304,7 +314,7 @@ export default function ChatPage() {
 
   async function send(overrideText?: string) {
     const content = (overrideText ?? input).trim();
-    if (!content || busy) return;
+    if (!content || busy || cancelling || messages.at(-1)?.status === "pending") return;
 
     const observation = observer.current.begin();
     const placeholder: Msg = {
@@ -322,7 +332,12 @@ export default function ChatPage() {
     setErr(null);
 
     try {
-      const accepted = await api.chat(content, conversationId, true);
+      const submission = api.chat(content, conversationId, true);
+      // Keep the acceptance promise so Cancel also works during submission.
+      const id = submission.then((accepted) => accepted.message_id);
+      activeRequest.current = { id, observation };
+      void id.catch(() => {}); // The submission error is handled below.
+      const accepted = await submission;
       if (!observation.isCurrent()) return;
       setConversationId(accepted.conversation_id);
       setMessages((current) =>
@@ -345,12 +360,24 @@ export default function ChatPage() {
     }
   }
 
-  function stopWatching() {
-    // Client-side only: stop polling for the reply, but leave it
-    // generating server-side — re-opening this conversation resumes
-    // watching it (see openConversation).
-    stopPolling();
-    setBusy(false);
+  async function cancelReply() {
+    const request = activeRequest.current;
+    if (!request || cancelling) return;
+    setCancelling(true);
+    setErr(null);
+    try {
+      const id = await request.id;
+      const result = await api.chatMessages.cancel(id);
+      if (!request.observation.isCurrent()) return;
+      stopPolling();
+      receiveReply(id, result);
+    } catch (error) {
+      if (request.observation.isCurrent()) {
+        setErr(error instanceof Error ? error.message : "Could not cancel reply");
+      }
+    } finally {
+      if (request.observation.isCurrent()) setCancelling(false);
+    }
   }
 
   async function removeConversation(id: number) {
@@ -627,6 +654,10 @@ export default function ChatPage() {
                     >
                       {isUser ? (
                         m.content
+                      ) : m.status === "cancelled" ? (
+                        <p role="status" className="text-muted-foreground">
+                          Reply cancelled. Any actions already saved are kept.
+                        </p>
                       ) : m.status === "error" ? (
                         <p role="status" className="text-muted-foreground">
                           Reply failed or was interrupted. Send a new message to
@@ -908,14 +939,16 @@ export default function ChatPage() {
                   ? "Coach reply ready"
                   : ""}
             </p>
-            {busy && (
+            {(busy || messages.at(-1)?.status === "pending") && (
               <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="flex-1 text-muted-foreground">
                   Coach is working. You can leave and return.
                 </span>
-                <Button size="sm" variant="ghost" onClick={stopWatching}>
-                  Hide progress
-                </Button>
+                {activeRequest.current && (
+                  <Button size="sm" variant="ghost" onClick={cancelReply} disabled={cancelling}>
+                    {cancelling ? "Cancelling…" : "Cancel reply"}
+                  </Button>
+                )}
               </div>
             )}
             {!busy && messages.at(-1)?.status === "pending" && (
@@ -923,6 +956,7 @@ export default function ChatPage() {
                 size="sm"
                 variant="outline"
                 className="mb-2"
+                disabled={cancelling}
                 onClick={() => {
                   const id = messages.at(-1)?.id;
                   if (id) pollReply(id, observer.current.begin());
@@ -968,7 +1002,7 @@ export default function ChatPage() {
                 type="submit"
                 size="icon"
                 className="h-12 w-12 shrink-0"
-                disabled={busy || !input.trim()}
+                disabled={busy || cancelling || messages.at(-1)?.status === "pending" || !input.trim()}
                 aria-label="Send message"
               >
                 <Send />
