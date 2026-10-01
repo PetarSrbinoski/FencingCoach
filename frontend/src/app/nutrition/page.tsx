@@ -1,6 +1,8 @@
 "use client";
 
 import { QuickFoods } from "@/components/quick-foods";
+import { PageHeading } from "@/components/page-heading";
+import { NutritionProgress } from "@/components/nutrition-progress";
 
 import { randomUUID } from "@/lib/uuid";
 
@@ -44,11 +46,13 @@ import { createJobObserver, type JobObservation } from "@/lib/job-observer";
 import { useWorkflowRefresh } from "@/lib/workflow-refresh";
 import {
   AlertTriangle,
+  ArrowUp,
   BatteryCharging,
   CalendarClock,
   ChefHat,
   Coffee,
   Cookie,
+  Loader2,
   Moon,
   Search,
   PencilLine,
@@ -853,14 +857,7 @@ export default function NutritionPage() {
   return (
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Nutrition<span className="text-accent">.</span>
-        </h1>
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Fuel & recovery
-        </span>
-      </header>
+      <PageHeading title="Nutrition" eyebrow="Fuel & recovery" />
 
       {err && (
         <div className="border border-accent/30 bg-accent/5 px-5 py-4">
@@ -939,52 +936,56 @@ export default function NutritionPage() {
 
           {/* Targets vs intake */}
           {loading && !targets ? (
-            <Card title="Targets vs intake">
-              <div className="space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-1.5 w-full" />
+            <Card>
+              <div
+                className="grid grid-cols-4 gap-2 sm:gap-6"
+                aria-label="Loading daily intake"
+              >
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <Skeleton className="mx-auto aspect-square w-full max-w-32 rounded-full sm:max-w-36" />
+                    <Skeleton className="mx-auto h-3 w-12" />
                   </div>
                 ))}
               </div>
             </Card>
           ) : targets && totals ? (
             <Card className="nutrition-intake">
-              <div className="grid grid-cols-4 gap-3" aria-label="Daily intake">
+              <div
+                className="grid grid-cols-4 gap-2 sm:gap-6"
+                aria-label="Daily intake"
+              >
                 {(
                   [
-                    ["kcal", "Calories", "kcal"],
-                    ["protein_g", "Protein", "g"],
-                    ["carbs_g", "Carbs", "g"],
-                    ["fat_g", "Fat", "g"],
+                    ["kcal", "Calories", "kcal", "text-accent"],
+                    [
+                      "protein_g",
+                      "Protein",
+                      "g",
+                      "text-sky-600 dark:text-sky-400",
+                    ],
+                    [
+                      "carbs_g",
+                      "Carbs",
+                      "g",
+                      "text-amber-600 dark:text-amber-400",
+                    ],
+                    [
+                      "fat_g",
+                      "Fat",
+                      "g",
+                      "text-emerald-600 dark:text-emerald-400",
+                    ],
                   ] as const
-                ).map(([key, label, unit]) => (
-                  <div key={key} className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-xl font-semibold tabular-nums">
-                      {Math.round(totals[key])}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      / {Math.round(targets[key])} {unit}
-                    </p>
-                    <div
-                      role="progressbar"
-                      aria-label={label}
-                      aria-valuemin={0}
-                      aria-valuemax={targets[key] || 100}
-                      aria-valuenow={Math.min(totals[key], targets[key] || 100)}
-                      aria-valuetext={`${totals[key]} of ${targets[key]} ${unit}`}
-                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                    >
-                      <div
-                        className="h-full rounded-full bg-accent"
-                        style={{
-                          width: `${targets[key] > 0 ? Math.min(100, (totals[key] / targets[key]) * 100) : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
+                ).map(([key, label, unit, color]) => (
+                  <NutritionProgress
+                    key={key}
+                    label={label}
+                    actual={totals[key]}
+                    target={targets[key]}
+                    unit={unit}
+                    color={color}
+                  />
                 ))}
               </div>
               <details className="mt-2 text-sm">
@@ -1097,11 +1098,8 @@ export default function NutritionPage() {
             </Card>
           ) : null}
 
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <section
-              aria-label="Log a meal"
-              className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-1"
-            >
+          <div className="space-y-5">
+            <section aria-label="Log a meal" className="min-w-0 space-y-4">
               <Card className="border-accent/30">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
@@ -1126,27 +1124,36 @@ export default function NutritionPage() {
                 </div>
                 <div ref={loggerRef} className="space-y-4">
                   <div className="flex flex-col gap-3">
-                    <label className="text-sm font-medium">
-                      <span className="mb-2 block text-lg font-semibold">
-                        What did you eat?
-                      </span>
-                      <Textarea
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder="For example: 200 g chicken, rice and broccoli"
-                        disabled={busy || !!estimate || !!estimateDestination}
-                        id="meal-description"
-                        aria-label="Meal description"
-                        rows={2}
-                      />
+                    <label
+                      htmlFor="meal-description"
+                      className="text-lg font-semibold"
+                    >
+                      Add food
                     </label>
                     <VoiceLogging
                       compact
                       day={selectedDay}
                       meal={meal}
                       onCommitted={() => refresh()}
+                      input={
+                        <Textarea
+                          value={text}
+                          onChange={(e) => setText(e.target.value)}
+                          placeholder="Add food…"
+                          disabled={busy || !!estimate || !!estimateDestination}
+                          id="meal-description"
+                          aria-label="Meal description"
+                          rows={2}
+                          className="min-h-20 resize-none pr-28"
+                        />
+                      }
                       actions={
                         <Button
+                          type="button"
+                          size="icon"
+                          className="rounded-full"
+                          aria-label={busy ? "Estimating…" : "Estimate"}
+                          title={busy ? "Estimating…" : "Estimate"}
                           onClick={requestEstimate}
                           disabled={
                             busy ||
@@ -1156,7 +1163,11 @@ export default function NutritionPage() {
                             !selectedDay
                           }
                         >
-                          {busy ? "Estimating…" : "Estimate"}
+                          {busy ? (
+                            <Loader2 className="animate-spin" aria-hidden="true" />
+                          ) : (
+                            <ArrowUp aria-hidden="true" />
+                          )}
                         </Button>
                       }
                     />
@@ -1320,13 +1331,6 @@ export default function NutritionPage() {
                     </div>
                   )}
                 </div>
-                <div className="my-4 border-t border-border" />
-                <QuickFoods
-                  day={selectedDay}
-                  meal={meal}
-                  revision={reloadTick}
-                  onChanged={refresh}
-                />
                 <Button
                   className="mt-2"
                   variant="link"
@@ -1367,8 +1371,28 @@ export default function NutritionPage() {
                 {err && <ErrorNotice message={err} />}
               </Card>
             </section>
-            <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
-              <Card title={`Entries (${selectedDay})`}>
+            <section aria-label="Recently added foods">
+              <Card title="Recently added foods">
+                <QuickFoods
+                  day={selectedDay}
+                  meal={meal}
+                  revision={reloadTick}
+                  onChanged={refresh}
+                />
+              </Card>
+            </section>
+            <div
+              className="min-w-0 space-y-4"
+              aria-label="Foods eaten on selected day"
+              role="region"
+            >
+              <Card
+                title={
+                  selectedDay === today
+                    ? "Foods eaten today"
+                    : `Foods eaten · ${selectedDay}`
+                }
+              >
                 {loading && todayLogs.length === 0 ? (
                   <div className="space-y-3">
                     {Array.from({ length: 3 }).map((_, i) => (

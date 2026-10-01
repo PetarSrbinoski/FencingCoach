@@ -161,6 +161,28 @@ test("one tap repeats to the selected day and meal; Undo removes only the copy",
   await expect(
     page.getByRole("button", { name: `Log ${name} again` }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Nutrition", exact: true }),
+  ).toHaveClass("page-title");
+  await expect(
+    page.locator('.nutrition-intake [role="progressbar"] svg'),
+  ).toHaveCount(4);
+  const input = (await page.getByLabel("Meal description").boundingBox())!;
+  const mic = (await page
+    .getByRole("button", { name: "Record voice", exact: true })
+    .boundingBox())!;
+  expect(mic.x).toBeGreaterThan(input.x + input.width / 2);
+  expect(mic.x + mic.width).toBeLessThanOrEqual(input.x + input.width);
+  expect(mic.y).toBeGreaterThanOrEqual(input.y);
+  expect(mic.y + mic.height).toBeLessThanOrEqual(input.y + input.height);
+  const recent = (await page
+    .getByRole("region", { name: "Recently added foods", exact: true })
+    .boundingBox())!;
+  const entries = (await page
+    .getByRole("region", { name: "Foods eaten on selected day", exact: true })
+    .boundingBox())!;
+  expect(recent.y).toBeGreaterThan(input.y + input.height);
+  expect(entries.y).toBeGreaterThanOrEqual(recent.y + recent.height);
   await page.screenshot({
     path: `.scratch/nutrition-${info.project.name}.png`,
     fullPage: true,

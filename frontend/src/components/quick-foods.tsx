@@ -62,7 +62,7 @@ export function QuickFoods({
         if (saved.status === "fulfilled") setFoods(saved.value);
         if (logs.status === "rejected" || saved.status === "rejected") {
           setLoadError(
-            "Some foods could not be loaded. You can still describe a meal below.",
+            "Some foods could not be loaded. You can still describe a meal above.",
           );
         }
         setLoading(false);
@@ -314,9 +314,9 @@ export function QuickFoods({
         <>
           {visibleRecent.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold">
-                {search ? "Recent matches" : "Have it again"}
-              </h3>
+              {search && (
+                <h3 className="text-sm font-semibold">Recent matches</h3>
+              )}
               <p className="mt-1 text-xs text-muted-foreground">
                 Tap + for the same portion. Tap the name to adjust.
               </p>
@@ -426,12 +426,12 @@ export function QuickFoods({
           {!recent.length && !foods.length && (
             <p className="text-sm text-muted-foreground">
               Your recent foods will appear here after you log a meal. Start
-              with a description below.
+              with a description above.
             </p>
           )}
           {search && !matches.length && !visibleFoods.length && (
             <p className="text-sm text-muted-foreground">
-              No matching foods. Describe what you ate below.
+              No matching foods. Describe what you ate above.
             </p>
           )}
         </>
