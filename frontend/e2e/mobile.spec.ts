@@ -107,20 +107,24 @@ test("nutrition views survive Back and food portions use the chosen date", async
     page.getByRole("button", { name: "Shopping", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await page.getByRole("button", { name: "Diary", exact: true }).click();
-  await page.getByRole("button", { name: "Add food", exact: true }).click();
-  await page.getByRole("button", { name: /^Greek yogurt/ }).click();
-  const editor = page.getByRole("dialog", { name: "Log Greek yogurt" });
-  await editor.getByLabel("Diary date").fill("2026-09-27");
-  await editor.getByLabel("Amount eaten").fill("200");
-  await expect(editor.getByText("Portion:", { exact: false })).toContainText(
-    "240.0",
-  );
-  await editor.getByRole("button", { name: "Log food", exact: true }).click();
-  await expect(editor).toBeHidden();
+  await page.getByLabel("Diary date").fill("2026-09-27");
+  await page.getByLabel("Search recent and saved foods").fill("Greek yogurt");
+  await page
+    .getByRole("button", { name: "Greek yogurt one pot · 150 g", exact: true })
+    .click();
+  await page.getByLabel("Portion amount").fill("2");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Log food", exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Undo logging Greek yogurt",
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(page.getByLabel("Diary date")).toHaveValue("2026-09-27");
   expect(submitted).toMatchObject({
     day: "2026-09-27",
-    portions: [{ food_id: 1, grams: 200 }],
+    portions: [{ food_id: 1, servings: 2 }],
   });
 });
 
@@ -153,7 +157,9 @@ test("failed deletion remains reviewable and retryable in the confirmation", asy
   ).toBeEnabled();
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page.getByText("Greek yogurt with oats, banana and honey", { exact: true }),
+    page
+      .locator("#diary-entry-1")
+      .getByText("Greek yogurt with oats, banana and honey", { exact: true }),
   ).toBeVisible();
 });
 

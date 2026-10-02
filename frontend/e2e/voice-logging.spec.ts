@@ -11,8 +11,6 @@ test.beforeEach(async ({ request }) => {
 
 async function openVoice(page: import("@playwright/test").Page) {
   await page.goto("/nutrition");
-  await page.getByRole("button", { name: "Add food" }).first().click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
 }
 
 test("permission denial leaves manual entry available", async ({ page }) => {
@@ -25,8 +23,7 @@ test("permission denial leaves manual entry available", async ({ page }) => {
   });
   await openVoice(page);
   await page.getByRole("button", { name: "Record voice" }).click();
-  await expect(page.getByRole("alert")).toContainText("Microphone permission was denied");
-  await page.getByRole("button", { name: "Describe meal" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Microphone permission was denied" })).toBeVisible();
   await expect(page.getByLabel("Meal description")).toBeVisible();
 });
 
@@ -62,8 +59,6 @@ test("corrected speech is reviewed before separate save and log actions", async 
   await expect(page.getByRole("status").filter({ hasText: "Saved Kefir pot" })).toBeVisible();
   expect(await (await request.get(`${api}/nutrition/log?days=90`)).json()).toEqual([]);
   await page.reload();
-  await page.getByRole("button", { name: "Add food" }).first().click();
-  await page.getByRole("button", { name: "Voice", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved Kefir pot" })).toBeVisible();
   await page.getByRole("button", { name: "Start another" }).click();
   await page.getByRole("button", { name: "Record voice" }).click();

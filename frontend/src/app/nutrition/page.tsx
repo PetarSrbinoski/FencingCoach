@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeading } from "@/components/page-heading";
+import { QuickFoods } from "@/components/quick-foods";
 
 import { randomUUID } from "@/lib/uuid";
 
@@ -50,6 +50,8 @@ import {
   Coffee,
   Cookie,
   Moon,
+  Search,
+  PencilLine,
   ShoppingCart,
   Sun,
   Trash2,
@@ -141,8 +143,8 @@ export default function NutritionPage() {
       query.has("competition") || query.has("plan") ? "competition" : undefined,
     "planView",
   );
-  const [addOpen, setAddOpen] = useState(false);
-  const [addMode, setAddMode] = useState<"describe" | "saved" | "voice">("saved");
+  const loggerRef = useRef<HTMLDivElement>(null);
+  const [loggerVisible, setLoggerVisible] = useState(true);
   const [today, setToday] = useState("");
   const [selectedDay, setSelectedDay] = useState("");
   const [text, setText] = useState("");
@@ -223,8 +225,7 @@ export default function NutritionPage() {
           setEstimateDestination({ day: saved.day, meal: saved.meal || "" });
         if (typeof saved.id === "number") {
           setBusy(true);
-          setAddMode("describe");
-          setAddOpen(true);
+
           pollEstimateResult(saved.id);
         }
       } catch {
@@ -233,6 +234,22 @@ export default function NutritionPage() {
     }
     return () => stopEstimatePolling();
   }, []);
+
+  useEffect(() => {
+    const element = loggerRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) =>
+      setLoggerVisible(entry.isIntersecting),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [view]);
+
+  function focusLogger(id: string) {
+    const field = document.getElementById(id);
+    field?.scrollIntoView({ block: "center" });
+    field?.focus({ preventScroll: true });
+  }
 
   function refresh() {
     setReloadTick((value) => value + 1);
@@ -404,6 +421,7 @@ export default function NutritionPage() {
             fiber_g: est.fiber_g != null ? String(est.fiber_g) : "",
           });
         } else {
+          setEstimateDestination(null);
           setErr(est.error ?? "Nutrition estimation failed");
         }
       },
@@ -416,7 +434,8 @@ export default function NutritionPage() {
   }
 
   async function requestEstimate() {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || estimate || estimateDestination || !selectedDay)
+      return;
     const observation = estimateObserver.current.begin();
     const destination = { day: selectedDay, meal };
     setEstimateDestination(destination);
@@ -451,6 +470,7 @@ export default function NutritionPage() {
       }
       if (!observation.isCurrent()) return;
       setBusy(false);
+      setEstimateDestination(null);
       setErr(e?.message ?? String(e));
     }
   }
@@ -515,7 +535,6 @@ export default function NutritionPage() {
       setText("");
       setEstimate(null);
       setEstimateDestination(null);
-      setAddOpen(false);
       setSelectedDay(estimateDestination?.day || selectedDay);
       setEntryMessage(
         `Logged meal for ${estimateDestination?.day || selectedDay}.`,
@@ -560,7 +579,6 @@ export default function NutritionPage() {
     setEditing(null);
     setRepeating(null);
     setManualMode(true);
-    setAddOpen(false);
     setEntryError(null);
     setEntryDraft({
       day: selectedDay,
@@ -833,9 +851,16 @@ export default function NutritionPage() {
   );
 
   return (
-    <div className="space-y-6 lg:space-y-8">
+    <div className="space-y-4 lg:space-y-6">
       {/* Header */}
-      <PageHeading title="Nutrition" eyebrow="Fuel & recovery" />
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          Nutrition<span className="text-accent">.</span>
+        </h1>
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Fuel & recovery
+        </span>
+      </header>
 
       {err && (
         <div className="border border-accent/30 bg-accent/5 px-5 py-4">
@@ -860,7 +885,7 @@ export default function NutritionPage() {
       />
       {view === "diary" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 sm:grid-cols-[44px_minmax(0,1fr)_44px_auto]">
+          <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_auto] items-center gap-2">
             <Button
               variant="outline"
               size="icon"
@@ -889,7 +914,7 @@ export default function NutritionPage() {
               ›
             </Button>
             <Button
-              className="col-span-3 sm:col-span-1"
+              className="px-2"
               variant="ghost"
               size="sm"
               onClick={() => setSelectedDay(today)}
@@ -912,16 +937,6 @@ export default function NutritionPage() {
             </p>
           )}
 
-          <Button
-            className="w-full"
-            onClick={() => {
-              setErr(null);
-              setAddOpen(true);
-            }}
-            disabled={!selectedDay}
-          >
-            Add food
-          </Button>
           {/* Targets vs intake */}
           {loading && !targets ? (
             <Card title="Targets vs intake">
@@ -935,111 +950,130 @@ export default function NutritionPage() {
               </div>
             </Card>
           ) : targets && totals ? (
-            <Card title="Daily intake" className="nutrition-intake">
-              <div className="space-y-3">
-                <MacroProgress
-                  label="Calories"
-                  actual={totals.kcal}
-                  target={targets.kcal}
-                  unit="kcal"
-                />
-                <MacroProgress
-                  label="Protein"
-                  actual={totals.protein_g}
-                  target={targets.protein_g}
-                  unit="g"
-                />
-                <MacroProgress
-                  label="Carbs"
-                  actual={totals.carbs_g}
-                  target={targets.carbs_g}
-                  unit="g"
-                />
-                <MacroProgress
-                  label="Fat"
-                  actual={totals.fat_g}
-                  target={targets.fat_g}
-                  unit="g"
-                />
-              </div>
-              <details className="mt-3 text-sm">
-                <summary>Target settings & source</summary>{" "}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                  <Badge
-                    variant={
-                      targets.override_source === "manual"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {targets.override_source === "manual" ? "manual" : "auto"}
-                  </Badge>
-                  <Badge variant="outline">
-                    {targets.target_source === "accepted"
-                      ? `Accepted plan ${targets.plan_id} v${targets.plan_version}`
-                      : "Ordinary calculated target"}
-                  </Badge>
-                  <Select
-                    value={dayTypeOverride}
-                    onValueChange={handleDayTypeChange}
-                  >
-                    <SelectTrigger
-                      aria-label="Day type"
-                      className="w-full min-w-0 h-12 text-base"
+            <Card className="nutrition-intake">
+              <div className="grid grid-cols-4 gap-3" aria-label="Daily intake">
+                {(
+                  [
+                    ["kcal", "Calories", "kcal"],
+                    ["protein_g", "Protein", "g"],
+                    ["carbs_g", "Carbs", "g"],
+                    ["fat_g", "Fat", "g"],
+                  ] as const
+                ).map(([key, label, unit]) => (
+                  <div key={key} className="min-w-0">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="mt-1 text-xl font-semibold tabular-nums">
+                      {Math.round(totals[key])}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      / {Math.round(targets[key])} {unit}
+                    </p>
+                    <div
+                      role="progressbar"
+                      aria-label={label}
+                      aria-valuemin={0}
+                      aria-valuemax={targets[key] || 100}
+                      aria-valuenow={Math.min(totals[key], targets[key] || 100)}
+                      aria-valuetext={`${totals[key]} of ${targets[key]} ${unit}`}
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
                     >
-                      <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DAY_TYPES.map((dt) => (
-                        <SelectItem key={dt} value={dt}>
-                          {dt === "auto"
-                            ? "Auto"
-                            : dt.charAt(0).toUpperCase() + dt.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <div
+                        className="h-full rounded-full bg-accent"
+                        style={{
+                          width: `${targets[key] > 0 ? Math.min(100, (totals[key] / targets[key]) * 100) : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <details className="mt-2 text-sm">
+                <summary className="text-muted-foreground">
+                  Targets & details
+                </summary>
+                <div className="space-y-3 pt-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                    <Badge
+                      variant={
+                        targets.override_source === "manual"
+                          ? "default"
+                          : "secondary"
+                      }
+                    >
+                      {targets.override_source === "manual" ? "manual" : "auto"}
+                    </Badge>
+                    <Badge variant="outline">
+                      {targets.target_source === "accepted"
+                        ? `Accepted plan ${targets.plan_id} v${targets.plan_version}`
+                        : "Ordinary calculated target"}
+                    </Badge>
+                    <Select
+                      value={dayTypeOverride}
+                      onValueChange={handleDayTypeChange}
+                    >
+                      <SelectTrigger
+                        aria-label="Day type"
+                        className="w-full min-w-0 h-12 text-base"
+                      >
+                        <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DAY_TYPES.map((dt) => (
+                          <SelectItem key={dt} value={dt}>
+                            {dt === "auto"
+                              ? "Auto"
+                              : dt.charAt(0).toUpperCase() + dt.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Recorded intake reflects {totals.entry_count} entr
+                    {totals.entry_count === 1 ? "y" : "ies"}; an incomplete
+                    diary can understate actual intake. Unknown nutrient values
+                    are not counted as zero.
+                  </p>
+                  {targets.needs_review && (
+                    <p role="status" className="text-xs text-warning mt-2">
+                      This accepted plan&rsquo;s event, profile, or training
+                      inputs changed. Review a new preview before revising
+                      targets.
+                    </p>
+                  )}
+                  <details className="text-xs text-muted-foreground mt-3">
+                    <summary className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+                      Why these targets?
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      {targets.notes && <p>{targets.notes}</p>}
+                      <p>
+                        Goal: {targets.goal} · Weight: {targets.weight_kg} kg ·
+                        Day: {targets.day_type} · Phase: {targets.phase}
+                      </p>
+                      <p>
+                        Baseline: {targets.baseline_kcal} kcal from{" "}
+                        {targets.baseline_source} through {targets.data_cutoff}.
+                        Requested goal: {targets.requested_kcal} kcal. Displayed
+                        energy equals protein × 4 + carbs × 4 + fat × 9.
+                      </p>
+                      {targets.energy_conflict && (
+                        <p role="status">{targets.energy_conflict}</p>
+                      )}
+                      <p>
+                        Policy {targets.policy_version}. These targets use
+                        current profile and rules.
+                      </p>
+                    </div>
+                  </details>
                 </div>
               </details>
-              <p className="text-sm text-muted-foreground mt-3">
-                Recorded intake reflects {totals.entry_count} entr
-                {totals.entry_count === 1 ? "y" : "ies"}; an incomplete diary
-                can understate actual intake. Unknown nutrient values are not
-                counted as zero.
-              </p>
               {targets.needs_review && (
-                <p role="status" className="text-xs text-warning mt-2">
-                  This accepted plan&rsquo;s event, profile, or training inputs
-                  changed. Review a new preview before revising targets.
+                <p className="text-xs text-warning">
+                  Your accepted plan needs review. Open Targets & details.
                 </p>
               )}
-
-              <details className="text-xs text-muted-foreground mt-3">
-                <summary className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
-                  Why these targets?
-                </summary>
-                <div className="mt-2 space-y-2">
-                  {targets.notes && <p>{targets.notes}</p>}
-                  <p>
-                    Goal: {targets.goal} · Weight: {targets.weight_kg} kg · Day:{" "}
-                    {targets.day_type} · Phase: {targets.phase}
-                  </p>
-                  <p>
-                    Baseline: {targets.baseline_kcal} kcal from{" "}
-                    {targets.baseline_source} through {targets.data_cutoff}.
-                    Requested goal: {targets.requested_kcal} kcal. Displayed
-                    energy equals protein × 4 + carbs × 4 + fat × 9.
-                  </p>
-                  {targets.energy_conflict && (
-                    <p role="status">{targets.energy_conflict}</p>
-                  )}
-                  <p>
-                    Policy {targets.policy_version}. These targets use current
-                    profile and rules.
-                  </p>
-                </div>
-              </details>
             </Card>
           ) : targetError ? (
             <Card title="Targets unavailable">
@@ -1063,182 +1097,486 @@ export default function NutritionPage() {
             </Card>
           ) : null}
 
-          <Card title={`Entries (${selectedDay})`}>
-            {loading && todayLogs.length === 0 ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                ))}
-              </div>
-            ) : todayLogs.length === 0 ? (
-              <div className="flex flex-col items-center py-8 text-center">
-                <p className="text-muted-foreground text-sm font-medium">
-                  Nothing logged yet
-                </p>
-                <Button className="mt-3" onClick={() => setAddOpen(true)}>
-                  Add food
-                </Button>
-              </div>
-            ) : (
-              <ul className="space-y-3 divide-y divide-border">
-                {todayLogs.map((l) => (
-                  <li
-                    key={l.id}
-                    id={`diary-entry-${l.id}`}
-                    className="text-sm pt-3 first:pt-0 scroll-mt-24"
-                  >
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">{l.meal || "\u2014"}</Badge>
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <section
+              aria-label="Log a meal"
+              className="min-w-0 space-y-4 lg:col-start-2 lg:row-start-1"
+            >
+              <Card className="border-accent/30">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    To {selectedDay === today ? "Today" : selectedDay}
+                  </p>
+                  <label className="flex items-center gap-2 text-sm">
+                    <span className="sr-only">Meal slot</span>
+                    <select
+                      aria-label="Meal slot"
+                      value={meal}
+                      onChange={(event) => setMeal(event.target.value)}
+                      className="h-11 rounded-xl border border-input bg-background px-3 text-base"
+                    >
+                      <option value="">Any meal</option>
+                      {MEALS.map((slot) => (
+                        <option key={slot} value={slot}>
+                          {slotLabel(slot)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div ref={loggerRef} className="space-y-4">
+                  <div className="flex flex-col gap-3">
+                    <label className="text-sm font-medium">
+                      <span className="mb-2 block text-lg font-semibold">
+                        What did you eat?
+                      </span>
+                      <Textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder="For example: 200 g chicken, rice and broccoli"
+                        disabled={busy || !!estimate || !!estimateDestination}
+                        id="meal-description"
+                        aria-label="Meal description"
+                        rows={2}
+                      />
+                    </label>
+                    <VoiceLogging
+                      compact
+                      day={selectedDay}
+                      meal={meal}
+                      onCommitted={() => refresh()}
+                      actions={
+                        <Button
+                          onClick={requestEstimate}
+                          disabled={
+                            busy ||
+                            !!estimate ||
+                            !!estimateDestination ||
+                            !text.trim() ||
+                            !selectedDay
+                          }
+                        >
+                          {busy ? "Estimating…" : "Estimate"}
+                        </Button>
+                      }
+                    />
+                    {busy && (
                       <Button
+                        onClick={stopWatchingEstimate}
                         variant="ghost"
-                        size="icon"
-                        className="h-11 w-11 text-muted-foreground hover:text-accent hover:bg-accent/10"
-                        onClick={() => setDeleteId(l.id)}
-                        aria-label="Delete entry"
+                        aria-label="Stop watching (estimate keeps generating)"
+                        title="The estimate keeps generating in the background — this just stops watching it here."
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <X className="h-3.5 w-3.5" />
+                        Hide progress
                       </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEntry(l, "edit")}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEntry(l, "repeat")}
-                      >
-                        Repeat
-                      </Button>
-                    </div>
-                    <div className="text-foreground mt-1.5 font-medium">
-                      {l.raw_text}
-                    </div>
-                    <div className="text-muted-foreground text-xs mt-1 font-sans">
-                      {l.kcal?.toFixed(0)} kcal · P {l.protein_g?.toFixed(0)} /
-                      C {l.carbs_g?.toFixed(0)} / F {l.fat_g?.toFixed(0)}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {l.estimated_by === "repeat"
-                        ? "Repeated recorded values"
-                        : l.estimated_by?.startsWith("saved")
-                          ? "Saved food values"
-                          : l.estimated_by?.startsWith("mixed")
-                            ? "Saved values + estimates"
-                            : l.estimated_by?.startsWith("manual")
-                              ? "Manual or edited values"
-                              : "Estimated values"}
-                      {Boolean(l.micros?.totals_edited) &&
-                        " · Ingredient estimates may differ from edited totals"}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-          <details className="rounded-2xl border border-border bg-card p-4">
-            <summary className="font-medium">All nutrients & totals</summary>
-            <div className="space-y-4 pt-3">
-              {targets && (
-                <MacroProgress
-                  label="Fiber"
-                  actual={totals?.fiber_g ?? 0}
-                  target={targets.fiber_g}
-                  unit="g"
-                />
-              )}
-              <Card title={`Diary totals (${selectedDay})`}>
-                {loading && !totals ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-5 w-full" />
-                    ))}
+                    )}
                   </div>
-                ) : totals ? (
-                  <>
-                    <StatRow
-                      label="Calories"
-                      value={`${totals.kcal.toFixed(0)} kcal`}
-                    />
-                    <StatRow
-                      label="Protein"
-                      value={`${totals.protein_g.toFixed(0)} g`}
-                    />
-                    <StatRow
-                      label="Carbs"
-                      value={`${totals.carbs_g.toFixed(0)} g`}
-                    />
-                    <StatRow
-                      label="Fat"
-                      value={`${totals.fat_g.toFixed(0)} g`}
-                    />
-                    <StatRow
-                      label="Fiber"
-                      value={`${totals.fiber_g.toFixed(0)} g`}
-                    />
-                    <StatRow label="Entries" value={totals.entry_count} />
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center py-8 text-center">
-                    <div className="h-10 w-10 border border-dashed border-border flex items-center justify-center mb-2">
-                      <Utensils
-                        className="h-4 w-4 text-muted-foreground"
-                        strokeWidth={1.5}
-                      />
-                    </div>
-                    <p className="text-muted-foreground text-sm font-medium">
-                      No data yet
-                    </p>
-                  </div>
-                )}
-              </Card>
 
-              <Card title={`Micros (${selectedDay})`}>
-                {loading && !totals ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <Skeleton key={i} className="h-5 w-full" />
+                  {/* Review/edit before saving */}
+                  {estimate && (
+                    <div className="mt-5 border border-border p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          Review estimate
+                        </span>
+                        <Badge
+                          variant={
+                            estimate.confidence === "low"
+                              ? "destructive"
+                              : "outline"
+                          }
+                        >
+                          {estimate.confidence} confidence
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Destination: {estimateDestination?.day} ·{" "}
+                        {estimateDestination?.meal || "Unspecified meal"}
+                      </p>
+
+                      {estimate.confidence === "low" && (
+                        <div className="flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />
+                          <p className="text-xs text-warning">
+                            Low-confidence estimate — double-check these numbers
+                            before logging.
+                          </p>
+                        </div>
+                      )}
+
+                      <div
+                        className="rounded-xl bg-muted/50 p-3"
+                        aria-label="Meal estimate preview"
+                      >
+                        <p className="text-xl font-semibold">
+                          {draft.kcal || "—"}{" "}
+                          <span className="text-sm font-normal">kcal</span>
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Protein {draft.protein_g || "—"} g · Carbs{" "}
+                          {draft.carbs_g || "—"} g · Fat {draft.fat_g || "—"} g
+                        </p>
+                        {estimate.items.length > 0 && (
+                          <ul className="mt-3 space-y-1 text-sm">
+                            {estimate.items.map((item, index) => (
+                              <li
+                                key={index}
+                                className="flex justify-between gap-3"
+                              >
+                                <span>{item.name}</span>
+                                <span className="shrink-0 text-muted-foreground">
+                                  {item.qty_g} g
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <details>
+                        <summary className="text-sm font-medium">
+                          Edit calories & macros
+                        </summary>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {(
+                            [
+                              ["kcal", "Kcal"],
+                              ["protein_g", "Protein g"],
+                              ["carbs_g", "Carbs g"],
+                              ["fat_g", "Fat g"],
+                              ["fiber_g", "Fiber g"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <div key={key} className="space-y-1">
+                              <label
+                                htmlFor={`nutrition-review-${key}`}
+                                className="text-xs font-medium uppercase tracking-widest text-muted-foreground block"
+                              >
+                                {label}
+                              </label>
+                              <Input
+                                id={`nutrition-review-${key}`}
+                                value={draft[key]}
+                                onChange={(e) =>
+                                  setDraft({ ...draft, [key]: e.target.value })
+                                }
+                                inputMode="decimal"
+                                className="h-12 text-base"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+
+                      {estimate.notes && (
+                        <ReadMore label="Read estimate notes">
+                          <Markdown>{estimate.notes}</Markdown>
+                        </ReadMore>
+                      )}
+
+                      {estimate.items.some(
+                        (item) => item.source === "saved",
+                      ) && (
+                        <details>
+                          <summary>Ingredient sources</summary>
+                          <ul className="text-sm space-y-2">
+                            {estimate.items.map((item, index) => (
+                              <li key={index}>
+                                <span className="font-medium">{item.name}</span>
+                                {item.source === "saved"
+                                  ? ` · ${item.qty_g} g · saved values`
+                                  : " · estimated"}
+                                {item.nutrients && (
+                                  <span className="block text-muted-foreground">
+                                    {Object.entries(item.nutrients)
+                                      .map(([key, value]) => `${key}: ${value}`)
+                                      .join(" · ")}
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+
+                      <div className="flex flex-wrap gap-2 bg-card py-1">
+                        <Button
+                          onClick={confirmLog}
+                          disabled={confirming}
+                          size="sm"
+                        >
+                          {confirming ? "Saving…" : "Log meal"}
+                        </Button>
+                        <Button
+                          onClick={discardEstimate}
+                          disabled={confirming}
+                          size="sm"
+                          variant="ghost"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Edit description
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="my-4 border-t border-border" />
+                <QuickFoods
+                  day={selectedDay}
+                  meal={meal}
+                  revision={reloadTick}
+                  onChanged={refresh}
+                />
+                <Button
+                  className="mt-2"
+                  variant="link"
+                  size="sm"
+                  onClick={openManual}
+                  disabled={!selectedDay}
+                >
+                  Enter macros manually
+                </Button>
+                {busy && (
+                  <p
+                    role="status"
+                    className="mt-3 text-sm text-muted-foreground"
+                  >
+                    Your estimate is running. You can leave and return.
+                  </p>
+                )}
+                {!busy && !estimate && estimateDestination && (
+                  <Button
+                    variant="outline"
+                    className="mt-3"
+                    onClick={() => {
+                      const raw = sessionStorage.getItem(
+                        "pendingNutritionEstimate",
+                      );
+                      if (raw) {
+                        const saved = JSON.parse(raw);
+                        if (saved.id) {
+                          setBusy(true);
+                          pollEstimateResult(saved.id);
+                        }
+                      }
+                    }}
+                  >
+                    Resume estimate
+                  </Button>
+                )}
+                {err && <ErrorNotice message={err} />}
+              </Card>
+            </section>
+            <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
+              <Card title={`Entries (${selectedDay})`}>
+                {loading && todayLogs.length === 0 ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="space-y-1.5">
+                        <Skeleton className="h-3 w-16" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
                     ))}
                   </div>
-                ) : totals && Object.keys(totals.micros).length > 0 ? (
-                  Object.entries(totals.micros)
-                    .filter(
-                      ([k]) => !["items", "confidence", "notes"].includes(k),
-                    )
-                    .map(([k, v]) => (
-                      <StatRow
-                        key={k}
-                        label={k}
-                        value={typeof v === "number" ? v.toFixed(1) : String(v)}
-                        hint={
-                          totals.incomplete_micros?.includes(k)
-                            ? "incomplete"
-                            : undefined
-                        }
-                      />
-                    ))
-                ) : (
+                ) : todayLogs.length === 0 ? (
                   <div className="flex flex-col items-center py-8 text-center">
                     <p className="text-muted-foreground text-sm font-medium">
-                      No data yet
+                      Nothing logged yet
                     </p>
+                    <Button
+                      className="mt-3"
+                      onClick={() => focusLogger("meal-description")}
+                    >
+                      Add food
+                    </Button>
                   </div>
+                ) : (
+                  <ul className="space-y-3 divide-y divide-border">
+                    {todayLogs.map((l) => (
+                      <li
+                        key={l.id}
+                        id={`diary-entry-${l.id}`}
+                        className="text-sm pt-3 first:pt-0 scroll-mt-24"
+                      >
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline">{l.meal || "\u2014"}</Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11 text-muted-foreground hover:text-accent hover:bg-accent/10"
+                            onClick={() => setDeleteId(l.id)}
+                            aria-label="Delete entry"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEntry(l, "edit")}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEntry(l, "repeat")}
+                          >
+                            Repeat
+                          </Button>
+                        </div>
+                        <div className="text-foreground mt-1.5 font-medium">
+                          {l.raw_text}
+                        </div>
+                        <div className="text-muted-foreground text-xs mt-1 font-sans">
+                          {l.kcal?.toFixed(0)} kcal · P{" "}
+                          {l.protein_g?.toFixed(0)} / C {l.carbs_g?.toFixed(0)}{" "}
+                          / F {l.fat_g?.toFixed(0)}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {l.estimated_by === "repeat"
+                            ? "Repeated recorded values"
+                            : l.estimated_by?.startsWith("saved")
+                              ? "Saved food values"
+                              : l.estimated_by?.startsWith("mixed")
+                                ? "Saved values + estimates"
+                                : l.estimated_by?.startsWith("manual")
+                                  ? "Manual or edited values"
+                                  : "Estimated values"}
+                          {Boolean(l.micros?.totals_edited) &&
+                            " · Ingredient estimates may differ from edited totals"}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-                <p className="text-xs text-muted-foreground mt-3">
-                  Known amounts only. Missing nutrient values are unknown, not
-                  zero.
-                </p>
               </Card>
+              <details className="rounded-2xl border border-border bg-card p-4">
+                <summary className="font-medium">
+                  All nutrients & totals
+                </summary>
+                <div className="space-y-4 pt-3">
+                  {targets && (
+                    <MacroProgress
+                      label="Fiber"
+                      actual={totals?.fiber_g ?? 0}
+                      target={targets.fiber_g}
+                      unit="g"
+                    />
+                  )}
+                  <Card title={`Diary totals (${selectedDay})`}>
+                    {loading && !totals ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <Skeleton key={i} className="h-5 w-full" />
+                        ))}
+                      </div>
+                    ) : totals ? (
+                      <>
+                        <StatRow
+                          label="Calories"
+                          value={`${totals.kcal.toFixed(0)} kcal`}
+                        />
+                        <StatRow
+                          label="Protein"
+                          value={`${totals.protein_g.toFixed(0)} g`}
+                        />
+                        <StatRow
+                          label="Carbs"
+                          value={`${totals.carbs_g.toFixed(0)} g`}
+                        />
+                        <StatRow
+                          label="Fat"
+                          value={`${totals.fat_g.toFixed(0)} g`}
+                        />
+                        <StatRow
+                          label="Fiber"
+                          value={`${totals.fiber_g.toFixed(0)} g`}
+                        />
+                        <StatRow label="Entries" value={totals.entry_count} />
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center py-8 text-center">
+                        <div className="h-10 w-10 border border-dashed border-border flex items-center justify-center mb-2">
+                          <Utensils
+                            className="h-4 w-4 text-muted-foreground"
+                            strokeWidth={1.5}
+                          />
+                        </div>
+                        <p className="text-muted-foreground text-sm font-medium">
+                          No data yet
+                        </p>
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card title={`Micros (${selectedDay})`}>
+                    {loading && !totals ? (
+                      <div className="space-y-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <Skeleton key={i} className="h-5 w-full" />
+                        ))}
+                      </div>
+                    ) : totals && Object.keys(totals.micros).length > 0 ? (
+                      Object.entries(totals.micros)
+                        .filter(
+                          ([k]) =>
+                            !["items", "confidence", "notes"].includes(k),
+                        )
+                        .map(([k, v]) => (
+                          <StatRow
+                            key={k}
+                            label={k}
+                            value={
+                              typeof v === "number" ? v.toFixed(1) : String(v)
+                            }
+                            hint={
+                              totals.incomplete_micros?.includes(k)
+                                ? "incomplete"
+                                : undefined
+                            }
+                          />
+                        ))
+                    ) : (
+                      <div className="flex flex-col items-center py-8 text-center">
+                        <p className="text-muted-foreground text-sm font-medium">
+                          No data yet
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Known amounts only. Missing nutrient values are unknown,
+                      not zero.
+                    </p>
+                  </Card>
+                </div>
+              </details>
             </div>
-          </details>
+          </div>
+          {!loggerVisible && (
+            <div
+              data-mobile-dock
+              className="fixed inset-x-4 bottom-[var(--dock-space)] z-30 flex gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg lg:hidden"
+            >
+              <Button
+                className="flex-1"
+                onClick={() => focusLogger("meal-description")}
+              >
+                <PencilLine />
+                Describe meal
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => focusLogger("quick-food-search")}
+              >
+                <Search />
+                Find food
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {view === "foods" && (
@@ -1429,226 +1767,6 @@ export default function NutritionPage() {
           )}
         </div>
       )}
-      {/* Log a meal */}
-      <Editor
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        title={`Add food · ${selectedDay || "loading"}`}
-        description="Choose saved food or describe what you ate. Review estimates before logging."
-      >
-        <ViewTabs
-          label="Food entry method"
-          value={addMode}
-          onChange={setAddMode}
-          items={[
-            { value: "saved", label: "Saved foods" },
-            { value: "describe", label: "Describe meal" },
-            { value: "voice", label: "Voice" },
-          ]}
-        />
-        {addMode === "saved" ? (
-          <FoodLibrary
-            mode="log"
-            onLogged={(loggedDay) => {
-              setSelectedDay(loggedDay);
-              refresh();
-              setAddOpen(false);
-              setEntryMessage(`Logged food for ${loggedDay}`);
-            }}
-            meal={meal}
-            day={selectedDay}
-          />
-        ) : addMode === "voice" ? (
-          <VoiceLogging day={selectedDay} meal={meal} onCommitted={(loggedDay) => {
-            setSelectedDay(loggedDay);
-            refresh();
-          }} />
-        ) : (
-          <div className="space-y-4 pt-4">
-            <div className="flex flex-col gap-3">
-              <Select value={meal} onValueChange={setMeal}>
-                <SelectTrigger aria-label="Meal slot">
-                  <Utensils className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                  <SelectValue placeholder="Meal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MEALS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m.charAt(0).toUpperCase() + m.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <label className="text-sm font-medium">
-                What did you eat?
-                <Textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="For example: 200 g chicken, rice and broccoli"
-                  disabled={!!estimate}
-                  aria-label="Meal description"
-                  rows={3}
-                />
-              </label>
-              <Button
-                onClick={requestEstimate}
-                disabled={busy || !!estimate || !text.trim() || !selectedDay}
-              >
-                {busy ? "Estimating…" : "Estimate"}
-              </Button>
-              {busy && (
-                <Button
-                  onClick={stopWatchingEstimate}
-                  variant="ghost"
-                  aria-label="Stop watching (estimate keeps generating)"
-                  title="The estimate keeps generating in the background — this just stops watching it here."
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Hide progress
-                </Button>
-              )}
-            </div>
-
-            {/* Review/edit before saving */}
-            {estimate && (
-              <div className="mt-5 border border-border p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Review estimate
-                  </span>
-                  <Badge
-                    variant={
-                      estimate.confidence === "low" ? "destructive" : "outline"
-                    }
-                  >
-                    {estimate.confidence} confidence
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Destination: {estimateDestination?.day} ·{" "}
-                  {estimateDestination?.meal || "Unspecified meal"}
-                </p>
-
-                {estimate.confidence === "low" && (
-                  <div className="flex items-start gap-2 border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-warning shrink-0" />
-                    <p className="text-xs text-warning">
-                      Low-confidence estimate — double-check these numbers
-                      before logging.
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  {(
-                    [
-                      ["kcal", "Kcal"],
-                      ["protein_g", "Protein g"],
-                      ["carbs_g", "Carbs g"],
-                      ["fat_g", "Fat g"],
-                      ["fiber_g", "Fiber g"],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <div key={key} className="space-y-1">
-                      <label
-                        htmlFor={`nutrition-review-${key}`}
-                        className="text-xs font-medium uppercase tracking-widest text-muted-foreground block"
-                      >
-                        {label}
-                      </label>
-                      <Input
-                        id={`nutrition-review-${key}`}
-                        value={draft[key]}
-                        onChange={(e) =>
-                          setDraft({ ...draft, [key]: e.target.value })
-                        }
-                        inputMode="decimal"
-                        className="h-12 text-base"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {estimate.notes && (
-                  <ReadMore label="Read estimate notes">
-                    <Markdown>{estimate.notes}</Markdown>
-                  </ReadMore>
-                )}
-
-                {estimate.items.some((item) => item.source === "saved") && (
-                  <details>
-                    <summary>Ingredient sources</summary>
-                    <ul className="text-sm space-y-2">
-                      {estimate.items.map((item, index) => (
-                        <li key={index}>
-                          <span className="font-medium">{item.name}</span>
-                          {item.source === "saved"
-                            ? ` · ${item.qty_g} g · saved values`
-                            : " · estimated"}
-                          {item.nutrients && (
-                            <span className="block text-muted-foreground">
-                              {Object.entries(item.nutrients)
-                                .map(([key, value]) => `${key}: ${value}`)
-                                .join(" · ")}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-
-                <div className="sticky bottom-0 flex flex-wrap gap-2 bg-card py-3">
-                  <Button onClick={confirmLog} disabled={confirming} size="sm">
-                    {confirming ? "Saving…" : "Confirm & log"}
-                  </Button>
-                  <Button
-                    onClick={discardEstimate}
-                    disabled={confirming}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    Discard
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <Button
-          className="mt-4"
-          variant="outline"
-          onClick={openManual}
-          disabled={!selectedDay}
-        >
-          Enter macros manually
-        </Button>
-        {busy && (
-          <p role="status" className="mt-3 text-sm text-muted-foreground">
-            Your estimate is running. You can leave and return.
-          </p>
-        )}
-        {!busy && !estimate && estimateDestination && (
-          <Button
-            variant="outline"
-            className="mt-3"
-            onClick={() => {
-              const raw = sessionStorage.getItem("pendingNutritionEstimate");
-              if (raw) {
-                const saved = JSON.parse(raw);
-                if (saved.id) {
-                  setBusy(true);
-                  pollEstimateResult(saved.id);
-                }
-              }
-            }}
-          >
-            Resume estimate
-          </Button>
-        )}
-        {err && <ErrorNotice message={err} />}
-      </Editor>
 
       {(manualMode || editing || repeating) && (
         <Editor

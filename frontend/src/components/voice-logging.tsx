@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api, type AgentAction, type SavedFood, type VoiceDraft, type VoiceFood, type VoiceInterpretation } from "@/lib/api";
 import { randomUUID } from "@/lib/uuid";
-import { useEffect, useRef, useState } from "react";
+import { Mic } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 const storageKey = "activeVoiceNutritionDraft";
 const limitSeconds = 60;
@@ -27,8 +28,8 @@ function decimal(value: string): number | null {
   return number;
 }
 
-export function VoiceLogging({ day, meal, onCommitted }: {
-  day: string; meal: string; onCommitted: (day: string) => void;
+export function VoiceLogging({ day, meal, onCommitted, compact = false, actions }: {
+  day: string; meal: string; onCommitted: (day: string) => void; compact?: boolean; actions?: ReactNode;
 }) {
   const [draft, setDraft] = useState<VoiceDraft | null>(null);
   const [transcript, setTranscript] = useState("");
@@ -47,11 +48,13 @@ export function VoiceLogging({ day, meal, onCommitted }: {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { setLogDay(day); }, [day]);
+  useEffect(() => { setLogMeal(meal); }, [meal]);
   useEffect(() => { api.foods.list().then(setFoods).catch(() => {}); }, []);
   useEffect(() => {
     const saved = sessionStorage.getItem(storageKey);
-    if (!saved || !/^\d+$/.test(saved)) return;
-    api.voice.get(Number(saved)).then(setDraft).catch(() => sessionStorage.removeItem(storageKey));
+    if (saved && /^\d+$/.test(saved)) {
+      api.voice.get(Number(saved)).then(setDraft).catch(() => sessionStorage.removeItem(storageKey));
+    }
     return () => stopRecording();
   }, []);
   useEffect(() => {
@@ -171,8 +174,8 @@ export function VoiceLogging({ day, meal, onCommitted }: {
       });
       setReceipt(result);
       setDraft(await api.voice.get(draft.id));
-      if (action === "log_consumption") onCommitted(logDay);
-      else api.foods.list().then(setFoods).catch(() => {});
+      onCommitted(logDay);
+      if (action === "save_food") api.foods.list().then(setFoods).catch(() => {});
     } catch (reason) { setError(errorText(reason)); }
     finally { setBusy(false); }
   }
@@ -197,13 +200,15 @@ export function VoiceLogging({ day, meal, onCommitted }: {
     changeReview({ food: { ...review.food, ...change } });
   }
 
-  return <div className="space-y-4 pt-4">
-    <p className="text-sm text-muted-foreground">Record up to 60 seconds. Audio is used for transcription and discarded after processing. Supported: WebM, MP4, Ogg; 10 MB maximum.</p>
+  return <div className={compact ? "space-y-3" : "space-y-4 pt-4"}>
+    {!compact && <p className="text-sm text-muted-foreground">Record up to 60 seconds. Audio is used for transcription and discarded after processing. Supported: WebM, MP4, Ogg; 10 MB maximum.</p>}
     <div className="flex flex-wrap gap-2">
-      {!recording ? <Button type="button" onClick={startRecording} disabled={busy || (!!draft && !draft.accepted_action_id && draft.status !== "cancelled")}>Record voice</Button>
+      {actions}
+      {!recording ? <Button type="button" variant={compact ? "outline" : "default"} onClick={startRecording} disabled={!day || busy || (!!draft && !draft.accepted_action_id && draft.status !== "cancelled")}><Mic />Record voice</Button>
         : <Button type="button" variant="destructive" onClick={stopRecording}>Stop recording ({seconds}s)</Button>}
       {draft && <Button type="button" variant="outline" onClick={cancel} disabled={busy}>{draft.accepted_action_id ? "Start another" : "Cancel draft"}</Button>}
     </div>
+    {compact && (recording || draft) && <p className="text-xs text-muted-foreground">Speak your meal, then review before logging. Up to 60 seconds; audio is discarded after processing.</p>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {draft?.status === "pending" && <p role="status">Processing speech and preparing your draft…</p>}
     {draft?.status === "error" && <p role="alert">{draft.error} You can correct the transcription or record again.</p>}
