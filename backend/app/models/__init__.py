@@ -24,6 +24,7 @@ from app.models.models import (  # noqa: F401
     SavedFood,
     TrainingPlan,
     USDAFood,
+    VoiceDraft,
     WorkoutDayRevision,
     WorkoutLog,
     WorkoutOverride,
