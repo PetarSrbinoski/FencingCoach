@@ -1,16 +1,18 @@
 # FencingCoach AI
 
-A personal coaching app for fencing. It helps with training notes, nutrition logs, Garmin sync, and chat-based check-ins.
+A personal coaching app for fencing. It helps with training plans, nutrition, competition preparation, Garmin sync, and chat-based check-ins.
 
 The live version is hosted on my home server.
 
 ## What it includes
 
 - Home dashboard: readiness overview, key metrics, next competition, quick coach chat, one-click Garmin sync
-- Garmin data sync
-- Nutrition logging
-- Workout tracking
-- Coach chat
+- Garmin data sync: recent and full-history imports, sync status, and data coverage
+- Nutrition: daily diaries, a personal food library, reviewed voice drafts, meal plans, and shopping lists
+- Training: daily workouts, coach edits, fencing session analysis, and mental check-ins
+- Competitions: calendar, results, and reviewed nutrition and meal plans for preparation, event days, and recovery
+- Coach chat: saved conversations, editable memory, dated nutrition answers, and action history with guarded undo
+- Trends and profile: training, recovery, and nutrition summaries, athlete goals, dietary restrictions, and food preferences
 
 See [FUNCTIONALITIES.md](./FUNCTIONALITIES.md) for a full breakdown of the coach
 agent's capabilities and every app feature.
@@ -35,7 +37,8 @@ Postgres database, and external services (LLM, USDA MCP, Garmin Connect).
 
 - Shared `CoachDeps` keeps the DB session, live context snapshot, and extra runtime data in one place
 - A cached OpenAI-compatible model factory is reused across agents
-- Chat uses message history, live context injection, and `WebSearch` for lookup support
+- Chat uses message history, live context injection, editable coach memory, and `WebSearch` for lookup support
+- Coach tools record changes in an action history; competition nutrition proposals require review before applying
 - Nutrition and meal-plan agents return structured Pydantic output and can call USDA MCP tools (local stdio subprocess, [rpassafaro/usda-api-mcp](https://github.com/rpassafaro/usda-api-mcp)) plus web search
 - Brief and mental agents are text-only, but still use the same prompt and output cleanup flow
 
@@ -51,7 +54,7 @@ Then open:
 - Frontend: `http://localhost:3000`
 - API docs: `http://localhost:8000/docs`
 
-See [AGENTS.md](./AGENTS.md) for a full setup/run guide (useful for coding agents or a fresh dev environment).
+See [AGENT_SETUP.md](./AGENT_SETUP.md) for a full setup/run guide (useful for coding agents or a fresh dev environment).
 
 ## Notes
 
@@ -59,3 +62,4 @@ See [AGENTS.md](./AGENTS.md) for a full setup/run guide (useful for coding agent
 - Set `GARMIN_EMAIL` and `GARMIN_PASSWORD` in `.env`
 - If you use a remote model, set `LLM_BASE_URL` and `LLM_API_KEY`
 - If you use Ollama, pull a model and set `LLM_MODEL` to match
+- Voice transcription needs a separate `VOICE_TRANSCRIPTION_API_KEY`; see [voice logging](./docs/voice-logging.md) for configuration

@@ -1,6 +1,12 @@
 # Voice logging
 
-Ticket 06 adds a reviewed voice draft to Nutrition → Add food → Voice. It keeps the manual and saved-food entry methods available. Ticket 08 (familiar recipe variations) remains dependent on recipe and chat tickets.
+Use **Nutrition → Diary → Record voice** to describe what you ate or dictate food
+label values. Review the transcription and interpretation before saving a food or
+logging consumption. Text entry and the saved-food library remain available.
+
+Correct a transcription to generate a fresh interpretation, or edit the interpreted
+amounts and nutrients and update the review. Choose the destination day and meal
+when logging. Completed actions have a receipt and guarded undo.
 
 ## Provider and limits
 
