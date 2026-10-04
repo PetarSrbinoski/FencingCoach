@@ -2,21 +2,7 @@
 
 Selected ideas from the product discussions. Numbers in the first section match the original recommendations; later selections identify their discussion separately. These are future opportunities, not implementation tickets.
 
-## 1. “Fix my week” planning assistant
-
-**Difficulty:** Hard · **Priority:** High
-
-**User problem:** Missed sessions, travel, and changes in availability leave the athlete manually rearranging training across several days.
-
-**Example:** “I missed Tuesday’s gym, have fencing tomorrow, and I’m travelling Friday. Adjust the rest of my week.”
-
-The agent reads the schedule, completed training, competition dates, and available time, then proposes a revised week. Show the original and proposed schedules side by side, explain which sessions matter most, and let the athlete approve the changes before applying them. Avoid automatically cramming missed work into the remaining days.
-
-Preserve explicit user constraints and manual edits. Record applied changes in Agent logs and support safe undo. This requires reliable schedule editing and actual training records.
-
-**Value:** Keeps the training plan practical when everyday life interrupts it.
-
-**Inspiration:** [TrainerRoad adaptive training](https://www.trainerroad.com/blog/how-to-use-adaptive-training/) and [Fitbod’s use of equipment, recovery, and workout duration](https://fitbod.me/blog/tracking-volume-intensity-and-recovery-with-fitbod/).
+Product scope: image input and analysis are excluded, including nutrition-label photos, recipe screenshots, and meal-photo estimation. Nutrition input uses text and voice.
 
 ## 3. Editable “What my coach knows” memory
 
@@ -38,23 +24,19 @@ Each memory shows its source, last confirmation, and expiration when appropriate
 
 **Inspiration:** [WHOOP My Memory](https://www.whoop.com/om/en/thelocker/my-memory-whoop/).
 
-## 6. Voice logging and nutrition-label capture
+## 6. Voice logging
 
 **Difficulty:** Medium · **Priority:** Medium
 
-**User problem:** Typing food descriptions and repeatedly entering product labels makes nutrition logging inconvenient, especially on a phone.
+**User problem:** Typing food descriptions and repeatedly entering familiar meals makes nutrition logging inconvenient, especially on a phone.
 
-**Examples:** “Lunch was my usual chicken and rice, but half the rice.” Or photograph a label and ask: “Save this yogurt. One pot is 150 grams.”
+**Example:** “Lunch was my usual chicken and rice, but half the rice.”
 
-The agent transcribes speech or reads a nutrition-label image, resolves known foods, extracts quantities, and presents a reviewable draft. Ask for clarification when a meal, serving, or quantity is ambiguous. Distinguish per-serving values from values per 100 grams, highlight unreadable fields, and preserve unknown values rather than inventing nutrients.
+The agent transcribes speech, resolves known foods, extracts quantities, and presents a reviewable draft. Let the athlete correct the transcription and ask for clarification when a meal, serving, or quantity is ambiguous. For explicitly dictated food values, distinguish per-serving values from values per 100 grams and preserve unknown values rather than inventing nutrients.
 
 Keep saving a food separate from logging consumption. Use existing saved-food values and deterministic portion arithmetic, and require review before committing the extracted draft. Record saved changes in Agent logs with safe undo.
 
-Start with nutrition-label capture before attempting portion estimation from meal photographs; label capture directly extends the existing food library.
-
 **Value:** Reduces repetitive entry while keeping the athlete in control of the recorded values.
-
-**Inspiration:** [Cronometer voice and photo logging](https://cronometer.com/features/photo-voice-logging.html).
 
 ## 7. Practical “What can I eat now?” assistant
 
@@ -72,7 +54,7 @@ Build on the dietary-constraint and repeat-meal workflows, with changes recorded
 
 **Value:** Turns nutrition guidance into a practical decision at the moment the athlete is choosing food.
 
-## Additional selection: Turn a recipe into a reusable meal
+## 8. Turn a recipe into a reusable meal
 
 Selected as idea 1 from the second set of recommendations.
 
@@ -82,7 +64,7 @@ Selected as idea 1 from the second set of recommendations.
 
 **Example:** “Here’s my pasta recipe. I used these ingredients and divided it into four portions. Save it.”
 
-Accept a pasted recipe, an uploaded screenshot, or a description of what was cooked. The agent identifies ingredients, matches saved products when possible, asks about missing quantities and raw-versus-cooked measurements, and drafts a reusable recipe with nutrition per portion. Nutrient arithmetic is deterministic, and estimated ingredient values remain distinguishable from supplied product values.
+Accept a pasted recipe or a text description of what was cooked. The agent identifies ingredients, matches saved products when possible, asks about missing quantities and raw-versus-cooked measurements, and drafts a reusable recipe with nutrition per portion. Nutrient arithmetic is deterministic, and estimated ingredient values remain distinguishable from supplied product values.
 
 The athlete reviews ingredient matches, quantities, and the number of portions before saving. Later, “Log one portion of yesterday’s pasta” records a portion using the saved recipe values. Support partial portions and preserve unknown nutrient values.
 
