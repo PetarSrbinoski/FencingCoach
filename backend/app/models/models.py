@@ -166,6 +166,34 @@ class NutritionEstimate(Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
 
+class Recipe(Base):
+    __tablename__ = "recipes"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    name_key: Mapped[str] = mapped_column(String(400), unique=True)
+    composition: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex)
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NutritionDraft(Base):
+    """Reviewed recipe imports and read-only meal options share durable job state."""
+
+    __tablename__ = "nutrition_drafts"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    inputs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    revision: Mapped[str] = mapped_column(String(32), nullable=False, default=lambda: uuid4().hex)
+    accepted_actions: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class VoiceDraft(Base):
     """Reviewable voice interpretation; the uploaded audio is never persisted."""
 
