@@ -113,6 +113,7 @@ def test_cancel_closes_live_provider_stream_and_stops_agent(sessions, monkeypatc
 def test_cancel_before_dispatch_and_terminal_jobs(sessions, model, initial_status):
     async def scenario():
         with sessions() as db:
+            row: CoachMessage | NutritionEstimate
             if model is CoachMessage:
                 conversation = CoachConversation(title="test")
                 db.add(conversation)
@@ -127,7 +128,7 @@ def test_cancel_before_dispatch_and_terminal_jobs(sessions, model, initial_statu
             await generation.cancel_generation(db, row)
             await generation.cancel_generation(db, row)
             assert row.status == ("cancelled" if initial_status == "pending" else initial_status)
-            assert row.content == "saved" if model is CoachMessage else row.kcal == 123
+            assert row.content == "saved" if isinstance(row, CoachMessage) else row.kcal == 123
 
         async def never_run(db):
             pytest.fail("a cancelled or completed job must not start")

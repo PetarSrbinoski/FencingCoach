@@ -117,7 +117,7 @@ def test_restart_marks_pending_as_failed_without_replaying_committed_work(sessio
         assert reader.get(CoachMessage, ids[2]).status == "done"
 
 
-def test_cancellation_records_interruption_and_preserves_cancellation(sessions):
+def test_child_cancellation_records_interruption_without_cancelling_request(sessions):
     tasks = BackgroundTasks()
 
     async def generate(job):
@@ -127,8 +127,7 @@ def test_cancellation_records_interruption_and_preserves_cancellation(sessions):
         row = NutritionEstimate(raw_text="rice")
         submit_generation(request, tasks, row, generate)
         row_id = row.id
-    with pytest.raises(asyncio.CancelledError):
-        asyncio.run(tasks())
+    asyncio.run(tasks())
     with sessions() as reader:
         row = reader.get(NutritionEstimate, row_id)
         assert row.status == "error"
