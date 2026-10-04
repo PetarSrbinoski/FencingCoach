@@ -1,14 +1,27 @@
 """Coach memory behavior at the public API and provider boundaries."""
 
+import json
 from datetime import date
 
 import pytest
 from app.core.database import get_db
 from app.main import app
 from fastapi.testclient import TestClient
-from pydantic_ai.messages import ModelResponse, TextPart
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
+from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from sqlalchemy.orm import sessionmaker
+
+
+def scripted_model(provider):
+    async def stream(messages, info):
+        for part in provider(messages, info).parts:
+            if isinstance(part, ToolCallPart):
+                args = part.args if isinstance(part.args, str) else json.dumps(part.args)
+                yield {0: DeltaToolCall(name=part.tool_name, json_args=args)}
+            elif isinstance(part, TextPart):
+                yield part.content
+
+    return FunctionModel(provider, stream_function=stream)
 
 
 @pytest.fixture
@@ -94,7 +107,7 @@ def test_context_filters_memory_at_read_time_and_keeps_profile(client, monkeypat
         prompts.append(str(messages))
         return ModelResponse(parts=[TextPart("Let's review your current constraints.")])
 
-    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: FunctionModel(provider))
+    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: scripted_model(provider))
     monkeypatch.setattr("app.services.coach_memory.athlete_today", lambda: date(2026, 10, 4))
     client.put("/profile", json={"weight_kg": 75, "dietary_restrictions": "no peanuts"})
     travel = create(client, "Staying in a hotel without gym equipment", expires_on="2026-10-04")
@@ -138,7 +151,7 @@ def scripted_provider(monkeypatch, calls):
             return ModelResponse(parts=[ToolCallPart("remember_context", call)])
         return ModelResponse(parts=[TextPart("Review the memory and any clarification needed.")])
 
-    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: FunctionModel(provider))
+    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: scripted_model(provider))
     return responses
 
 
@@ -281,8 +294,8 @@ def test_corrected_memory_is_used_by_chat_and_dated_meal_planning(client, monkey
             })])
         return ModelResponse(parts=[TextPart("Review current context.")])
 
-    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: FunctionModel(provider))
-    monkeypatch.setattr("app.agents.mealplan.get_active_model", lambda: FunctionModel(provider))
+    monkeypatch.setattr("app.agents.coach.get_active_model", lambda: scripted_model(provider))
+    monkeypatch.setattr("app.agents.mealplan.get_active_model", lambda: scripted_model(provider))
     chat(client)
     assert "Prefer warm lunches" in prompts[-1]
     assert "Prefer cold lunches" not in prompts[-1]
