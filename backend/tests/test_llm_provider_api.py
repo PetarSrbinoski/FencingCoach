@@ -56,7 +56,6 @@ def test_set_llm_provider_upserts_on_repeat_call(db):
     set_llm_provider(db, "cloud")
     set_llm_provider(db, "local")
     assert get_llm_provider(db) == "local"
-    # Still exactly one row for the key, not a duplicate.
     assert db.get(AppSetting, "llm_provider").value == "local"
 
 
@@ -71,12 +70,9 @@ def test_put_endpoint_persists_and_updates_in_process_state(client, db):
     assert res.status_code == 200
     assert res.json() == {"provider": "cloud"}
 
-    # Persisted...
     assert get_llm_provider(db) == "cloud"
-    # ...and live in-process, no restart needed.
     assert get_active_provider() == "cloud"
 
-    # GET reflects it too.
     res = client.get("/settings/llm-provider")
     assert res.json() == {"provider": "cloud"}
 

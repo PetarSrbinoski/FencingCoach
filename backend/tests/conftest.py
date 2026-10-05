@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from datetime import date, timedelta
 
-# Override DATABASE_URL before any app imports
+# App settings are loaded during import.
 os.environ["DATABASE_URL"] = "sqlite://"
 
 import pytest
@@ -42,19 +42,16 @@ def db():
         connect_args={"check_same_thread": False},
     )
 
-    # Enable foreign keys for SQLite
     @event.listens_for(engine, "connect")
     def _set_fk(dbapi_conn, connection_record):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-    # Remap JSONB -> JSON and BigInteger PKs -> Integer for SQLite
     for table in Base.metadata.tables.values():
         for col in table.columns:
             if isinstance(col.type, JSONB):
                 col.type = JSON()
-            # SQLite doesn't auto-increment BigInteger PKs
             if isinstance(col.type, BigInteger) and col.primary_key:
                 col.type = Integer()
                 col.autoincrement = True

@@ -13,7 +13,6 @@ from sqlalchemy.orm import sessionmaker
 @pytest.fixture
 def client(db, monkeypatch):
     app.dependency_overrides[get_db] = lambda: db
-    # Jobs use distinct sessions against the same test database.
     monkeypatch.setattr("app.services.generation.SessionLocal", sessionmaker(bind=db.get_bind()))
     try:
         yield TestClient(app)
@@ -38,8 +37,6 @@ def test_chat_accepted_then_poll_returns_reply(client, db, monkeypatch):
     assert body["status"] == "pending"
     message_id = body["message_id"]
 
-    # TestClient runs FastAPI BackgroundTasks synchronously before
-    # returning, so the job has already completed by this point.
     poll = client.get(f"/chat/messages/{message_id}")
     assert poll.status_code == 200
     poll_body = poll.json()
@@ -48,7 +45,6 @@ def test_chat_accepted_then_poll_returns_reply(client, db, monkeypatch):
     assert poll_body["context_snapshot"] == "## Readiness\nSome context"
     assert poll_body["ungrounded_claims"] == []
 
-    # Both turns persisted
     conv = db.query(CoachConversation).one()
     messages = (
         db.query(CoachMessage)
@@ -94,7 +90,6 @@ def test_chat_job_failure_marks_message_as_error(client, db, monkeypatch):
     assert body["status"] == "error"
     assert "upstream failure" in body["error"]
 
-    # User turn is still persisted even though the assistant reply failed.
     conv = db.query(CoachConversation).one()
     messages = db.query(CoachMessage).filter(CoachMessage.conversation_id == conv.id).all()
     assert [m.role for m in messages] == ["user", "assistant"]

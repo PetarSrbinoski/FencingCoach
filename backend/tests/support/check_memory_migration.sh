@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Disposable PostgreSQL upgrade/rollback check. Never uses the application's .env.
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
 container="coach-memory-migration-$$"

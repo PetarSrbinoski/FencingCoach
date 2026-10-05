@@ -19,7 +19,6 @@ from sqlalchemy.orm import sessionmaker
 @pytest.fixture
 def client(db, monkeypatch):
     app.dependency_overrides[get_db] = lambda: db
-    # Jobs use distinct sessions against the same test database.
     monkeypatch.setattr("app.services.generation.SessionLocal", sessionmaker(bind=db.get_bind()))
     try:
         yield TestClient(app)
@@ -50,8 +49,6 @@ def test_estimate_accepted_then_poll_returns_result_without_persisting_log(clien
     estimate_id = res.json()["id"]
     assert res.json()["status"] == "pending"
 
-    # TestClient runs FastAPI BackgroundTasks synchronously before
-    # returning, so the job has already completed by this point.
     poll = client.get(f"/nutrition/estimate/{estimate_id}")
     assert poll.status_code == 200
     body = poll.json()
@@ -59,8 +56,6 @@ def test_estimate_accepted_then_poll_returns_result_without_persisting_log(clien
     assert body["kcal"] == 650
     assert body["confidence"] == "high"
 
-    # Nothing should be written to nutrition_log by /estimate — only
-    # /nutrition/log (a separate, explicit confirm step) does that.
     assert db.query(NutritionLog).count() == 0
 
 
@@ -86,7 +81,6 @@ def test_get_estimate_404_for_unknown_id(client):
 
 
 def test_log_persists_reviewed_values_without_calling_llm(client, db, monkeypatch):
-    # If /nutrition/log accidentally called the LLM, this would raise.
     async def boom(*a, **kw):
         raise AssertionError("log_meal must not call the LLM")
 

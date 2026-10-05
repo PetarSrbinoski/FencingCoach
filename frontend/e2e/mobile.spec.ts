@@ -169,7 +169,6 @@ test("profile draft survives internal navigation and returns to the same values"
   await fixture(page);
   await page.goto("/profile");
   await page.getByLabel("Name", { exact: true }).fill("Unsaved athlete");
-  // The guard works for both the desktop sidebar and the mobile dock.
   await page.getByRole("link", { name: "Training", exact: true }).click();
   await page.getByRole("button", { name: "Leave and keep draft" }).click();
   await expect(page).toHaveURL(/\/training/);
@@ -253,7 +252,6 @@ test("editor follows a reduced visual viewport while typing", async ({
     .getByRole("button", { name: "Add competition", exact: true })
     .click();
   await page.locator("#event-name").focus();
-  // Simulates the VisualViewport event; this is not a physical keyboard test.
   await page.evaluate(() => {
     Object.defineProperty(window.visualViewport, "height", {
       configurable: true,

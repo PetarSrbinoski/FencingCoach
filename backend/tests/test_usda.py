@@ -75,8 +75,6 @@ class TestMatchFood:
 
     def test_no_match(self, db, seed_usda_foods):
         result = match_food(db, "dragon fruit pie")
-        # May or may not match depending on how loose matching is
-        # At minimum, function should not error
         assert result is None or hasattr(result, "fdc_id")
 
     def test_exact_match(self, db, seed_usda_foods):
@@ -88,14 +86,12 @@ class TestMatchFood:
 class TestCrossReferenceMeal:
     def test_simple_meal(self, db, seed_usda_foods):
         matches = cross_reference_meal(db, "chicken breast with rice")
-        # Should find at least chicken and rice
         matched_items = [m["matched"].lower() for m in matches]
         assert any("chicken" in m for m in matched_items)
         assert any("rice" in m for m in matched_items)
 
     def test_no_matches(self, db, seed_usda_foods):
         matches = cross_reference_meal(db, "unicorn meat")
-        # Should return empty or partial matches
         assert isinstance(matches, list)
 
     def test_compound_meal(self, db, seed_usda_foods):

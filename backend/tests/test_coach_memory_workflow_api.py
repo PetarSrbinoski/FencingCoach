@@ -74,7 +74,6 @@ def test_edit_confirm_delete_and_guarded_undo(client):
     removal = client.get("/agent-actions?kind=memory").json()["items"][0]
     assert client.post(f"/agent-actions/{removal['id']}/undo", json={"request_id": "restore"}).status_code == 200
     assert client.get("/coach-memory").json()["items"][0]["content"] == first["content"]
-    # Repeating undo is harmless and cannot reset a subsequent edit.
     assert client.post(f"/agent-actions/{removal['id']}/undo", json={"request_id": "restore"}).status_code == 200
     assert client.get("/agent-actions?kind=reversal").json()["total"] == 2
 
@@ -188,7 +187,6 @@ def test_inferences_are_bounded_unconfirmed_and_cannot_replace_confirmed_facts(c
     chat(client, "I usually eat pasta for lunch")
     assert client.get("/coach-memory").json()["items"][0]["content"] == inferred["content"]
     assert "clarif" in responses[-1].lower()
-    # Explicit correction uses the same service and keeps original source/provenance inspectable.
     revised["provenance"] = "explicit"
     scripted_provider(monkeypatch, [revised])
     chat(client, "Remember this correction: I usually eat pasta for lunch")

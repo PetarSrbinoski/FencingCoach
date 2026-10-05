@@ -1,4 +1,3 @@
-// Synthetic fixtures for layout and interaction regression tests. No real athlete data.
 const day = "2026-09-28",
   now = day + "T10:00:00Z";
 const event = {

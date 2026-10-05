@@ -51,7 +51,6 @@ def _full_raw() -> dict:
     }
 
 
-# ── happy path ──────────────────────────────────────────────────────────
 def test_extract_all_happy_path():
     raw = _full_raw()
     results = extract_all(raw)
@@ -71,7 +70,6 @@ def test_extract_all_happy_path():
     assert results["intensity_minutes"].status == "ok"
 
 
-# ── missing fields ───────────────────────────────────────────────────────
 def test_missing_fields_reported_as_missing_not_crash():
     raw: dict = {}
     results = extract_all(raw)
@@ -87,7 +85,6 @@ def test_extract_sleep_missing():
     assert m.value is None
 
 
-# ── alternate key-path fallbacks ─────────────────────────────────────────
 def test_hrv_falls_back_to_weekly_avg_when_last_night_missing():
     raw = {"hrv": {"hrvSummary": {"weeklyAvg": 58}}}
     m = extract_hrv(raw)
@@ -140,7 +137,6 @@ def test_training_readiness_uses_last_list_entry():
     assert m.value == 85
 
 
-# ── plausibility rejection ───────────────────────────────────────────────
 def test_hrv_zero_is_rejected_as_implausible():
     raw = {"hrv": {"hrvSummary": {"lastNightAvg": 0}}}
     m = extract_hrv(raw)
@@ -173,7 +169,6 @@ def test_stress_daily_negative_is_rejected():
     assert m.status == "implausible"
 
 
-# ── payload-only metrics ─────────────────────────────────────────────────
 def test_training_status_missing_when_no_payload():
     m = extract_training_status({})
     assert m.status == "missing"
@@ -184,7 +179,6 @@ def test_intensity_minutes_ok_when_payload_present():
     assert m.status == "ok"
 
 
-# ── non-numeric garbage doesn't crash ────────────────────────────────────
 def test_non_numeric_value_treated_as_missing():
     raw = {"hrv": {"hrvSummary": {"lastNightAvg": "N/A"}}}
     m = extract_hrv(raw)

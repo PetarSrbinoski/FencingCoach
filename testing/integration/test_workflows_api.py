@@ -23,7 +23,6 @@ def client() -> Iterator[httpx.Client]:
 
 
 def _db_count(table: str, day: str | None = None) -> int:
-    # Table names are static, never derived from a response or user input.
     assert table in {"day_type_overrides", "workout_overrides", "nutrition_log"}
     dsn = (
         "postgresql://coach_test:disposable_test_password@127.0.0.1:"

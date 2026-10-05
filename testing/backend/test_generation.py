@@ -187,7 +187,6 @@ def test_failure_preserves_committed_tool_write_without_replay(sessions):
         submit_generation(request, tasks, row, generate)
         row_id = row.id
     asyncio.run(tasks())
-    # Even accidental redispatch must not replay a terminal job.
     asyncio.run(tasks())
     with sessions() as reader:
         assert calls == 1

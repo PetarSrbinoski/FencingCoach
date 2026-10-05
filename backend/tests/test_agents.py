@@ -11,7 +11,7 @@ import os
 from types import SimpleNamespace
 from typing import Any, cast
 
-# Override DATABASE_URL before any app imports
+# App settings are loaded during import.
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 import httpx
@@ -45,7 +45,6 @@ from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.mcp import MCPServerStdio
 
 
-# ── deps / model ──────────────────────────────────────────────────────
 class TestDeps:
     def test_coach_deps_defaults(self):
         deps = CoachDeps(db=None)  # type: ignore
@@ -95,9 +94,6 @@ class TestThinkTagStreamFilter:
 
     def test_streams_incrementally_before_think_tag(self):
         f = ThinkTagStreamFilter()
-        # A safety tail (len("<think>")-worth) is always withheld in case
-        # the next chunk continues a split "<think>" tag; the rest streams
-        # immediately rather than waiting for flush().
         visible = f.feed("Some visible text ")
         assert visible == "Some visibl"
         assert visible + f.flush() == "Some visible text "
@@ -113,7 +109,6 @@ class TestThinkTagStreamFilter:
         assert out == "visible "
 
 
-# ── nutrition agent ───────────────────────────────────────────────────
 class TestNutritionAgent:
     def test_agent_is_configured(self):
         assert isinstance(nutrition_agent, Agent)
@@ -149,9 +144,6 @@ class TestNutritionAgent:
             asyncio.run(estimate_nutrition("   "))
 
     def test_estimate_nutrition_retries_without_usda(self, monkeypatch):
-        # Simulate the USDA MCP subprocess script being present (it won't be
-        # in this test environment, which doesn't clone it) so the retry
-        # path under test actually engages.
         monkeypatch.setattr("app.agents.nutrition._usda_mcp_available", lambda: True)
         calls: list[str] = []
 
@@ -327,7 +319,6 @@ class TestNutritionAgent:
         assert _build_nutrition_toolsets() == []
 
 
-# ── mealplan agent ────────────────────────────────────────────────────
 class TestMealPlanAgent:
     def test_agent_is_configured(self):
         assert isinstance(mealplan_agent, Agent)
@@ -379,7 +370,6 @@ class TestMealPlanAgent:
         assert plan.plan["plan"]["rationale"].startswith("ok")
 
 
-# ── brief agent ───────────────────────────────────────────────────────
 class TestBriefAgent:
     def test_agent_is_configured(self):
         assert isinstance(brief_agent, Agent)
@@ -388,7 +378,6 @@ class TestBriefAgent:
         assert brief_agent._output_type is str
 
 
-# ── mental agent ──────────────────────────────────────────────────────
 class TestMentalAgent:
     def test_agent_is_configured(self):
         assert isinstance(mental_agent, Agent)
@@ -397,7 +386,6 @@ class TestMentalAgent:
         assert mental_agent._output_type is str
 
 
-# ── coach agent ───────────────────────────────────────────────────────
 class TestCoachAgent:
     def test_agent_is_configured(self):
         assert isinstance(coach_agent, Agent)
@@ -440,7 +428,6 @@ class TestCoachAgent:
         assert result.ungrounded_claims == []
 
 
-# ── coach tools (update_day_workout / add_competition) ──────────────────
 def _ctx(db: Any) -> RunContext[CoachDeps]:
     """Minimal stand-in for RunContext[CoachDeps] — the tools only ever
     touch `ctx.deps.db`."""
@@ -628,7 +615,6 @@ class TestCoachCompetitionTool:
         assert ctx.deps.side_effect_committed is True
 
 
-# ── coach web-search gating ─────────────────────────────────────────────
 class TestCoachWebSearchGating:
     """Web search must only fire when the athlete explicitly asks for it —
     trusting the model's own judgment let it search for e.g. "hello"."""
@@ -685,7 +671,6 @@ class TestCoachWebSearchGating:
         assert result.reply == "Found it via search."
 
 
-# ── transient NVIDIA NIM stream-error retry ─────────────────────────────
 def _make_transient_error(
     message="ResourceExhausted: Worker local total request limit reached (222/32)",
 ):
@@ -782,7 +767,6 @@ class TestCoachTransientErrorRetry:
 
         with pytest.raises(openai.APIError):
             asyncio.run(run_coach_chat("hello", db=db, context_text=""))
-        # initial attempt + _MAX_TRANSIENT_RETRIES retries
         assert calls["n"] == _MAX_TRANSIENT_RETRIES + 1
 
     def test_run_coach_chat_does_not_retry_non_transient_error(self, monkeypatch, db):

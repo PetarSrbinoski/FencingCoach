@@ -15,7 +15,7 @@ if os.environ.get("TEST_DB_GUARD") != "isolated-fencingcoach":
 if "/coachapp_testing" not in os.environ.get("DATABASE_URL", ""):
     raise RuntimeError("test backend database is not isolated")
 
-# Set every external integration before importing application settings or agents.
+# Set test integrations before app imports read the environment.
 for key in (
     "LLM_API_KEY",
     "LLM_FALLBACK_API_KEY",
@@ -45,8 +45,7 @@ def test_today() -> date:
     return fixed_day
 
 
-# Routers and services import athlete_today directly. Replace each consuming
-# binding after the application has loaded, as well as the source function.
+# Routers import this function directly, so patch those bindings too.
 for module_name, module in tuple(sys.modules.items()):
     if module_name.startswith("app.") and getattr(module, "athlete_today", None) is original_today:
         setattr(module, "athlete_today", test_today)

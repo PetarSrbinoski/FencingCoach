@@ -39,7 +39,6 @@ def _non_fencing_activity(db, day: date):
     return a
 
 
-# ── zone classification ──────────────────────────────────────────────────
 def test_zone_for_none_inputs():
     assert _zone_for(None, 180) is None
     assert _zone_for(150, None) is None
@@ -57,12 +56,10 @@ def test_zone_boundaries():
 
 
 def test_all_zone_bounds_are_contiguous():
-    # Sanity check on the static table itself.
     for i in range(1, len(ZONE_BOUNDS)):
         assert ZONE_BOUNDS[i - 1][2] == ZONE_BOUNDS[i][1]
 
 
-# ── trend ─────────────────────────────────────────────────────────────
 def test_trend_insufficient_data_below_minimum():
     assert _trend([100, 100, 100]) == "insufficient_data"
 
@@ -82,7 +79,6 @@ def test_trend_stable():
     assert _trend(loads) == "stable"
 
 
-# ── analyze_fencing_sessions ────────────────────────────────────────────
 def test_only_fencing_activities_counted(db):
     _fencing_activity(db, TODAY, avg_hr=150, max_hr=175, duration_s=7200, load=120)
     _non_fencing_activity(db, TODAY)

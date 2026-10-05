@@ -14,5 +14,4 @@ COPY backend/ ./
 COPY llm/ ./llm/
 COPY testing/support/ ./testing/support/
 
-# The image intentionally contains no private dotenv file or USDA MCP checkout.
 RUN test ! -e /app/.env

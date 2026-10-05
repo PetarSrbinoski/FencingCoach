@@ -162,7 +162,6 @@ def test_totals_distinguish_missing_micros_from_known_zero(client):
 def test_chat_tools_normalize_supplied_label_serving_and_deduplicate_writes(db):
     ctx = cast(RunContext[CoachDeps], SimpleNamespace(deps=CoachDeps(db=db)))
     data = SavedFoodInput(**yogurt())
-    # Numbers are supplied for a 50 g label serving, normalized by server code.
     saved = asyncio.run(save_personal_food(ctx, data, values_for_g=50))
     repeated = asyncio.run(save_personal_food(ctx, data, values_for_g=50))
     assert repeated.id == saved.id

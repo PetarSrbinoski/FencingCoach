@@ -20,7 +20,6 @@ def test_non_gym_day_returns_none():
 
 
 def test_template_alternation_follows_custom_schedule(monkeypatch):
-    # Move gym days to Mon/Fri instead of Tue/Thu
     from app.core.config import settings
 
     monkeypatch.setattr(
@@ -30,5 +29,4 @@ def test_template_alternation_follows_custom_schedule(monkeypatch):
     friday = date(2026, 7, 10)
     assert _template_for(monday) == ("strength_unilateral", TUE_TEMPLATE)
     assert _template_for(friday) == ("power_explosive", THU_TEMPLATE)
-    # Tuesday is no longer a gym day under the custom schedule
     assert _template_for(date(2026, 7, 7)) is None

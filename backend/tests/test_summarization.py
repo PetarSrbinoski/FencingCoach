@@ -120,14 +120,11 @@ class TestGenerateSummaries:
     def test_no_old_data(self, db):
         """With only recent data (none at all), check it runs without error."""
         count = generate_weekly_summaries(db)
-        # With no data at all, may still create empty summaries for past weeks
-        # The important thing is it doesn't crash
         assert count >= 0
 
     def test_old_workout_data(self, db):
         """Insert old workout data and verify summaries are generated."""
         old_day = date.today() - timedelta(days=200)
-        # Create a week of old data
         for i in range(7):
             day = old_day + timedelta(days=i)
             db.add(
@@ -144,7 +141,6 @@ class TestGenerateSummaries:
         count = generate_weekly_summaries(db, domains=["training"])
         assert count >= 1
 
-        # Verify summary exists
         summaries = get_summaries(db, domain="training", period="week")
         assert len(summaries) >= 1
         assert summaries[0].domain == "training"

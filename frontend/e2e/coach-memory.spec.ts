@@ -68,7 +68,6 @@ test("chat-created inference can be confirmed and safely reversed from Agent log
   await expect(memory.getByText("Unconfirmed", { exact: true })).toBeVisible();
   await page.reload();
   await expect(memory.getByText("Unconfirmed", { exact: true })).toBeVisible();
-  // A later edit protects the original create receipt from undo.
   const state = await (await request.get(`${api}/coach-memory`)).json();
   const item = state.items[0];
   await request.put(`${api}/coach-memory/${item.id}`, { data: { content: "Prefers rice with vegetables", expires_on: null,

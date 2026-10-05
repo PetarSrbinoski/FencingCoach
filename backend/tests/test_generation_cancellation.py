@@ -70,7 +70,6 @@ def test_cancel_closes_live_provider_stream_and_stops_agent(sessions, monkeypatc
             )))
             monkeypatch.setattr("app.agents.coach.get_active_model", lambda: model)
             monkeypatch.setattr("app.agents.nutrition.get_active_model", lambda: model)
-            # Exercise the real agents with a deterministic, network-free transport.
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
                                          base_url="http://app") as client:
                 is_chat = kind != "nutrition"
@@ -94,7 +93,6 @@ def test_cancel_closes_live_provider_stream_and_stops_agent(sessions, monkeypatc
                     assert response.json()["status"] == "cancelled"
                     assert response.json()["error"] is None
                     assert (await client.post(f"{path}/cancel")).json()["status"] == "cancelled"
-                # Cancellation must close the upstream response BEFORE acknowledging it.
                 assert closed.is_set()
                 assert (await asyncio.wait_for(submission, timeout=5)).status_code == 202
                 assert len(requests) == 1  # No retry, fallback, or follow-up tool/model turn.
@@ -180,7 +178,6 @@ def test_cancel_preserves_committed_tools_and_discards_late_result(sessions):
             try:
                 await asyncio.Event().wait()
             except asyncio.CancelledError:
-                # Even a provider/tool that returns a late result cannot replace cancellation.
                 return {"content": "Late reply"}
 
         job = asyncio.create_task(generation._run_generation(CoachMessage, message_id, generate))

@@ -77,7 +77,6 @@ def test_unrelated_activity_type_does_not_change_day_type(db):
     assert source == "auto"
 
 
-# ── maintenance kcal: Garmin rolling avg vs formula fallback ────────────
 def _seed_calories(db, day: date, n_days: int, kcal: float, status: str = "ok"):
     for i in range(1, n_days + 1):
         db.add(
@@ -93,7 +92,6 @@ def _seed_calories(db, day: date, n_days: int, kcal: float, status: str = "ok"):
 
 def test_maintenance_falls_back_to_formula_with_insufficient_garmin_data(db):
     day = date(2026, 7, 8)
-    # Fewer than MIN_GARMIN_DAYS_FOR_MAINTENANCE valid days
     _seed_calories(db, day, n_days=MIN_GARMIN_DAYS_FOR_MAINTENANCE - 1, kcal=3000)
     maintenance, source = _maintenance_kcal(db, day, weight=90.0)
     assert maintenance == 90.0 * FORMULA_KCAL_PER_KG
@@ -110,7 +108,6 @@ def test_maintenance_uses_garmin_rolling_average_when_sufficient_data(db):
 
 def test_maintenance_ignores_non_ok_status_rows(db):
     day = date(2026, 7, 8)
-    # All rows present but marked as implausible/missing -> shouldn't count
     _seed_calories(
         db,
         day,
@@ -125,14 +122,12 @@ def test_maintenance_ignores_non_ok_status_rows(db):
 
 def test_maintenance_excludes_today(db):
     day = date(2026, 7, 8)
-    # A row for "today" itself should never count toward the rolling window
     db.add(GarminMetric(kind="calories", day=day, value=5000, status="ok"))
     db.commit()
     maintenance, source = _maintenance_kcal(db, day, weight=90.0)
     assert maintenance == 90.0 * FORMULA_KCAL_PER_KG  # today's row alone isn't enough
 
 
-# ── compute_targets: end-to-end sanity ──────────────────────────────────
 def test_compute_targets_requires_profile_weight(db):
     day = _mon()
     with pytest.raises(ValueError, match="body weight"):

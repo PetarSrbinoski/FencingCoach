@@ -18,7 +18,6 @@ def test_neutral_when_no_garmin_reading(db):
     assert r.score is None
     assert r.band == "unknown"
     assert r.source == "neutral"
-    # advisories still computed even without a Garmin reading
     assert set(r.advisories.keys()) == {"load", "rest"}
 
 
@@ -41,8 +40,6 @@ def test_band_boundaries():
 
 
 def test_implausible_or_missing_garmin_row_not_counted(db):
-    # A row exists but with status != "ok" (e.g. implausible) — should not
-    # be treated as a valid reading since .value is None in that case.
     db.add(
         GarminMetric(kind="training_readiness", day=DAY, value=None, status="missing")
     )
@@ -67,8 +64,6 @@ def test_readiness_section_renders_garmin_score(db):
 
 
 def test_build_session_does_not_crash_with_neutral_readiness(db):
-    # Tuesday -> gym day in the default template; readiness has no Garmin
-    # reading, so band="unknown" and no volume/intensity penalty applies.
     tuesday = date(2026, 6, 16)
     result = build_session(db, tuesday)
     assert result["readiness"]["score"] is None

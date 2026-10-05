@@ -41,7 +41,6 @@ def test_metric_stale_after_gap(db):
     today = date(2026, 6, 15)
     last_ok_day = today - timedelta(days=6)
     _add_metric(db, "hrv", last_ok_day, "ok", value=60.0)
-    # more recent days present but failed extraction
     for i in range(1, 6):
         _add_metric(db, "hrv", today - timedelta(days=i), "missing", value=None)
     db.commit()

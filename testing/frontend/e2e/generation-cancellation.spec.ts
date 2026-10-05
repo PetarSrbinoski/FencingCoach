@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Controlled API responses: no LLM or database needed.
 async function mockApi(page: Page) {
   await page.route(/\/((chat|agent-actions|coach-plan-proposals|settings|profile|readiness|nutrition|targets|mealplan|foods)(\/|\?|$))/, async (route) => {
     if (!["fetch", "xhr"].includes(route.request().resourceType())) return route.continue();

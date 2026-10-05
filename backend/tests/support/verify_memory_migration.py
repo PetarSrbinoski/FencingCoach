@@ -24,7 +24,6 @@ with engine.connect() as connection:
     assert connection.scalar(text("SELECT content FROM coach_messages WHERE conversation_id=1")) == "Existing history"
     assert connection.scalar(text("SELECT count(*) FROM coach_memories")) == 0
     assert connection.scalar(text("SELECT summary FROM agent_actions WHERE id=1")) == "Existing receipt"
-# Use public workflows on the migrated PostgreSQL schema, including JSONB receipts.
 
 with TestClient(app) as client:
     response = client.post("/coach-memory", json={"content": "No squat rack", "request_id": "migration-check"})
@@ -33,7 +32,6 @@ with TestClient(app) as client:
     receipt = client.get("/agent-actions?kind=memory").json()["items"][0]
     assert client.post(f"/agent-actions/{receipt['id']}/undo", json={"request_id": "undo"}).status_code == 200
     assert client.get("/coach-memory").json()["items"] == []
-# Concurrent retries serialize to one memory and one receipt.
 with TestClient(app) as client:
     def create_retry(_):
         return client.post("/coach-memory", json={"content": "Concurrent retry", "request_id": "parallel"})
@@ -45,7 +43,6 @@ with TestClient(app) as client:
     assert len(client.get("/coach-memory").json()["items"]) == 1
     assert client.get("/agent-actions?kind=memory").json()["total"] == 2
 
-# A database rejection of the receipt must roll back the resource too.
 with engine.begin() as connection:
     connection.execute(text("""CREATE FUNCTION reject_probe_receipt() RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN IF NEW.summary LIKE '%rollback probe%' THEN RAISE EXCEPTION 'receipt rejected'; END IF;

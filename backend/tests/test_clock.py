@@ -10,8 +10,6 @@ from app.core.clock import athlete_today
 
 
 def test_athlete_today_uses_configured_timezone():
-    # A fixed UTC instant that falls on different calendar days depending
-    # on the timezone it's viewed in.
     fixed_utc = datetime(2026, 1, 1, 2, 0, tzinfo=ZoneInfo("UTC"))
 
     class _FakeDatetime(datetime):
