@@ -32,7 +32,6 @@ export default function CoachMemoryPage() {
   const [formError, setFormError] = useState("");
   const [deleting, setDeleting] = useState<CoachMemory | null>(null);
   const [logsOpen, setLogsOpen] = useState(false);
-  // Preserve the same identity when retrying an uncertain network outcome.
   const requests = useRef(new Map<string, string>());
   function requestId(key: string) {
     if (!requests.current.has(key)) requests.current.set(key, randomUUID());

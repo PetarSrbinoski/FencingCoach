@@ -40,7 +40,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// ── helpers ──────────────────────────────────────────────────────────
 function mondayOf(d: Date): Date {
   const copy = new Date(d);
   const day = copy.getDay();
@@ -70,7 +69,6 @@ const ENTRY_TYPE_LABELS: Record<string, string> = {
   reflection: "Reflection",
 };
 
-// ── Fencing Session Analysis ─────────────────────────────────────────
 const TREND_LABELS: Record<FencingAnalysis["training_load_trend"], string> = {
   increasing: "Load trending up",
   decreasing: "Load trending down",
@@ -263,7 +261,6 @@ function FencingAnalysisSection() {
   );
 }
 
-// ── Mental Training Section ──────────────────────────────────────────
 function MentalTrainingSection() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
@@ -628,7 +625,6 @@ function MentalTrainingSection() {
   );
 }
 
-// ── main ─────────────────────────────────────────────────────────────
 export default function TrainingPage() {
   const [view, setView] = useView(
     ["plan", "fencing", "mindset"] as const,

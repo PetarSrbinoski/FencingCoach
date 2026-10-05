@@ -125,14 +125,10 @@ export default function ChatPage() {
         send(pending);
       }
     })();
-    // Stop polling (client-side only) on unmount — the reply keeps
-    // generating server-side regardless; re-opening this conversation
-    // later resumes watching it (see openConversation below).
     return () => {
       active = false;
       stopPolling();
     };
-    // Mount-only initialization owns the observer for this page instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -291,8 +287,6 @@ export default function ChatPage() {
       setConversations((current) => current);
     }
 
-    // Resume watching if the last turn is still generating server-side
-    // (e.g. the athlete left mid-reply and came back).
     const last = conversation.messages[conversation.messages.length - 1];
     if (last?.role === "assistant" && last.status === "pending") {
       pollReply(last.id, observation);
@@ -333,7 +327,6 @@ export default function ChatPage() {
 
     try {
       const submission = api.chat(content, conversationId, true);
-      // Keep the acceptance promise so Cancel also works during submission.
       const id = submission.then((accepted) => accepted.message_id);
       activeRequest.current = { id, observation };
       void id.catch(() => {}); // The submission error is handled below.
@@ -348,8 +341,6 @@ export default function ChatPage() {
         ),
       );
       pollReply(accepted.message_id, observation);
-      // Refresh the sidebar (title/preview/message_count) once accepted —
-      // the reply itself fills in via pollReply above.
       refreshConversationSummaries();
     } catch (e: any) {
       if (!observation.isCurrent()) return;
@@ -613,7 +604,6 @@ export default function ChatPage() {
                 i === messages.length - 1 &&
                 busy
               ) {
-                // The typing-dots indicator below covers this case.
                 return null;
               }
               return (

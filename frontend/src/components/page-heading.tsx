@@ -19,7 +19,6 @@ export function PageTitle({ title }: { title: string }) {
   );
 }
 
-/** Compact editorial masthead: graphic character without a large mobile hero. */
 export function PageHeading({
   title,
   eyebrow,

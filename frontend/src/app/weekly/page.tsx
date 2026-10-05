@@ -64,7 +64,6 @@ export default function WeeklyPage() {
       .finally(() => setLoading(false));
   }, [reload]);
 
-  // ── 7-day load by day ─────────────────────────────────────────────
   const last7Days: { label: string; value: number }[] = (() => {
     const out: { label: string; value: number }[] = [];
     const today = new Date();
@@ -80,7 +79,6 @@ export default function WeeklyPage() {
     return out;
   })();
 
-  // ── 7-day kcal compliance ─────────────────────────────────────────
   const last7Kcal: { label: string; value: number }[] = (() => {
     const out: { label: string; value: number }[] = [];
     const today = new Date();
@@ -105,7 +103,6 @@ export default function WeeklyPage() {
 
   const avgKcal = (last7Kcal.reduce((s, d) => s + d.value, 0) / 7).toFixed(0);
 
-  // ── helpers ───────────────────────────────────────────────────────
   function latestValue(series: MetricSeries | null): string {
     if (!series) return "—";
     const pts = series.points.filter((p) => p.value != null);

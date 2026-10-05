@@ -556,7 +556,6 @@ function StatCard({
   );
 }
 
-/** Small noninteractive preview; the Trends screen provides exact dated values. */
 function MetricTrace({ points }: { points: MetricSeries["points"] }) {
   const recent = points.slice(-14);
   const values = recent.flatMap((point) =>

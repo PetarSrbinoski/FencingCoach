@@ -36,8 +36,6 @@ function staleMessage(m: MetricDiagnostic): string {
   return `${label(m.kind)} has no new usable reading in ${days} day${days === 1 ? "" : "s"}`;
 }
 
-/** Surfaces Garmin extraction gaps instead of letting them silently degrade
- * readiness/targets/coach context. See GET /diagnostics. */
 export function DataCoveragePanel({
   windowDays = 30,
   revision = 0,
@@ -149,8 +147,6 @@ export function DataCoveragePanel({
   );
 }
 
-/** Slim, dashboard-friendly variant: renders nothing when all metrics are
- * healthy, otherwise a compact warning list. */
 export function StaleDataBanner({
   windowDays = 30,
   revision = 0,
@@ -167,8 +163,6 @@ export function StaleDataBanner({
       .catch(() => {});
   }, [windowDays, revision]);
 
-  // Only surface metrics that were working and went stale (actionable sync
-  // gap) — metrics that never parsed at all are unsupported-metric noise.
   const stale =
     data?.metrics.filter((m) => m.stale && m.last_ok_day !== null) ?? [];
   if (stale.length === 0) return null;

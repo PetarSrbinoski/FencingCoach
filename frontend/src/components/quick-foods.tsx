@@ -97,8 +97,8 @@ export function QuickFoods({
     try {
       let entry: NutritionLog;
       if (kind === "recent") {
-        // Retrying an uncertain response must reuse the same idempotency key.
         const key = JSON.stringify([source.id, day, meal, quantity]);
+        // An uncertain retry must use the same server request ID.
         const requestId = repeatRequests.current.get(key) ?? randomUUID();
         repeatRequests.current.set(key, requestId);
         entry = await api.nutrition.repeat(source.id, {

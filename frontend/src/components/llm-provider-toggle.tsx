@@ -7,10 +7,6 @@ import { useEffect, useState } from "react";
 
 type Provider = "local" | "cloud";
 
-/** Manual toggle between the local (e.g. llama.cpp/vLLM on your own
- * machine) and cloud LLM provider pools — see backend `services
- * /llm_provider.py`. Persisted server-side and takes effect immediately
- * for every agent, no backend restart needed. */
 export function LlmProviderToggle({
   collapsed = false,
 }: {

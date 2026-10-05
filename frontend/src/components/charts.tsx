@@ -13,10 +13,6 @@ import {
   YAxis,
 } from "recharts";
 
-/* -------------------------------------------------------------------------- */
-/*  Sparkline                                                                  */
-/* -------------------------------------------------------------------------- */
-
 interface SparklineProps {
   points: { day: string; value: number | null }[];
   color?: string;
@@ -107,10 +103,6 @@ export function Sparkline({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  BarChartComponent                                                          */
-/* -------------------------------------------------------------------------- */
-
 interface BarChartComponentProps {
   values: { label: string; value: number }[];
   color?: string;
@@ -186,10 +178,6 @@ export function BarChartComponent({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Gauge                                                                      */
-/* -------------------------------------------------------------------------- */
-
 interface GaugeProps {
   score: number;
   size?: number;
@@ -260,10 +248,6 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
     </div>
   );
 }
-
-/* -------------------------------------------------------------------------- */
-/*  MacroProgress                                                              */
-/* -------------------------------------------------------------------------- */
 
 interface MacroProgressProps {
   label: string;

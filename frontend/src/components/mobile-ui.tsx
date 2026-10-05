@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-/** URL-backed local navigation also understands existing resource deep links. */
 export function useView<T extends string>(
   allowed: readonly T[],
   fallback: T,
@@ -173,7 +172,6 @@ export function ErrorNotice({
   );
 }
 
-/** Protect an unsaved form on reload and ordinary in-app link navigation. */
 export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
   const router = useRouter();
   const [destination, setDestination] = useState<string | null>(null);

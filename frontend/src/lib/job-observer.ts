@@ -1,11 +1,9 @@
-/** Owns one observation, including submission/loading and subsequent polling.
- * Stopping observation never cancels the server's generation job.
- */
 export function createJobObserver(intervalMs = 1200) {
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   function stop() {
+    // Stop watching locally; the server job keeps running.
     generation += 1;
     clearTimeout(timer);
     timer = undefined;

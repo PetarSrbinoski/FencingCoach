@@ -9,10 +9,6 @@ import {
 import { cn } from "@/lib/utils";
 import React from "react";
 
-/**
- * Application-level Card wrapper — minimal editorial styling.
- * Content separated by thin borders, generous space.
- */
 export function Card({
   title,
   action,

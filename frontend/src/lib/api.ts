@@ -1,5 +1,3 @@
-// Tiny typed API client for the FastAPI backend.
-// No auth — single-user app, reachable only via Tailscale.
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -22,7 +20,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── shared types ─────────────────────────────────────────────────────
 export type ReadinessAdvisory = { detail: string; value: number | null };
 export type Readiness = {
   day: string;
@@ -120,8 +117,6 @@ export type NutritionEstimateItem = {
 
 export type NutritionEstimateStatus = "pending" | "done" | "error" | "cancelled";
 
-/** Returned immediately by `POST /nutrition/estimate` — poll
- * `api.nutrition.pollEstimate` for the actual result. */
 export type NutritionEstimateAccepted = {
   id: number;
   status: NutritionEstimateStatus;
@@ -513,15 +508,12 @@ export type CoachPlanProposal = {
   applied_plan_id: number | null; action_id: number | null; created_at: string;
 };
 
-/** Returned immediately by `POST /chat` — poll `api.chatMessages.poll`
- * for the actual reply. */
 export type ChatAccepted = {
   conversation_id: number;
   message_id: number;
   status: ChatMessageStatusValue;
 };
 
-/** Poll response for a chat message (see `api.chatMessages.poll`). */
 export type ChatMessagePoll = {
   id: number;
   status: ChatMessageStatusValue;
@@ -550,15 +542,10 @@ export type CoachConversationSummary = {
   last_message_preview: string | null;
 };
 
-// ── api ──────────────────────────────────────────────────────────────
 export const api = {
   health: () =>
     request<{ status: string; db: boolean; llm: boolean; version: string }>("/health"),
 
-  /** Stores the athlete's turn and returns immediately (202) — the reply
-   * generates in the background on the server (see backend/app/api/chat.py)
-   * and keeps going even if the page is navigated away from. Poll
-   * `api.chatMessages.poll(message_id)` for the result. */
   chat: (message: string, conversation_id?: number, include_context = true) =>
     request<ChatAccepted>("/chat", {
       method: "POST",
@@ -604,9 +591,6 @@ export const api = {
         `/garmin/sync/recent?days=${days}`,
         { method: "POST" }
       ),
-    // Default (30) matches the backend's nightly maintenance full-sync
-    // window (GARMIN_FULL_SYNC_DAYS). Callers doing a one-time deep
-    // historical backfill should pass an explicit larger value (e.g. 365).
     syncFull: (days = 30) =>
       request<{ ok: boolean; outcome: "complete" | "partial" | "failed"; fetched: Record<string, unknown>; error?: string }>(
         `/garmin/sync/full?days=${days}`,
@@ -636,10 +620,6 @@ export const api = {
   },
 
   nutrition: {
-    /** Kicks off macro estimation and returns immediately (202) — the
-     * LLM call runs in the background on the server and keeps going
-     * even if the page is navigated away from. Poll
-     * `api.nutrition.pollEstimate(id)` for the result. */
     estimate: (text: string) =>
       request<NutritionEstimateAccepted>("/nutrition/estimate", {
         method: "POST",

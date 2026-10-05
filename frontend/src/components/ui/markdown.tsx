@@ -4,13 +4,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 
-// Shared renderer for AI-generated prose (coach chat, brief, insights, etc.)
-// — parses Markdown and restyles it to match the app's aesthetic instead of
-// dumping raw text or pulling in the Tailwind typography plugin.
 const components: Components = {
-  // `white-space: pre-line`: CommonMark keeps a single `\n` as a literal
-  // soft break, so labeled prompt output (READINESS:/TODAY:/etc.) renders
-  // as separate lines instead of one run-on paragraph.
   p: ({ children }) => <p className="mb-3 whitespace-pre-line last:mb-0">{children}</p>,
   ul: ({ children }) => <ul className="mb-3 last:mb-0 list-disc space-y-1 pl-5">{children}</ul>,
   ol: ({ children }) => <ol className="mb-3 last:mb-0 list-decimal space-y-1 pl-5">{children}</ol>,
@@ -50,8 +44,6 @@ const components: Components = {
     </pre>
   ),
   code: ({ className, children, ...props }) => {
-    // Fenced code blocks carry a `language-*` class from remark; inline
-    // `code` spans don't — style each case differently.
     const isBlock = /language-/.test(className || "");
     if (isBlock) {
       return (

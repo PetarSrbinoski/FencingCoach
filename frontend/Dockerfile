@@ -1,12 +1,10 @@
 FROM node:20-alpine AS base
 
-# Install dependencies
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Build the app
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -15,7 +13,6 @@ ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN npm run build
 
-# Production runner
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -25,7 +22,6 @@ ENV PORT=3000
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public

@@ -75,7 +75,6 @@
     font-family: inherit;
   }
 
-  /* Subtle noise grain texture overlay */
   body::before {
     content: "";
     position: fixed;
@@ -86,7 +85,6 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   }
 
-  /* Minimal scrollbar */
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;
@@ -157,7 +155,6 @@
   }
 }
 
-/* Athletic editorial system: paper, ink, orange, and piste markings. */
 @layer components {
   .eyebrow {
     @apply font-sans text-xs font-medium uppercase tracking-wider;

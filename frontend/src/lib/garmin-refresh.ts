@@ -11,7 +11,6 @@ export function announceGarminSync() {
   window.dispatchEvent(new Event(EVENT));
 }
 
-/** Observe completed server syncs, including work done by the background worker. */
 export function useGarminSyncObserver(onRefresh: () => void) {
   const callback = useRef(onRefresh);
   callback.current = onRefresh;

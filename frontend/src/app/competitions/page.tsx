@@ -173,13 +173,11 @@ export default function CompetitionsPage() {
       setView(
         (event.end_date || event.event_date) < today ? "past" : "upcoming",
       );
-    // The selected list must render before resolving its anchor.
     const timer = window.setTimeout(
       () => document.getElementById(id)?.scrollIntoView({ block: "center" }),
       100,
     );
     return () => window.clearTimeout(timer);
-    // URL selection runs when the requested records arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, today]);
 

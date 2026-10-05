@@ -197,8 +197,6 @@ export default function NutritionPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [repeatRequestId, setRepeatRequestId] = useState("");
 
-  // Confirm-before-save: /nutrition/estimate never persists. The athlete
-  // reviews/edits the macros here, then /nutrition/log saves them.
   const [estimate, setEstimate] = useState<NutritionEstimate | null>(null);
   const [draft, setDraft] = useState({
     kcal: "",
@@ -210,9 +208,6 @@ export default function NutritionPage() {
   const [confirming, setConfirming] = useState(false);
   const estimateObserver = useRef(createJobObserver());
 
-  // Resume watching an estimate that was still generating server-side
-  // last time this page was open (e.g. the athlete navigated away or
-  // reloaded before it finished) — see requestEstimate/pollEstimateResult.
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
 
@@ -436,7 +431,6 @@ export default function NutritionPage() {
       receiveEstimate,
       (error) => {
         setBusy(false);
-        // Keep the job reference: a connection failure is not a failed job.
         setErr(error instanceof Error ? error.message : String(error));
       },
     );
@@ -463,8 +457,7 @@ export default function NutritionPage() {
       activeEstimate.current = { id, observation };
       void id.catch(() => {}); // The submission error is handled below.
       const accepted = await submission;
-      // Preserve resumability even if the page closed before acceptance, but
-      // never overwrite a newer submission's saved reference.
+      // A newer submission may have replaced this one while we waited.
       if (sessionStorage.getItem("pendingNutritionEstimate") === pending) {
         sessionStorage.setItem(
           "pendingNutritionEstimate",
