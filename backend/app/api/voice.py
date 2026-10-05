@@ -345,7 +345,7 @@ def accept_voice(draft_id: int, body: AcceptInput, db: Session = Depends(get_db)
             values = row.interpretation.get("preview")
             if not values:
                 raise HTTPException(409, "The meal needs a new review")
-            # Recompute known-food values under the same revision guard.
+            # Resolve saved foods again while the draft revision is locked.
             if interpretation.portions and not interpretation.food and not interpretation.other_foods.strip():
                 meal = foods.log_foods(db, interpretation.portions, day=body.day,
                                        meal=body.meal, commit=False)

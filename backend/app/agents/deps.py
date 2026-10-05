@@ -32,10 +32,7 @@ async def consume_generation_stream(
         pass
 
 
-# Model-level default settings. DeepSeek V4 Flash (NVIDIA NIM) is a reasoning
-# model whose thinking mode is enabled through provider-specific
-# chat_template_kwargs passed via extra_body. These defaults apply to every
-# agent; per-agent model_settings (temperature/max_tokens) merge on top.
+# These options are specific to the primary reasoning model.
 MODEL_DEFAULT_SETTINGS = OpenAIChatModelSettings(
     top_p=0.95,
     extra_body={
@@ -46,13 +43,9 @@ MODEL_DEFAULT_SETTINGS = OpenAIChatModelSettings(
     },
 )
 
-# Settings for LLM_FALLBACK_MODEL. Deliberately plain — the fallback exists
-# purely to answer when the primary (reasoning) model's shared NIM worker is
-# at capacity, and non-DeepSeek models don't understand the `thinking` /
-# `reasoning_effort` chat_template_kwargs above.
+# The fallback may reject the primary model's thinking options.
 FALLBACK_MODEL_SETTINGS = OpenAIChatModelSettings(top_p=0.95)
 
-# Regex to strip <think>...</think> blocks from reasoning models
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
@@ -77,7 +70,7 @@ class ThinkTagStreamFilter:
             if not self._in_think:
                 idx = self._buffer.find("<think>")
                 if idx == -1:
-                    # Keep a small tail in case "<think>" is split across chunks.
+                    # Keep enough characters to catch a tag split across chunks.
                     safe_len = max(0, len(self._buffer) - len("<think>"))
                     out += self._buffer[:safe_len]
                     self._buffer = self._buffer[safe_len:]
@@ -88,9 +81,6 @@ class ThinkTagStreamFilter:
             else:
                 idx = self._buffer.find("</think>")
                 if idx == -1:
-                    # Still inside <think>; discard everything except a
-                    # tail long enough to catch a "</think>" tag split
-                    # across this chunk boundary and the next one.
                     keep = len("</think>") - 1
                     self._buffer = self._buffer[-keep:]
                     break
@@ -143,8 +133,6 @@ def _build_chat_model(
     )
     provider = OpenAIProvider(openai_client=openai_client)
 
-    # Many OpenAI-compatible providers don't support strict tool definitions
-    # (Ollama, NIM, etc.) so we disable that by default.
     profile = OpenAIModelProfile(
         json_schema_transformer=InlineDefsJsonSchemaTransformer,
         openai_supports_strict_tool_definition=False,
@@ -220,10 +208,6 @@ def get_model_for_provider(provider: str) -> Model:
     raise ValueError(f"unknown LLM provider {provider!r}")
 
 
-# In-process cache of the athlete's manual local/cloud choice. Hydrated from
-# `app_settings` once at startup (see `main.py`'s startup hook) and updated
-# immediately whenever the toggle is flipped via `PUT /settings/llm-provider`
-# — so it takes effect on the very next request, no restart required.
 _active_provider: str = "local"
 
 

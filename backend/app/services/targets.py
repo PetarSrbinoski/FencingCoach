@@ -31,14 +31,10 @@ DEFAULT_WEIGHT_KG = 89.0
 DEFAULT_BODY_COMP = "performance"
 POLICY_VERSION = "daily-2026-09-v1"
 
-# Rolling window + minimum data requirement for trusting Garmin-measured
-# expenditure over the formula fallback. "Today" is excluded since it's
-# usually incomplete mid-day.
 GARMIN_MAINTENANCE_WINDOW_DAYS = 14
 MIN_GARMIN_DAYS_FOR_MAINTENANCE = 5
 FORMULA_KCAL_PER_KG = 38.0  # active-fencer estimate, used only as fallback
 
-# Carbs g/kg by day type — base values, then phase-adjusted
 CARB_BY_DAYTYPE = {
     "rest": 3.0,
     "gym": 4.0,
@@ -47,7 +43,6 @@ CARB_BY_DAYTYPE = {
     "competition": 6.0,
 }
 
-# Phase carb modifier (multiplicative)
 PHASE_CARB_MOD = {
     "general": 1.00,
     "build": 1.00,
@@ -57,7 +52,6 @@ PHASE_CARB_MOD = {
     "recovery": 1.00,
 }
 
-# Body-comp goal kcal dial (multiplicative on total kcal)
 GOAL_KCAL_MOD = {
     "performance": 1.00,
     "maintain": 1.00,
@@ -67,7 +61,6 @@ GOAL_KCAL_MOD = {
 }
 GOAL_ALIASES = {"lean": "cutting", "cut": "cutting", "gain": "lean_bulk"}
 
-# Athletic micro targets (per day, baseline; not all comprehensive)
 MICRO_TARGETS = {
     "iron_mg": 18.0,
     "vitamin_d_iu": 2000.0,
@@ -109,7 +102,6 @@ class NutritionTargets:
         return {**asdict(self), "day": self.day.isoformat()}
 
 
-# ── helpers ───────────────────────────────────────────────────────────
 def _athlete_weight(db: Session) -> float:
     p = db.scalar(select(AthleteProfile).limit(1))
     if p is None or p.weight_kg is None or not 30 <= p.weight_kg <= 300:
@@ -163,12 +155,10 @@ VALID_DAY_TYPES = _VALID_DAY_TYPES  # re-exported for backward compat (app.api.t
 
 def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     """Heuristic. Returns (day_type, source) where source is 'auto' or 'manual'."""
-    # Check for manual override first
     override = db.scalar(select(DayTypeOverride).where(DayTypeOverride.day == day).limit(1))
     if override is not None and override.override_type in VALID_DAY_TYPES:
         return override.override_type, "manual"
 
-    # Competition on this day?
     comp = db.scalar(select(Competition).where(
         Competition.event_date <= day,
         or_(Competition.end_date >= day,
@@ -177,10 +167,8 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     if comp is not None:
         return "competition", "auto"
 
-    # Default pattern from the single-source weekly schedule (Mon=0..Sun=6)
     default = day_type_for_weekday(day.weekday())
 
-    # Look at logged activities for this day to upgrade if needed.
     start = datetime.combine(day, time.min, tzinfo=UTC)
     end = start + timedelta(days=1)
     rows = db.scalars(
@@ -200,7 +188,6 @@ def detect_day_type(db: Session, day: date) -> tuple[str, str]:
     return default, "auto"
 
 
-# ── public api ────────────────────────────────────────────────────────
 def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
     day = day or athlete_today()
     weight = _athlete_weight(db)
@@ -208,12 +195,9 @@ def compute_targets(db: Session, day: date | None = None) -> NutritionTargets:
     phase: Phase = compute_phase(db, day)
     day_type, override_source = detect_day_type(db, day)
 
-    # Policy ranges: P 1.8–2.0, C 3–6, F 0.8–1.5 g/kg.
-    # Daily energy follows macros; an incompatible goal is disclosed below.
     protein_per_kg = 2.0 if goal in ("cutting", "recomp") else 1.8
     protein_g = round(weight * protein_per_kg, 1)
 
-    # Carbs: from day-type base × phase modifier
     base_c = CARB_BY_DAYTYPE.get(day_type, 4.0)
     carb_per_kg = base_c * PHASE_CARB_MOD.get(phase.name, 1.0)
     carbs_g = round(weight * carb_per_kg, 1)

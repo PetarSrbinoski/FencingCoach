@@ -8,9 +8,6 @@ from __future__ import annotations
 
 import re
 
-# Metric keywords whose adjacent numeric claims should be traceable to the
-# context snapshot. Deliberately does not include generic training-Rx terms
-# (sets, reps, RPE, %1RM) since those are the coach's own output.
 GROUNDING_KEYWORDS: tuple[str, ...] = (
     "hrv",
     "sleep",

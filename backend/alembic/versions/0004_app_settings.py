@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = "0004_app_settings"
 down_revision: Union[str, None] = "0003_workout_overrides"
 branch_labels: Union[str, Sequence[str], None] = None

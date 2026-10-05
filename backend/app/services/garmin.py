@@ -38,15 +38,11 @@ class GarminService:
         self.token_dir.mkdir(parents=True, exist_ok=True)
         self._client: Garmin | None = None
 
-    # ── auth ──────────────────────────────────────────────────────────
     def _client_or_login(self) -> Garmin:
         if self._client is not None:
             return self._client
         client = Garmin(email=self.email, password=self.password)
         try:
-            # New garminconnect releases use a single token store directory.
-            # If tokens exist, this restores + auto-refreshes them.
-            # If not, it performs a fresh login and writes garmin_tokens.json.
             client.login(str(self.token_dir))
         except FileNotFoundError as e:
             if not (self.email and self.password):
@@ -66,12 +62,9 @@ class GarminService:
         if not (self.email and self.password):
             raise RuntimeError("Garmin email/password required for login.")
         client = Garmin(email=self.email, password=self.password)
-        # Passing the token directory lets the library persist the new
-        # garmin_tokens.json session automatically.
         client.login(str(self.token_dir))
         self._client = client
 
-    # ── fetchers ──────────────────────────────────────────────────────
     def fetch_day(self, day: date) -> dict[str, Any]:
         """Pull a comprehensive snapshot for `day`. Returns dict of raw payloads.
 
@@ -114,7 +107,6 @@ class GarminService:
             log.warning("Garmin activities fetch failed: %s", e)
             raise RuntimeError("Garmin activities are unavailable") from e
 
-    # ── persistence ───────────────────────────────────────────────────
     @staticmethod
     def _upsert_metric(db: Session, kind: str, day: date, metric: ExtractedMetric) -> None:
         stmt = pg_insert(GarminMetric).values(
@@ -199,7 +191,6 @@ class GarminService:
         db.commit()
         return added
 
-    # ── orchestration ─────────────────────────────────────────────────
     def sync_recent(
         self, db: Session, days: int = settings.GARMIN_RECENT_SYNC_DAYS
     ) -> dict[str, Any]:

@@ -29,7 +29,6 @@ from llm.prompts.nutrition import NUTRITION_FALLBACK_INSTRUCTIONS, NUTRITION_INS
 log = logging.getLogger(__name__)
 
 
-# ── Structured output ─────────────────────────────────────────────────
 class NutritionMicros(BaseModel):
     model_config = ConfigDict(extra="allow", allow_inf_nan=False)
     __pydantic_extra__: dict[str, float] = Field(init=False)
@@ -99,7 +98,6 @@ def _clean_output(result: NutritionEstimateOutput) -> NutritionEstimateOutput:
     return result
 
 
-# ── Agent definition ──────────────────────────────────────────────────
 def _usda_mcp_available() -> bool:
     """Whether the local USDA MCP subprocess script is present."""
     return bool(settings.USDA_MCP_SCRIPT) and os.path.isfile(settings.USDA_MCP_SCRIPT)
@@ -109,7 +107,6 @@ def _build_nutrition_toolsets(include_usda: bool = True) -> list[Any]:
     """Build toolsets list for the nutrition agent."""
     toolsets = []
 
-    # USDA Nutrition MCP server — spawned as a local stdio subprocess.
     if include_usda and _usda_mcp_available():
         mcp_server = MCPServerStdio(
             command="python",
@@ -156,7 +153,6 @@ async def _strip_think(
     return _clean_output(result)
 
 
-# ── Public API (async) ──────────────────────────────────────────────────
 async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutput:
     """Resolve saved portions first; only estimate the remaining foods."""
     if not text.strip():
@@ -188,7 +184,6 @@ async def estimate_nutrition(text: str, db: Any = None) -> NutritionEstimateOutp
         estimated = await _estimate_unlisted(selection.other_foods, db)
         part = estimated.model_dump()
         part["micros"] = estimated.micros.model_dump(exclude_none=True)
-        # The old estimator produces a subtotal, without per-item nutrients.
         part["items"] = [{
             "name": selection.other_foods, "qty_g": sum(i.qty_g for i in estimated.items),
             "source": "estimated", "nutrients": {

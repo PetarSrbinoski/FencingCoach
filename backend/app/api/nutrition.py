@@ -121,7 +121,6 @@ def log_meal(
 
     Does not call the LLM — see `POST /nutrition/estimate` for that step.
     """
-    # Cross-reference with USDA data to enrich stored metadata (best-effort).
     usda_refs = []
     try:
         usda_refs = usda_service.cross_reference_meal(db, body.raw_text)

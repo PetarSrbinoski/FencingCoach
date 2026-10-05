@@ -21,7 +21,6 @@ from app.services.readiness import compute_readiness
 from app.services.schedule import day_type_for_weekday, weekly_schedule
 
 
-# ── templates ─────────────────────────────────────────────────────────
 @dataclass
 class ExerciseRx:
     exercise: str
@@ -36,7 +35,6 @@ class ExerciseRx:
         return asdict(self)
 
 
-# Tuesday — strength / unilateral
 TUE_TEMPLATE: list[dict[str, Any]] = [
     {
         "exercise": "Trap Bar Deadlift",
@@ -90,7 +88,6 @@ TUE_TEMPLATE: list[dict[str, Any]] = [
     },
 ]
 
-# Thursday — power / explosive
 THU_TEMPLATE: list[dict[str, Any]] = [
     {
         "exercise": "Hang Power Clean",
@@ -146,7 +143,6 @@ THU_TEMPLATE: list[dict[str, Any]] = [
 ]
 
 
-# ── phase / readiness modifiers ───────────────────────────────────────
 PHASE_VOLUME_MOD = {
     "general": 1.00,
     "build": 1.00,
@@ -168,7 +164,6 @@ READINESS_VOLUME_MOD = {"red": 0.5, "amber": 0.85, "green": 1.0, "unknown": 1.0}
 READINESS_INTENSITY_MOD = {"red": 0.85, "amber": 0.95, "green": 1.0, "unknown": 1.0}
 
 
-# ── 1RM tools ─────────────────────────────────────────────────────────
 def epley_1rm(weight_kg: float, reps: int) -> float | None:
     if not weight_kg or reps <= 0 or reps > 12:
         return None
@@ -244,11 +239,6 @@ def detect_plateau(db: Session, exercise: str, weeks: int = 4) -> dict[str, Any]
     }
 
 
-# ── session builder ───────────────────────────────────────────────────
-# Gym-day weekdays come from the shared weekly schedule (single source of
-# truth — app.services.schedule); the two exercise templates alternate
-# across those gym days in weekday order (cycling if there are ever more
-# than two configured gym days per week).
 _GYM_TEMPLATES: list[tuple[str, list[dict[str, Any]]]] = [
     ("strength_unilateral", TUE_TEMPLATE),
     ("power_explosive", THU_TEMPLATE),

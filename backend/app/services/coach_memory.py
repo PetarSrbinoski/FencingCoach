@@ -82,7 +82,6 @@ def mutate(
     payload = [operation, memory_id, expected_revision,
                content.model_dump(mode="json") if content else None, provenance, source]
     fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-    # Same lock order for all memory writers, including settings and undo.
     lock_resource(db, "memory", "settings")
     if agent and not enabled(db):
         raise MemoryConflict("Memory is disabled. Re-enable it in What my coach knows before saving.")
@@ -117,7 +116,6 @@ def mutate(
             assert content is not None
             row.content, row.expires_on = content.content, content.expires_on
             row.source = {**row.source, "last_update": source or {"label": "Edited by athlete"}}
-            # Original provenance remains inspectable, even after correction.
             row.last_confirmed_at = None if agent and provenance == "inferred" else now
         elif operation == "confirm":
             row.last_confirmed_at = now
@@ -208,9 +206,8 @@ def remember(
     evidence = evidence.strip()
     if not evidence or evidence not in current_message:
         raise ValueError("Quote evidence from the current athlete message; do not reuse old history.")
-    # Include surrounding sentence qualifiers (e.g. "maybe") without letting
-    # unrelated questions elsewhere in the turn change this memory's scope.
     start = current_message.index(evidence)
+    # A qualifier in this sentence applies to the quote; a later sentence does not.
     left = max((current_message.rfind(mark, 0, start) for mark in ".!?\n"), default=-1) + 1
     end = start + len(evidence)
     right = min((position for mark in ".!?\n" if (position := current_message.find(mark, end)) >= 0), default=len(current_message))
@@ -249,8 +246,6 @@ def remember(
     conversation = db.get(CoachConversation, conversation_id)
     source = {"label": f"Coach chat: {conversation.title if conversation else 'conversation unavailable'}",
               "conversation_id": conversation_id, "message_id": source_message.id, "excerpt": evidence}
-    # Persisted identity is independent of the provider's tool-call ID and survives
-    # retries, deletion, and process restarts. Changed payloads require a new turn.
     evidence_key = hashlib.sha256(evidence.casefold().encode()).hexdigest()
     return mutate(db, "edit" if memory_id is not None else "create",
                   request_key=f"memory:chat:{source_message.id}:{evidence_key}",
@@ -296,8 +291,6 @@ def dietary_conflicts(content: str, evidence: str, rules: tuple[str, ...]) -> li
             for rule in rules:
                 for term in INGREDIENT_TERMS[rule]:
                     for mention in re.finditer(rf"\b{re.escape(term)}(?:s|es)?\b", clause, re.I):
-                        # Qualifiers apply forwards to the named food. "Without
-                        # salt" after "peanuts" cannot erase the peanut conflict.
                         qualifiers = list(qualifier.finditer(clause[:mention.start()]))
                         if qualifiers and qualifiers[-1].group("avoid"):
                             continue

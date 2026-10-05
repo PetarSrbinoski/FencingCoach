@@ -9,7 +9,6 @@ class MemoryContent(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     content: str = Field(min_length=1, max_length=1000)
-    # Inclusive last active day in ATHLETE_TIMEZONE.
     expires_on: date | None = None
 
 

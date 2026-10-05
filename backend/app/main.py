@@ -42,7 +42,6 @@ from app.core.config import settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
-# ── Logfire instrumentation (optional) ────────────────────────────────
 if settings.LOGFIRE_TOKEN:
     try:
         import logfire
@@ -71,8 +70,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         set_active_provider(provider)
         logging.getLogger(__name__).info("LLM provider hydrated from app_settings: %s", provider)
     except Exception as e:  # noqa: BLE001
-        # Don't crash startup over this — agents.deps already defaults to
-        # "local" and the settings endpoint can always fix it up later.
         logging.getLogger(__name__).warning("Failed to hydrate LLM provider setting: %s", e)
     finally:
         db.close()

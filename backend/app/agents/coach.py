@@ -58,9 +58,6 @@ from llm.prompts.coach import COACH_SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
 
-# Matches an explicit ask to search/look something up online. Deliberately
-# narrow — greetings, small talk, and in-domain coaching questions should
-# never match this.
 _SEARCH_INTENT_RE = re.compile(
     r"\b(search|google|look\s?up|look\s+(it\s+)?online|"
     r"check\s+online|browse\s+the\s+web|on\s+the\s+(internet|web))\b",
@@ -71,11 +68,6 @@ _SEARCH_INTENT_RE = re.compile(
 def _wants_web_search(message: str) -> bool:
     """True only if the athlete explicitly asked to search/look up online."""
     return bool(_SEARCH_INTENT_RE.search(message))
-
-
-# Retry constants/classification are shared with nutrition.py/mealplan.py
-# via app.agents.retry, but this agent keeps its own retry loop below since
-# it needs an extra guard: never retry after a tool has committed a DB write.
 
 
 def _last_model_name(messages: list[ModelMessage]) -> str | None:
@@ -135,11 +127,8 @@ _COACH_AGENT_KWARGS: dict[str, Any] = dict(
     },
 )
 
-# ── Agent definitions ──────────────────────────────────────────────────
-# Default: database tools and context, with web search available only on request.
 coach_agent = Agent(get_model(), **_COACH_AGENT_KWARGS)
 
-# Used only when `_wants_web_search()` matches the athlete's message.
 coach_agent_search = Agent(
     get_model(),
     capabilities=[WebSearch()],
@@ -162,11 +151,6 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
 
 
-# ── Tools ───────────────────────────────────────────────────────────────
-# Both tools mutate the database directly (via `ctx.deps.db`, a real
-# SQLAlchemy Session — see `run_coach_chat` below).
-# Registered on both agent instances so they're available regardless of
-# whether web search was also attached for this turn.
 @coach_agent.tool
 @coach_agent_search.tool
 async def update_day_workout(
@@ -529,7 +513,6 @@ async def remember_context(
     return result
 
 
-# ── History conversion ────────────────────────────────────────────────
 def _db_messages_to_history(
     messages: list[Any],
 ) -> list[ModelMessage]:
@@ -547,7 +530,6 @@ def _db_messages_to_history(
     return history
 
 
-# ── Public API (async) ────────────────────────────────────────────────
 @dataclass
 class ChatResult:
     """Result from coach chat, matching what the API endpoint needs."""
@@ -572,7 +554,6 @@ async def run_coach_chat(
     deps = CoachDeps(db=db, context_text=context_text)
     deps.extra.update(conversation_id=conversation_id, message_id=message_id, current_message=user_message)
 
-    # Convert DB message history to PydanticAI format
     message_history: list[ModelMessage] | None = None
     if history_messages:
         message_history = _db_messages_to_history(history_messages)
@@ -592,9 +573,7 @@ async def run_coach_chat(
                 )
             break
         except Exception as e:  # noqa: BLE001
-            # Never retry a whole run once a tool has already committed a
-            # DB write during this attempt — retrying could silently
-            # duplicate that side effect (e.g. a second Competition row).
+            # A retry would repeat any tool write already committed in this run.
             if (
                 deps.side_effect_committed
                 or attempt >= _MAX_TRANSIENT_RETRIES

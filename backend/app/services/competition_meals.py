@@ -65,7 +65,6 @@ def _catalog(db: Session, rules: tuple[str, ...], preferences: str, budget: str,
             choices.append((word, -1 if negative else 1))
     for item in allowed:
         item["preference_score"] = sum(score for word, score in choices if word in item["name"].casefold())
-        # A transparent staple-food heuristic shapes low-budget choices; it does not assert prices.
         item["budget_score"] = int(budget.casefold() == "low" and bool(re.search(
             r"\b(rice|oats?|beans?|lentils?|potatoes?|eggs?|banana|yogurt|pasta|bread|milk)\b",
             item["name"], re.IGNORECASE)))
@@ -110,7 +109,6 @@ def _meal(slot: str, time: str | None, target: dict[str, Any], catalog: list[dic
     carb_g = round(max(30, min(500, desired_carbs / max(1, float(carb["nutrients_per_100g"]["carbs_g"])) * 100)) / 5) * 5
     protein_g = round(max(30, min(350, desired_protein / max(1, float(protein["nutrients_per_100g"]["protein_g"])) * 100)) / 5) * 5
     ingredients = [_ingredient(carb, carb_g), _ingredient(protein, protein_g)]
-    # If there is only one eligible food, count it once rather than duplicate it.
     if carb["id"] == protein["id"] and carb["source"] == protein["source"]:
         ingredients = [_ingredient(carb, round(carb_g + protein_g, 1))]
     return {"slot": slot, "time": time, "name": " and ".join(item["name"] for item in ingredients),

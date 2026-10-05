@@ -14,7 +14,6 @@ from llm.prompts.mental import MENTAL_INSTRUCTIONS
 log = logging.getLogger(__name__)
 
 
-# ── Agent definition ──────────────────────────────────────────────────
 mental_agent = Agent(
     get_model(),
     output_type=str,
@@ -32,7 +31,6 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
 
 
-# ── Public API ────────────────────────────────────────────────────────
 def generate_mental_insight(
     entries: Sequence[MentalEntry],
     avg_mood: float | None,
@@ -45,7 +43,6 @@ def generate_mental_insight(
 
     Drop-in replacement for `services/mental._generate_llm_insight()`.
     """
-    # Build the same prompt text the old code used
     lines = [
         f"Period averages — mood: {avg_mood}, energy: {avg_energy}, "
         f"focus: {avg_focus}, confidence: {avg_confidence}. Trend: {trend}.",
@@ -71,7 +68,6 @@ def generate_mental_insight(
 
     user_msg = "\n".join(lines)
 
-    # No DB needed for this agent — pass None
     deps = CoachDeps(db=None)  # type: ignore[arg-type]
 
     result = mental_agent.run_sync(user_msg, deps=deps, model=get_active_model())

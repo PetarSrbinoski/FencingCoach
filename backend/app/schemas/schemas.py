@@ -9,7 +9,6 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-# ── Chat ──────────────────────────────────────────────────────────────
 class ChatRequest(BaseModel):
     conversation_id: int | None = None
     message: str
@@ -65,7 +64,6 @@ class CoachConversationOut(BaseModel):
     messages: list[CoachMessageOut]
 
 
-# ── Health ────────────────────────────────────────────────────────────
 class HealthResponse(BaseModel):
     status: str
     db: bool
@@ -73,7 +71,6 @@ class HealthResponse(BaseModel):
     version: str = "0.4.0-agents"
 
 
-# ── Garmin ────────────────────────────────────────────────────────────
 class GarminLoginRequest(BaseModel):
     email: str | None = None
     password: str | None = None
@@ -88,7 +85,6 @@ class GarminSyncResult(BaseModel):
     error: str | None = None
 
 
-# ── Readiness ─────────────────────────────────────────────────────────
 class ReadinessResponse(BaseModel):
     day: str
     score: float | None
@@ -99,7 +95,6 @@ class ReadinessResponse(BaseModel):
     reading_fetched_at: str | None = None
 
 
-# ── Metrics ───────────────────────────────────────────────────────────
 class MetricPoint(BaseModel):
     day: Date
     value: float | None = None
@@ -110,7 +105,6 @@ class MetricSeries(BaseModel):
     points: list[MetricPoint]
 
 
-# ── Activities ────────────────────────────────────────────────────────
 class ActivityOut(BaseModel):
     id: int
     activity_type: str | None
@@ -124,7 +118,6 @@ class ActivityOut(BaseModel):
     training_load: float | None
 
 
-# ── Fencing session analysis ───────────────────────────────────────────
 class FencingSessionOut(BaseModel):
     activity_id: int
     day: Date
@@ -149,7 +142,6 @@ class FencingAnalysisOut(BaseModel):
     training_load_trend: str
 
 
-# ── Nutrition ─────────────────────────────────────────────────────────
 class NutritionEstimateRequest(BaseModel):
     text: str
 
@@ -263,7 +255,6 @@ class NutritionDayTotals(BaseModel):
     incomplete_micros: list[str] = Field(default_factory=list)
 
 
-# ── Brief ─────────────────────────────────────────────────────────────
 class BriefOut(BaseModel):
     day: Date
     readiness_score: float | None
@@ -272,7 +263,6 @@ class BriefOut(BaseModel):
     generated_at: datetime
 
 
-# ── Phase / targets / mealplan / training (Phase 3) ───────────────────
 class PhaseOut(BaseModel):
     name: str
     days_to_event: int | None
@@ -404,7 +394,6 @@ class ExerciseProgress(BaseModel):
     plateau: dict[str, Any]
 
 
-# ── Competition (Phase 3) ─────────────────────────────────────────────
 class CompetitionCreate(BaseModel):
     name: str
     location: str | None = None
@@ -435,7 +424,6 @@ class CompetitionResultPatch(BaseModel):
     reflection: str | None = None
 
 
-# ── Profile ───────────────────────────────────────────────────────────
 class ProfileOut(BaseModel):
     id: int
     name: str | None = None
@@ -473,7 +461,6 @@ class ProfileUpdate(BaseModel):
     notes: str | None = None
 
 
-# ── Mental Training ───────────────────────────────────────────────────
 class MentalEntryCreate(BaseModel):
     entry_type: str = Field(pattern=r"^(check_in|pre_comp|reflection)$")
     mood_score: int | None = Field(None, ge=1, le=10)
@@ -509,7 +496,6 @@ class MentalInsightOut(BaseModel):
     insight: str  # LLM-generated summary
 
 
-# ── USDA Food ─────────────────────────────────────────────────────────
 class USDAFoodOut(BaseModel):
     fdc_id: int
     description: str
@@ -531,7 +517,6 @@ class USDAImportResult(BaseModel):
     errors: int
 
 
-# ── Data Summary ──────────────────────────────────────────────────────
 class DataSummaryOut(BaseModel):
     id: int
     domain: str
@@ -542,7 +527,6 @@ class DataSummaryOut(BaseModel):
     generated_at: datetime
 
 
-# ── Diagnostics ───────────────────────────────────────────────────────
 class MetricDiagnosticOut(BaseModel):
     kind: str
     last_ok_day: Date | None

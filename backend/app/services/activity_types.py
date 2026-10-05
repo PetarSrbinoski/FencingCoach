@@ -15,10 +15,6 @@ class ActivityCategory(StrEnum):
     OTHER = "other"
 
 
-# Raw Garmin `activityType.typeKey` values (or substrings thereof) mapped to
-# each category. Matching is case-insensitive substring containment since
-# Garmin's typeKey granularity varies (e.g. "strength_training" vs
-# "indoor_cardio").
 FENCING_TYPE_KEYS: tuple[str, ...] = ("mma", "martial_arts")
 STRENGTH_TYPE_KEYS: tuple[str, ...] = (
     "strength_training",

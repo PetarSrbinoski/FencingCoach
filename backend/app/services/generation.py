@@ -24,7 +24,6 @@ type Generate = Callable[[Session], Awaitable[dict[str, Any]]]
 
 INTERRUPTED_ERROR = "Generation was interrupted. Please submit a new request."
 
-# Owned by the single backend event loop, including cancellation endpoints.
 _running: dict[tuple[str, int], asyncio.Task[None]] = {}
 
 
@@ -45,7 +44,7 @@ async def cancel_generation[T: CoachMessage | NutritionEstimate](db: Session, ro
     if task is not None and not task.done():
         if not task.cancelling():
             task.cancel()
-        # A disconnected cancellation caller must not interrupt stream cleanup.
+        # Finish closing the provider stream even if the HTTP caller disconnects.
         await asyncio.shield(asyncio.gather(task, return_exceptions=True))
     db.refresh(row)
 
@@ -70,7 +69,6 @@ async def _run_generation[T: CoachMessage | NutritionEstimate](
     try:
         await task
     except asyncio.CancelledError:
-        # User cancellation belongs to the child, not the HTTP response task.
         current = asyncio.current_task()
         if current is not None and current.cancelling():
             raise
@@ -87,7 +85,7 @@ async def _finish_generation[T: CoachMessage | NutritionEstimate](
             if row is None or row.status != "pending":
                 return
             values = await generate(db)
-            # Re-read after generation: the athlete may have deleted the chat.
+            # Generation may have outlived a cancellation or chat deletion.
             db.expire_all()
             row = db.get(model, row_id)
             if row is None or row.status != "pending":
@@ -100,7 +98,6 @@ async def _finish_generation[T: CoachMessage | NutritionEstimate](
         except (Exception, asyncio.CancelledError) as exc:
             if not isinstance(exc, asyncio.CancelledError):
                 log.exception("Generation failed for %s %d", model.__name__, row_id)
-            # A failed flush/commit leaves the session unusable until rollback.
             db.rollback()
             try:
                 row = db.get(model, row_id)

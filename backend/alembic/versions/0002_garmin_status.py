@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = "0002_garmin_status"
 down_revision: Union[str, None] = "0001_baseline"
 branch_labels: Union[str, Sequence[str], None] = None
@@ -25,8 +24,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # server_default only needed to backfill any existing rows; the ORM
-    # itself only has a client-side default, so drop it right after.
     op.add_column(
         "garmin_metrics",
         sa.Column("status", sa.String(length=20), nullable=False, server_default="ok"),

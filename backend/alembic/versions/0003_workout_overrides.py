@@ -18,7 +18,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-# revision identifiers, used by Alembic.
 revision: str = "0003_workout_overrides"
 down_revision: Union[str, None] = "0002_garmin_status"
 branch_labels: Union[str, Sequence[str], None] = None

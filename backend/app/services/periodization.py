@@ -62,7 +62,6 @@ def _last_event(db: Session, today: date, lookback_days: int = 7) -> Competition
 def compute_phase(db: Session, day: date | None = None) -> Phase:
     day = day or athlete_today()
 
-    # Post-competition recovery has priority over the next-event lookup
     last = _last_event(db, day, lookback_days=3)
     if last is not None:
         return Phase(

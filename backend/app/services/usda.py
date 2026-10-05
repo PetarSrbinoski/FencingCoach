@@ -22,7 +22,6 @@ log = logging.getLogger(__name__)
 USDA_API_BASE = "https://api.nal.usda.gov/fdc/v1"
 USDA_API_KEY = settings.USDA_API_KEY
 
-# Key nutrient IDs from USDA
 NUTRIENT_MAP = {
     1008: "kcal",
     1003: "protein_g",
@@ -88,7 +87,6 @@ def import_common_foods(
         db.commit()
         log.info("USDA import page %d: %d foods processed", page, len(foods))
 
-        # Stop if we got fewer results than page_size (last page)
         if len(foods) < page_size:
             break
 
@@ -187,22 +185,18 @@ def match_food(
     if not results:
         return None
 
-    # Score by how closely the description matches
     name_lower = food_name.lower().strip()
     best = None
     best_score = -1.0
 
     for r in results:
         desc = r.description_lower
-        # Exact match is best
         if desc == name_lower:
             return r
-        # Score by word overlap
         query_words = set(name_lower.split())
         desc_words = set(desc.split(",")[0].split())  # Use first part before comma
         overlap = len(query_words & desc_words)
         score = overlap / max(len(query_words), 1)
-        # Penalize very long descriptions (less specific)
         score -= len(desc) * 0.001
         if score > best_score:
             best_score = score
@@ -220,7 +214,6 @@ def cross_reference_meal(
     Splits the raw text into likely food items and finds USDA matches.
     Returns a list of matches with USDA nutrient data.
     """
-    # Simple heuristic: split on common separators
     separators = [" with ", " and ", ", ", "; ", " + "]
     items = [raw_text]
     for sep in separators:
@@ -229,12 +222,10 @@ def cross_reference_meal(
             new_items.extend(item.split(sep))
         items = new_items
 
-    # Clean up items
     items = [i.strip() for i in items if len(i.strip()) > 2]
 
     matches = []
     for item in items:
-        # Strip common quantity prefixes
         cleaned = _strip_quantity(item)
         food = match_food(db, cleaned)
         if food:
@@ -253,13 +244,11 @@ def cross_reference_meal(
 
 def _strip_quantity(text: str) -> str:
     """Remove leading quantity expressions like '200g', '1 cup', etc."""
-    # Remove patterns like "200g", "1.5 cups", "2 tbsp", "a large"
     cleaned = re.sub(
         r"^\d+\.?\d*\s*(g|kg|oz|ml|l|cups?|tbsp|tsp|pieces?|slices?|servings?|medium|large|small)\s+",
         "",
         text.strip(),
         flags=re.IGNORECASE,
     )
-    # Remove leading "a " or "an "
     cleaned = re.sub(r"^(a|an)\s+", "", cleaned, flags=re.IGNORECASE)
     return cleaned.strip()

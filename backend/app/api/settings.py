@@ -31,6 +31,5 @@ def set_llm_provider_setting(
             detail=f"Invalid provider '{body.provider}'. Must be one of: {VALID_PROVIDERS}",
         )
     set_llm_provider(db, body.provider)
-    # Take effect immediately for every agent, no backend restart needed.
     set_active_provider(body.provider)
     return LLMProviderOut(provider=body.provider)

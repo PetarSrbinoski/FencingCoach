@@ -75,7 +75,6 @@ def compute_insight(
     avg_focus = _avg([e.focus_score for e in entries])
     avg_confidence = _avg([e.confidence_score for e in entries])
 
-    # Compute trend from combined average of all scores per entry
     combined: list[float | None] = []
     for e in entries:
         scores = [
@@ -89,7 +88,6 @@ def compute_insight(
             combined.append(None)
     trend = _trend(combined)
 
-    # Build LLM insight if enough data
     insight = f"Trend: {trend}. {len(entries)} entries over {period_days} days."
     if use_llm and len(entries) >= 3:
         try:
@@ -144,7 +142,6 @@ def mental_context_section(db: Session, today: date, days: int = 7) -> str:
             line += f" — {e.content[:80]}"
         lines.append(line)
 
-    # Quick aggregate
     avg_mood = _avg([e.mood_score for e in entries])
     avg_focus = _avg([e.focus_score for e in entries])
     if avg_mood is not None or avg_focus is not None:

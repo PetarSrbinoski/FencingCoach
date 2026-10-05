@@ -43,7 +43,6 @@ except Exception:  # noqa: BLE001
         return max(1, len(s) // 4)
 
 
-# ── section builders ──────────────────────────────────────────────────
 def _readiness_section(db: Session, today: date) -> str:
     r = compute_readiness(db, today)
     score_text = f"{r.score:.0f}/100" if r.score is not None else "no Garmin reading"
@@ -290,7 +289,6 @@ def _summaries_section(db: Session) -> str:
     for r in rows:
         domain = r.domain
         period = f"{r.period_start.isoformat()} → {r.period_end.isoformat()}"
-        # Compact summary for each domain
         s = r.summary or {}
         if domain == "training":
             lines.append(
@@ -321,7 +319,6 @@ def _summaries_section(db: Session) -> str:
     return "\n".join(lines)
 
 
-# ── orchestration ─────────────────────────────────────────────────────
 def build_context(
     db: Session,
     today: date | None = None,

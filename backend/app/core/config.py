@@ -11,7 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # ── DB ────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+psycopg://coach:changeme_dev_only@db:5432/coachapp"
 
     BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -23,7 +22,6 @@ class Settings(BaseSettings):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
 
-    # ── LLM ───────────────────────────────────────────────────────────
     LLM_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-ai/deepseek-v4-flash"
@@ -48,12 +46,10 @@ class Settings(BaseSettings):
   
     LLM_MAX_CONCURRENCY: int = 8
 
-    # Speech uses a separate provider; the configured text model may not accept audio.
     VOICE_TRANSCRIPTION_API_KEY: str = ""
     VOICE_TRANSCRIPTION_BASE_URL: str = "https://api.openai.com/v1"
     VOICE_TRANSCRIPTION_MODEL: str = "whisper-1"
 
-    # ── Garmin ────────────────────────────────────────────────────────
     GARMIN_EMAIL: str = ""
     GARMIN_PASSWORD: str = ""
     GARMIN_RECENT_SYNC_MINUTES: int = 15
@@ -67,21 +63,17 @@ class Settings(BaseSettings):
     GARMIN_TOKEN_DIR: str = "/app/garmin_tokens"
 
    
-    
     MORNING_BRIEF_HOUR: int = 7
 
-    # ── Athlete ───────────────────────────────────────────────────────
     ATHLETE_TIMEZONE: str = "Europe/Berlin"
    
     
     WEEKLY_SCHEDULE: str = "fencing,gym,fencing,gym,fencing,fencing,rest"
 
-    # ── USDA / Nutrition MCP ─────────────────────────────────────────
     
     USDA_API_KEY: str = "DEMO_KEY"
     USDA_MCP_SCRIPT: str = "/opt/usda-api-mcp/main.py"
 
-    # ── Observability ─────────────────────────────────────────────────
     LOGFIRE_TOKEN: str = ""
 
 

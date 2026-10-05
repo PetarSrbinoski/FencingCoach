@@ -17,8 +17,6 @@ from app.core.clock import athlete_today
 from app.models import GarminMetric
 from app.services.garmin_extract import EXTRACTORS
 
-# A metric is considered stale if its last successfully-extracted value is
-# older than this many days relative to "today".
 STALE_AFTER_DAYS = 3
 
 

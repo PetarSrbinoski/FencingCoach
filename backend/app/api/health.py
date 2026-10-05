@@ -21,8 +21,6 @@ def _check_llm() -> bool:
     try:
         from app.agents.deps import get_active_model
 
-        # Just verify the model object can be constructed (provider is reachable
-        # is checked lazily on first call). This is a lightweight check.
         model = get_active_model()
         return model is not None
     except Exception as e:  # noqa: BLE001

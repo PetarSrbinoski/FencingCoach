@@ -19,9 +19,6 @@ class ExtractedMetric:
     detail: str | None = None
 
 
-# Plausibility bounds (inclusive). A value outside these is rejected rather
-# than persisted, since a wrong-but-numeric value is worse than none (it
-# silently corrupts averages, readiness, targets, etc.)
 PLAUSIBLE_RANGES: dict[str, tuple[float, float]] = {
     "sleep": (0.0, 16.0),  # hours
     "sleep_score": (0.0, 100.0),
@@ -73,7 +70,6 @@ def _build(kind: str, raw_value: Any, payload: Any) -> ExtractedMetric:
     return ExtractedMetric(value, payload, "ok", None)
 
 
-# ── per-metric extractors ──────────────────────────────────────────────
 def extract_sleep(raw: dict[str, Any]) -> ExtractedMetric:
     sleep = raw.get("sleep") or {}
     seconds = _first(
@@ -178,7 +174,6 @@ def extract_vo2max(raw: dict[str, Any]) -> ExtractedMetric:
     return _build("vo2max", value, max_metrics)
 
 
-# Metrics with no scalar value (payload-only, or not yet plausibility-checked)
 def extract_training_status(raw: dict[str, Any]) -> ExtractedMetric:
     payload = raw.get("training_status")
     status = "missing" if payload is None else "ok"

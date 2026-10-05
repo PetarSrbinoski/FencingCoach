@@ -16,7 +16,6 @@ from app.core.clock import athlete_today
 from app.models import Activity, AthleteProfile
 from app.services.activity_types import is_fencing
 
-# Standard 5-zone %HRmax bands (lower bound inclusive, upper bound exclusive).
 ZONE_BOUNDS: list[tuple[str, float, float]] = [
     ("Z1", 0.50, 0.60),
     ("Z2", 0.60, 0.70),
@@ -25,8 +24,6 @@ ZONE_BOUNDS: list[tuple[str, float, float]] = [
     ("Z5", 0.90, 1.5),
 ]
 
-# A trend is only reported once there are enough sessions to split into
-# a meaningful early/recent comparison; below this, say so explicitly.
 MIN_SESSIONS_FOR_TREND = 6
 TREND_THRESHOLD = 0.15  # +/-15% average load change
 
@@ -61,8 +58,6 @@ def _estimate_max_hr(db: Session, fencing_activities: list[Activity]) -> tuple[f
     """Best-effort max HR estimate, plus how it was derived (for transparency)."""
     profile = db.scalar(select(AthleteProfile).limit(1))
     if profile and profile.age:
-        # Tanaka et al. 2001 (208 - 0.7*age) — better-fit than the crude
-        # "220 minus age" rule of thumb, especially for trained adults.
         return 208.0 - 0.7 * profile.age, f"Tanaka formula (age {profile.age})"
     observed = [a.max_hr for a in fencing_activities if a.max_hr]
     if observed:

@@ -48,7 +48,6 @@ class Readiness:
         }
 
 
-# ── helpers ───────────────────────────────────────────────────────────
 def _values(db: Session, kind: str, start: date, end: date) -> list[tuple[date, float]]:
     rows = db.execute(
         select(GarminMetric.day, GarminMetric.value)
@@ -79,7 +78,6 @@ def band_for_score(score: float) -> str:
     return "green"
 
 
-# ── advisories (informational only — not part of score/band) ──────────
 def _advise_load(db: Session, day: date) -> Advisory:
     """Acute (7d) vs chronic (28d) training load ratio — informational only."""
     rows_acute = db.execute(
@@ -147,7 +145,6 @@ def _advise_rest(db: Session, day: date) -> Advisory:
     )
 
 
-# ── public api ────────────────────────────────────────────────────────
 def compute_readiness(db: Session, day: date | None = None) -> Readiness:
     day = day or athlete_today()
 

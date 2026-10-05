@@ -9,25 +9,18 @@ dependencies = [
     "uvicorn[standard]>=0.35.0",
     "pydantic==2.12.5",
     "pydantic-settings==2.7.0",
-    # DB
     "SQLAlchemy==2.0.36",
     "psycopg[binary]==3.2.3",
     "alembic==1.14.0",
-    # LLM — PydanticAI agents
-    # Pinned <2.0: pydantic-ai 2.x renamed/removed several `pydantic_ai.mcp`
-    # APIs used in app/agents/nutrition.py and app/agents/mealplan.py.
-    # Bump deliberately + re-test.
+    # The agents use MCP APIs removed in pydantic-ai 2.x.
     "pydantic-ai>=1.89.0,<2.0.0",
     "openai>=1.59.3",
     "tiktoken>=0.12.0",
     "ddgs>=9.14.0",
-    # Garmin
     "garminconnect==0.3.15",
     "curl_cffi==0.15.0",
     "ua-generator==2.0.14",
-    # Worker / scheduling
     "APScheduler==3.11.0",
-    # Misc
     "httpx==0.28.1",
     "python-dateutil==2.9.0.post0",
     "orjson==3.10.12",
@@ -45,7 +38,6 @@ dev = [
 ]
 
 [tool.uv]
-# Virtual project: install dependencies only, don't build/install `app` as a package.
 package = false
 
 [tool.ruff]
@@ -67,9 +59,6 @@ mypy_path = ["backend", "."]
 explicit_package_bases = true
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
-# Starting point: catch real bugs (undefined names, obviously wrong types)
-# without demanding full annotation coverage on a codebase that wasn't
-# typed from day one.
 check_untyped_defs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
@@ -77,6 +66,4 @@ warn_redundant_casts = true
 [tool.pytest.ini_options]
 testpaths = ["backend/tests", "testing/backend"]
 markers = ["live_llm: calls the configured LLM provider; opt in with RUN_LIVE_LLM_EVALS=1"]
-# `app` lives under backend/, `llm` (prompts) at the repo root — put both on
-# sys.path so tests can import them.
 pythonpath = ["backend", "."]

@@ -32,7 +32,6 @@ from app.services.training import (
 router = APIRouter(prefix="/training", tags=["training"])
 
 
-# ── session ───────────────────────────────────────────────────────────
 @router.get("/today", response_model=TrainingSessionOut)
 def session_today(db: Session = Depends(get_db)) -> TrainingSessionOut:
     return TrainingSessionOut(**build_session(db))
@@ -69,7 +68,6 @@ def exercises() -> list[str]:
     return seen
 
 
-# ── manual session overrides ──────────────────────────────────────────
 @router.put("/session/{day}/override", response_model=TrainingSessionOut)
 def set_session_override(
     day: Date,
@@ -102,7 +100,6 @@ def clear_session_override(day: Date, db: Session = Depends(get_db)) -> Training
     return TrainingSessionOut(**build_session(db, day))
 
 
-# ── workout logging ───────────────────────────────────────────────────
 @router.post("/log", response_model=WorkoutLogOut)
 def log_set(body: WorkoutLogCreate, db: Session = Depends(get_db)) -> WorkoutLogOut:
     entry = WorkoutLog(
@@ -144,7 +141,6 @@ def delete_log(entry_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-# ── progressive overload ──────────────────────────────────────────────
 @router.get("/progress/{exercise}", response_model=ExerciseProgress)
 def progress(
     exercise: str,
@@ -166,7 +162,6 @@ def progress(
         .order_by(WorkoutLog.day, WorkoutLog.set_number)
     ).all()
 
-    # Best estimated 1RM per day
     best_by_day: dict[Date, dict] = {}
     for r in rows:
         if r.weight_kg is None or r.reps is None:

@@ -27,9 +27,6 @@ from llm.prompts.coach import COACH_SYSTEM_PROMPT
 log = logging.getLogger(__name__)
 
 
-# ── Agent definition ──────────────────────────────────────────────────
-# The brief agent uses the full COACH_SYSTEM_PROMPT as its base instructions.
-# Context snapshot is injected dynamically via @brief_agent.instructions.
 brief_agent = Agent(
     get_model(),
     output_type=str,
@@ -55,7 +52,6 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
 
 
-# ── Public API ────────────────────────────────────────────────────────
 def generate_brief(db: Session, day: date | None = None) -> DailyBrief:
     """Generate today's daily brief and persist to DB.
 

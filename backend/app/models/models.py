@@ -74,9 +74,6 @@ class GarminMetric(Base):
     day: Mapped[date] = mapped_column(Date, nullable=False)
     value: Mapped[float | None] = mapped_column(Float)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    # Extraction outcome, always recorded so diagnostics can distinguish
-    # "never synced" from "synced but missing/implausible". One of:
-    # ok | missing | implausible.
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ok")
     detail: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -369,14 +366,8 @@ class CoachMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tokens: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    # For assistant messages: "pending" until the background generation job
-    # (app/services/generation.py) fills `content` and flips to "done"/"error", or cancellation sets "cancelled".
-    # User messages are always "done".
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="done")
     error: Mapped[str | None] = mapped_column(Text)
-    # model used, context snapshot, ungrounded-claims list — set once the
-    # background job finishes (see api/chat.py:_reply_values). Mirrors
-    # what the old synchronous response used to return inline.
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     conversation: Mapped[CoachConversation] = relationship(back_populates="messages")
@@ -478,8 +469,6 @@ class USDAFood(Base):
     """Cached USDA FoodData Central item for nutrition cross-reference."""
 
     __tablename__ = "usda_foods"
-    # GIN trigram index (requires `pg_trgm`) to accelerate the `.contains()`
-    # substring search in `services/usda.search_foods`.
     __table_args__ = (
         Index(
             "ix_usda_foods_description_trgm",

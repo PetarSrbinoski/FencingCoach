@@ -32,7 +32,6 @@ log = logging.getLogger(__name__)
 RETENTION_DAYS = 180  # 6 months
 
 
-# ── helpers ───────────────────────────────────────────────────────────
 def _week_start(d: date) -> date:
     """Monday of the week containing `d`."""
     return d - timedelta(days=d.weekday())
@@ -82,7 +81,6 @@ def _upsert_summary(
     return existing
 
 
-# ── domain-specific weekly rollup builders ────────────────────────────
 def _summarize_training_week(db: Session, start: date, end: date) -> dict[str, Any]:
     """Summarize workout logs for a week."""
     rows = db.scalars(
@@ -227,7 +225,6 @@ def _summarize_chat_week(db: Session, start: date, end: date) -> dict[str, Any]:
     user_msgs = [m for m in msgs if m.role == "user"]
     assistant_msgs = [m for m in msgs if m.role == "assistant"]
 
-    # Extract key topics from user messages (simple keyword approach)
     topics: dict[str, int] = {}
     keywords = [
         "training",
@@ -263,7 +260,6 @@ DOMAIN_SUMMARIZERS = {
 }
 
 
-# ── main rollup entry points ─────────────────────────────────────────
 def generate_weekly_summaries(
     db: Session,
     *,
@@ -284,18 +280,14 @@ def generate_weekly_summaries(
         if not summarizer:
             continue
 
-        # Find the earliest data week that hasn't been summarized yet
-        # Walk backwards from cutoff to find weeks needing summaries
         week_end = _week_start(cutoff) - timedelta(
             days=1
         )  # End of the last full week before cutoff
         week_start = week_end - timedelta(days=6)
 
-        # Go back up to 2 years
         earliest = today - timedelta(days=730)
 
         while week_start >= earliest:
-            # Check if summary already exists
             existing = db.scalar(
                 select(DataSummary.id).where(
                     and_(
@@ -307,7 +299,6 @@ def generate_weekly_summaries(
             )
             if not existing:
                 summary = summarizer(db, week_start, week_end)
-                # Skip empty weeks — all "no data" summaries include a "note" key
                 if "note" not in summary:
                     _upsert_summary(db, domain, "week", week_start, week_end, summary)
                     count += 1
@@ -335,7 +326,6 @@ def generate_monthly_summaries(
 
     count = 0
     for domain in domains:
-        # Find all months with weekly summaries but no monthly summary
         weeks = db.scalars(
             select(DataSummary)
             .where(
@@ -355,7 +345,6 @@ def generate_monthly_summaries(
 
         for ms, week_summaries in months_seen.items():
             me = _month_end(ms)
-            # Check if monthly summary exists
             existing = db.scalar(
                 select(DataSummary.id).where(
                     and_(
@@ -480,7 +469,6 @@ def _aggregate_weekly_to_monthly(
             "top_topics": dict(sorted(all_topics.items(), key=lambda x: -x[1])[:10]),
         }
 
-    # Fallback: merge all weekly dicts
     return {"weeks": len(weekly_summaries), "data": weekly_summaries}
 
 
@@ -497,7 +485,6 @@ def purge_old_detailed_data(
     cutoff = cutoff or (today - timedelta(days=RETENTION_DAYS))
     deleted: dict[str, int] = {}
 
-    # Check that summaries exist before deleting
     has_summaries = db.scalar(
         select(func.count(DataSummary.id)).where(
             and_(DataSummary.period == "week", DataSummary.period_end < cutoff)
@@ -506,15 +493,12 @@ def purge_old_detailed_data(
     if not has_summaries:
         return deleted
 
-    # Training
     result = db.execute(delete(WorkoutLog).where(WorkoutLog.day < cutoff))
     deleted["training"] = result.rowcount
 
-    # Nutrition
     result = db.execute(delete(NutritionLog).where(NutritionLog.day < cutoff))
     deleted["nutrition"] = result.rowcount
 
-    # Mental
     result = db.execute(delete(MentalEntry).where(MentalEntry.day < cutoff))
     deleted["mental"] = result.rowcount
 

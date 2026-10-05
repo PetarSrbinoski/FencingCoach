@@ -34,7 +34,6 @@ from llm.prompts.mealplan import MEALPLAN_INSTRUCTIONS
 log = logging.getLogger(__name__)
 
 
-# ── Structured output ─────────────────────────────────────────────────
 class MealIngredient(BaseModel):
     name: str
     qty_g: float
@@ -69,7 +68,6 @@ class MealPlanOutput(BaseModel):
     rationale: str = ""
 
 
-# ── Agent definition ──────────────────────────────────────────────────
 def _build_mealplan_toolsets() -> list:
     """Build toolsets: USDA MCP (local stdio subprocess) + WebSearch."""
     toolsets = []
@@ -109,7 +107,6 @@ async def _strip_think(ctx: RunContext[CoachDeps], result: MealPlanOutput) -> Me
     return result
 
 
-# ── Public API ────────────────────────────────────────────────────────
 def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
     """Generate a single-day meal plan and persist to DB.
 
@@ -193,6 +190,5 @@ def generate_meal_plan(db: Session, day: date | None = None) -> NutritionPlan:
     db.commit()
     plan = db.scalar(select(NutritionPlan).where(NutritionPlan.day == day))
     if plan is None:
-        # Should be unreachable — we just upserted this row.
         raise RuntimeError(f"NutritionPlan for {day} vanished immediately after upsert")
     return plan

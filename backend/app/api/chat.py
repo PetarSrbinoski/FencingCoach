@@ -118,11 +118,9 @@ async def delete_conversation(
     db.delete(conv)
     db.commit()
 
-    # IMPORTANT: return empty response for 204
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-# ── shared conversation/history helpers ────────────────────────────────
 def _get_or_create_conversation(db: Session, req: ChatRequest) -> CoachConversation:
     conv: CoachConversation | None
     if req.conversation_id is not None:
@@ -163,12 +161,10 @@ async def chat(
     """Store the athlete's turn and start generation; poll the returned message ID."""
     conv = _get_or_create_conversation(db, req)
 
-    # Store user turn.
     db.add(CoachMessage(conversation_id=conv.id, role="user", content=req.message))
     db.flush()
 
     history_for_agent = _history_for_agent(db, conv.id)
-    # Pass plain values to the job, which owns a separate session.
     history_snapshot = [(m.role, m.content) for m in history_for_agent]
     context_text = build_context(db) if req.include_context else ""
 

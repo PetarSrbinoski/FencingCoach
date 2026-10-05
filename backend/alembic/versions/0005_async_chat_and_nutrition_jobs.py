@@ -25,7 +25,6 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-# revision identifiers, used by Alembic.
 revision: str = "0005_async_chat_and_nutrition_jobs"
 down_revision: str | None = "0004_app_settings"
 branch_labels: str | Sequence[str] | None = None
@@ -33,8 +32,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Alembic creates version_num as VARCHAR(32). This revision identifier is
-    # longer, so widen the table before Alembic records the new version.
     op.alter_column(
         "alembic_version",
         "version_num",

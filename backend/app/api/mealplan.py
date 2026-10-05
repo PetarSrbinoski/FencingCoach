@@ -19,10 +19,6 @@ from app.services.mealplan import build_shopping_list
 router = APIRouter(prefix="/mealplan", tags=["mealplan"])
 
 
-# Note: order matters — literal-path routes must be declared BEFORE
-# parameterized routes that would otherwise capture them.
-
-
 @router.post("/today", response_model=MealPlanOut)
 def generate_today(db: Session = Depends(get_db)) -> MealPlanOut:
     try:
@@ -99,7 +95,6 @@ def get_plan(
     )
 
 
-# ── shopping list ─────────────────────────────────────────────────────
 shopping_router = APIRouter(prefix="/shopping", tags=["shopping"])
 
 

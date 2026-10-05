@@ -12,21 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN pip install --no-cache-dir uv
 
-# Install dependencies into a venv OUTSIDE the app dir so the compose
-# bind-mount (./backend:/app) doesn't shadow it at runtime.
+# The Compose bind mount at /app must not hide the virtual environment.
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:$PATH"
 
-# pyproject.toml + uv.lock live at the repo root (single source of truth),
-# so the compose build context for this image is the repo root, not ./backend.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Local USDA MCP server (rpassafaro/usda-api-mcp) — spawned as a stdio
-# subprocess by the nutrition/mealplan agents (see app/agents/nutrition.py,
-# app/agents/mealplan.py, settings.USDA_MCP_SCRIPT). Cloned at build time
-# rather than vendored into this repo (upstream has no LICENSE file).
+# Upstream has no license file, so keep its checkout outside this repo.
 RUN git clone --depth 1 https://github.com/rpassafaro/usda-api-mcp.git /opt/usda-api-mcp
 
 COPY backend/ ./

@@ -25,7 +25,6 @@ from app.services.garmin_status import record_sync_result
 log = logging.getLogger("garmin_sync")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 
-# Backoff state: skip syncs for a period after auth failures.
 _backoff_until: datetime | None = None
 _consecutive_failures: int = 0
 
@@ -48,7 +47,6 @@ def _is_backed_off() -> bool:
 def _record_auth_failure() -> None:
     global _backoff_until, _consecutive_failures
     _consecutive_failures += 1
-    # Exponential backoff: 5, 15, 30, 60, 60 min...
     minutes = min(60, 5 * (2 ** (_consecutive_failures - 1)))
     _backoff_until = datetime.now(UTC) + __import__("datetime").timedelta(minutes=minutes)
     log.warning(
@@ -146,7 +144,6 @@ def main() -> None:
         settings.GARMIN_RECENT_SYNC_MINUTES,
         settings.GARMIN_FULL_SYNC_HOUR,
     )
-    # Small delay so DB is reachable.
     time.sleep(2)
     sched.start()
 
