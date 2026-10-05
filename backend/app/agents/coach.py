@@ -47,7 +47,7 @@ from app.models import CoachPlanProposal, Competition, WorkoutOverride
 from app.schemas import ExerciseOverrideIn
 from app.schemas.coach_memory import MemoryContent
 from app.schemas.foods import FoodPortion, PositiveAmount, SavedFoodInput, SavedFoodOut
-from app.services import coach_memory, foods
+from app.services import coach_memory, foods, recipes
 from app.services.agent_actions import record_action, snapshot
 from app.services.competition_nutrition import preview as preview_competition_nutrition
 from app.services.grounding import find_ungrounded_claims
@@ -303,6 +303,101 @@ async def search_saved_foods(ctx: RunContext[CoachDeps], query: str = "") -> lis
     athlete when several foods could match. Never invent an ID or quantity.
     """
     return [SavedFoodOut.model_validate(food) for food in foods.list_foods(ctx.deps.db, query)]
+
+
+@coach_agent.tool
+@coach_agent_search.tool
+async def search_recipes(ctx: RunContext[CoachDeps], query: str = "", source_day: str | None = None) -> list[dict[str, Any]]:
+    """Find recipes by name, or historical meals on an explicit ISO date.
+
+    Ask which source when several match. Historical meals without composition
+    need ingredient clarification; never reconstruct them from aggregate totals.
+    Return current revisions for subsequent logging. This operation is read-only.
+    """
+    day = _parse_iso_date(source_day, field_name="source_day") if source_day else None
+    return recipes.reference_catalog(ctx.deps.db, query, day)
+
+
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def log_recipe_portion(
+    ctx: RunContext[CoachDeps], day: str, meal: str,
+    portions: PositiveAmount | None = None, grams: PositiveAmount | None = None,
+    recipe_id: int | None = None, expected_revision: str | None = None,
+    source_log_id: int | None = None, expected_source_version: int | None = None,
+) -> dict[str, Any]:
+    """Log an explicit request to record an identified saved recipe or historical portion.
+
+    Search first; ask about ambiguous names, dates, versions, amounts or meal slots.
+    Never call for discussion or plans to eat. Use either fractional portions
+    or grams when the source includes a known total prepared weight.
+    Use the returned recipe revision or historical source version unchanged.
+    Values come from that source snapshot, never new estimates.
+    """
+    db = ctx.deps.db
+    from app.services.transactions import lock_meal_inputs
+
+    lock_meal_inputs(db)
+    inputs = {"recipe_id": recipe_id, "expected_revision": expected_revision,
+              "source_log_id": source_log_id, "expected_source_version": expected_source_version,
+              "portions": portions, "grams": grams, "day": day, "meal": meal}
+    stamp = recipes.fingerprint(inputs)
+    key = f"chat-recipe:{ctx.deps.extra.get('message_id')}:{stamp}"
+    from app.models import AgentAction
+    from app.services.agent_actions import present
+
+    previous = db.scalar(select(AgentAction).where(AgentAction.request_key == key))
+    if previous is not None:
+        return present(db, previous)
+    try:
+        composition, source = recipes.resolve_composition(db, recipe_id=recipe_id,
+            source_log_id=source_log_id, expected_revision=expected_revision,
+            expected_source_version=expected_source_version)
+        amount = recipes.portion_amount(composition, portions, grams)
+        action = recipes.write_consumption(db, composition, portions=amount,
+            day=_parse_iso_date(day, field_name="day"), meal=meal,
+            recipe_id=source.get("recipe_id"), revision=source.get("recipe_revision"))
+        action.request_key = key
+        action.conversation_id = ctx.deps.extra.get("conversation_id")
+        action.message_id = ctx.deps.extra.get("message_id")
+        db.commit()
+    except recipes.RecipeError as exc:
+        db.rollback()
+        raise ModelRetry(str(exc)) from exc
+    ctx.deps.side_effect_committed = True
+    return present(db, action)
+
+
+@coach_agent.tool(sequential=True)
+@coach_agent_search.tool(sequential=True)
+async def suggest_meals_now(
+    ctx: RunContext[CoachDeps], day: str, available_foods: list[str], prep_limit_min: int,
+    diary_complete: bool | None = None,
+) -> dict[str, Any]:
+    """Suggest practical meals without saving foods or recording consumption.
+
+    Ask which foods are available, how much preparation time is allowed and
+    whether the selected day's diary is complete. Report exact returned totals,
+    uncertainty and limitations. Link the athlete to the Nutrition suggestion
+    view to review, save a template, or explicitly confirm consumption.
+    """
+    from app.schemas.meal_suggestions import SuggestionInput
+    from app.services import meal_suggestions
+
+    try:
+        inputs = SuggestionInput(day=_parse_iso_date(day, field_name="day"),
+                                 available_foods=available_foods, prep_limit_min=prep_limit_min,
+                                 diary_complete=diary_complete)
+        row = meal_suggestions.start(ctx.deps.db, inputs)
+        await meal_suggestions.process_suggestions(row.id, row.revision)
+        ctx.deps.db.expire_all()
+        row = recipes.get_draft(ctx.deps.db, row.id, "suggestions")
+        if row.status == "error":
+            raise recipes.RecipeError(row.error or "Suggestions failed. Try again.")
+    except ValueError as exc:
+        ctx.deps.db.rollback()
+        raise ModelRetry(str(exc)) from exc
+    return {**recipes.draft_out(row), "review_url": f"/nutrition?view=plans&planView=suggestions&suggestion={row.id}"}
 
 
 @coach_agent.tool(sequential=True)

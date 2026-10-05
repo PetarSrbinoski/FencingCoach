@@ -24,6 +24,7 @@ from app.api import (
     foods,
     garmin,
     health,
+    meal_suggestions,
     mealplan,
     mental,
     metrics,
@@ -31,6 +32,7 @@ from app.api import (
     phase,
     profile,
     readiness,
+    recipes,
     summaries,
     targets,
     training,
@@ -78,10 +80,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         fail_interrupted_generations(recovery_db)
         from sqlalchemy import update
 
-        from app.models import VoiceDraft
+        from app.models import NutritionDraft, VoiceDraft
 
         recovery_db.execute(update(VoiceDraft).where(VoiceDraft.status == "pending").values(
             status="error", error="Voice processing was interrupted. Record again or correct the transcript."
+        ))
+        recovery_db.execute(update(NutritionDraft).where(NutritionDraft.status == "pending").values(
+            status="error", error="Processing was interrupted. Submit a new request."
         ))
         recovery_db.commit()
 
@@ -109,6 +114,8 @@ app.include_router(metrics.router)
 app.include_router(activities.router)
 app.include_router(nutrition.router)
 app.include_router(foods.router)
+app.include_router(recipes.router)
+app.include_router(meal_suggestions.router)
 app.include_router(voice.router)
 app.include_router(brief.router)
 app.include_router(phase.router)

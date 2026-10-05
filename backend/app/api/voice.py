@@ -22,7 +22,8 @@ from app.core.config import settings
 from app.core.database import SessionLocal, get_db
 from app.models import AgentAction, NutritionLog, VoiceDraft
 from app.schemas.foods import FoodPortion, SavedFoodInput
-from app.services import foods
+from app.schemas.recipes import IngredientChange, RecipeReference
+from app.services import foods, recipes
 from app.services.agent_actions import present, record_action, snapshot
 from app.services.transactions import lock_meal_inputs
 
@@ -52,6 +53,8 @@ class VoiceInterpretation(BaseModel):
     food: VoiceFood | None = None
     portions: list[FoodPortion] = Field(default_factory=list)
     other_foods: str = ""
+    recipe: RecipeReference | None = None
+    ingredient_changes: list[IngredientChange] = Field(default_factory=list)
 
 
 class RevisionInput(BaseModel):
@@ -84,7 +87,13 @@ For an explicitly dictated product label, use food with exactly supplied values,
 fields as null, and basis per_100g or per_serving. Preserve micronutrient units, including IU.
 Use consumed_grams only when the athlete clearly states the amount eaten. For an unsaved
 meal without dictated label values, put its full description and amounts in other_foods.
-Never include a saved food in other_foods. Do not guess nutrients.""",
+Never include a saved food in other_foods. Do not guess nutrients.
+For familiar-meal variations select recipe with recipe_id and expected_revision, or
+source_log_id and expected_source_version from the catalog, plus consumed portions.
+Use ingredient_changes with the matching ingredient_index and multiplier for each
+explicit change (half the rice = 0.5 for rice only). Never change all ingredients
+when one was named. Ask for clarification if usual identifies several recipes or
+if a historical meal lacks composition. Never put a known recipe in other_foods.""",
     model_settings={"temperature": 0.0, "max_tokens": settings.LLM_MAX_TOKENS},
 )
 
@@ -128,7 +137,7 @@ def _draft_out(row: VoiceDraft) -> dict:
 
 
 def _get(db: Session, draft_id: int, *, locked: bool = False) -> VoiceDraft:
-    stmt = select(VoiceDraft).where(VoiceDraft.id == draft_id)
+    stmt = select(VoiceDraft).where(VoiceDraft.id == draft_id).execution_options(populate_existing=True)
     row = db.scalar(stmt.with_for_update() if locked else stmt)
     if row is None:
         raise HTTPException(404, "Voice draft not found")
@@ -147,7 +156,11 @@ def _check_revision(row: VoiceDraft, revision: str) -> None:
 def _catalog(db: Session) -> list[dict]:
     return [{"id": f.id, "name": f.name, "serving_name": f.serving_name,
              "serving_size_g": f.serving_size_g, "revision": f.revision}
-            for f in foods.list_foods(db)]
+            for f in foods.list_foods(db)] + [
+                {"type": "recipe", **entry} for entry in recipes.reference_catalog(db)
+            ] + [{"type": "historical_meal", **entry}
+                 for day in db.scalars(select(NutritionLog.day).distinct().order_by(NutritionLog.day.desc()).limit(14))
+                 for entry in recipes.reference_catalog(db, source_day=day)]
 
 
 async def _prepare(db: Session, interpretation: VoiceInterpretation) -> dict:
@@ -155,6 +168,36 @@ async def _prepare(db: Session, interpretation: VoiceInterpretation) -> dict:
     payload = interpretation.model_dump()
     refs = {}
     parts = []
+    if interpretation.ingredient_changes and interpretation.recipe is None:
+        raise ValueError("Select a known recipe or historical meal before changing its ingredients.")
+    if interpretation.recipe is not None:
+        from decimal import Decimal
+
+        if interpretation.intent != "log_consumption" or interpretation.portions or interpretation.food or interpretation.other_foods:
+            raise ValueError("Review recipe consumption separately from other foods.")
+        reference = interpretation.recipe
+        composition, source = recipes.resolve_composition(db, **reference.model_dump(exclude={"portions"}))
+        if not composition["loggable"]:
+            raise ValueError("Resolve the source meal's ingredients and core nutrients before logging.")
+        recipe_factor = Decimal(str(reference.portions)) / Decimal(str(composition["portions"]))
+        for item in composition["ingredients"]:
+            item["qty_g"] = float(Decimal(str(item["qty_g"])) * recipe_factor)
+        changed = set()
+        for change in interpretation.ingredient_changes:
+            if change.ingredient_index >= len(composition["ingredients"]) or change.ingredient_index in changed:
+                raise ValueError("Select each changed ingredient once from the identified meal.")
+            changed.add(change.ingredient_index)
+            item = composition["ingredients"][change.ingredient_index]
+            item["qty_g"] = float(Decimal(str(item["qty_g"])) * Decimal(str(change.multiplier)))
+        composition.update(recipes.calculate(composition["ingredients"], 1), portions=1, prepared_weight_g=None)
+        totals = composition["totals"]
+        payload["source"] = source
+        payload["composition"] = composition
+        parts.append({**{key: totals[key] for key in foods.MACROS}, "items": composition["ingredients"],
+                      "micros": {key: value for key, value in composition["known_subtotals"].items()
+                                 if key not in foods.MACROS},
+                      "incomplete_micros": [key for key in composition["incomplete_nutrients"]
+                                             if key not in foods.MACROS]})
     for portion in interpretation.portions:
         food = foods.get_food(db, portion.food_id)
         refs[str(food.id)] = food.revision
@@ -311,6 +354,7 @@ def cancel_voice(draft_id: int, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/{draft_id}/accept")
 def accept_voice(draft_id: int, body: AcceptInput, db: Session = Depends(get_db)) -> dict:
+    lock_meal_inputs(db)
     row = _get(db, draft_id, locked=True)
     if row.accepted_action_id is not None:
         action = db.get(AgentAction, row.accepted_action_id)
@@ -322,6 +366,20 @@ def accept_voice(draft_id: int, body: AcceptInput, db: Session = Depends(get_db)
     interpretation = VoiceInterpretation.model_validate(row.interpretation)
     if interpretation.intent != body.action:
         raise HTTPException(422, "Clarify the intended action before accepting")
+    if interpretation.recipe:
+        try:
+            recipes.resolve_composition(db, **interpretation.recipe.model_dump(exclude={"portions"}))
+        except recipes.RecipeError as exc:
+            raise HTTPException(exc.status_code, str(exc)) from exc
+        if body.day is None or not body.meal:
+            raise HTTPException(422, "Review the day and meal before logging")
+        source = row.interpretation["source"]
+        action = recipes.write_consumption(db, row.interpretation["composition"], portions=1,
+            day=body.day, meal=body.meal, recipe_id=source.get("recipe_id"), revision=source.get("recipe_revision"))
+        action.request_key = f"voice:{row.id}:{body.request_id}"
+        row.accepted_action_id = action.id
+        db.commit()
+        return present(db, action)
     for key, revision in row.interpretation.get("food_revisions", {}).items():
         food = foods.get_food(db, int(key))
         if food.revision != revision:

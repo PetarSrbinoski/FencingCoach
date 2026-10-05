@@ -213,6 +213,16 @@ def _scaled_snapshot(micros: dict[str, Any] | None, multiplier: float) -> dict[s
         for key, value in item.get("nutrients", {}).items():
             if _is_nutrient_key(key) and type(value) in (int, float):
                 item["nutrients"][key] = round(value * multiplier, 3)
+    if isinstance(result.get("composition"), dict):
+        from app.services.recipes import calculate
+
+        composition = result["composition"]
+        for item in composition["ingredients"]:
+            item["qty_g"] *= multiplier
+        composition.update(calculate(composition["ingredients"], 1), portions=1,
+                           prepared_weight_g=None)
+        if type(result.get("consumed_portions")) in (int, float):
+            result["consumed_portions"] *= multiplier
     return result
 
 
