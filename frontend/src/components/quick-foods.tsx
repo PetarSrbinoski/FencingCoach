@@ -3,7 +3,7 @@
 import { ErrorNotice } from "@/components/mobile-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api, type NutritionLog, type SavedFood } from "@/lib/api";
+import { api, type NutritionLog } from "@/lib/api";
 import { randomUUID } from "@/lib/uuid";
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +23,6 @@ export function QuickFoods({
   onChanged: () => void;
 }) {
   const [recent, setRecent] = useState<NutritionLog[]>([]);
-  const [foods, setFoods] = useState<SavedFood[]>([]);
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,7 +31,6 @@ export function QuickFoods({
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [amount, setAmount] = useState("1");
-  const [unit, setUnit] = useState<"grams" | "servings">("grams");
   const [busy, setBusy] = useState(false);
   const writing = useRef(false);
   const repeatRequests = useRef(new Map<string, string>());
@@ -41,30 +39,27 @@ export function QuickFoods({
   useEffect(() => {
     let current = true;
     setLoadError(null);
-    void Promise.allSettled([api.nutrition.list(30), api.foods.list()]).then(
-      ([logs, saved]) => {
+    void api.nutrition.list(30).then(
+      (logs) => {
         if (!current) return;
-        if (logs.status === "fulfilled") {
-          const seen = new Set<string>();
-          setRecent(
-            [...logs.value]
-              .sort(
-                (a, b) => b.logged_at.localeCompare(a.logged_at) || b.id - a.id,
-              )
-              .filter((entry) => {
-                const key = entry.raw_text.trim().toLocaleLowerCase();
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-              }),
-          );
-        }
-        if (saved.status === "fulfilled") setFoods(saved.value);
-        if (logs.status === "rejected" || saved.status === "rejected") {
-          setLoadError(
-            "Some foods could not be loaded. You can still describe a meal above.",
-          );
-        }
+        const seen = new Set<string>();
+        setRecent(
+          [...logs]
+            .sort((a, b) => b.logged_at.localeCompare(a.logged_at) || b.id - a.id)
+            .filter((entry) => {
+              const key = entry.raw_text.trim().toLocaleLowerCase();
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }),
+        );
+        setLoading(false);
+      },
+      () => {
+        if (!current) return;
+        setLoadError(
+          "Recent foods could not be loaded. You can still describe a meal above.",
+        );
         setLoading(false);
       },
     );
@@ -73,56 +68,27 @@ export function QuickFoods({
     };
   }, [revision, retry]);
 
-  async function log(
-    source: NutritionLog | SavedFood,
-    kind: "recent" | "saved",
-    quantity = 1,
-  ) {
+  async function log(source: NutritionLog, quantity = 1) {
     if (writing.current || !day) return;
-    if (
-      !Number.isFinite(quantity) ||
-      quantity <= 0 ||
-      (kind === "recent" && quantity > 20)
-    ) {
-      setError(
-        kind === "recent"
-          ? "Use a portion above 0 and no greater than 20."
-          : "Enter an amount greater than zero.",
-      );
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 20) {
+      setError("Use a portion above 0 and no greater than 20.");
       return;
     }
     writing.current = true;
     setBusy(true);
     setError(null);
     try {
-      let entry: NutritionLog;
-      if (kind === "recent") {
-        const key = JSON.stringify([source.id, day, meal, quantity]);
-        // An uncertain retry must use the same server request ID.
-        const requestId = repeatRequests.current.get(key) ?? randomUUID();
-        repeatRequests.current.set(key, requestId);
-        entry = await api.nutrition.repeat(source.id, {
-          day,
-          meal: meal || null,
-          multiplier: quantity,
-          request_id: requestId,
-        });
-        repeatRequests.current.delete(key);
-      } else {
-        const food = source as SavedFood;
-        entry = await api.foods.log(
-          [
-            {
-              food_id: food.id,
-              ...(unit === "servings" && food.serving_size_g
-                ? { servings: quantity }
-                : { grams: quantity }),
-            },
-          ],
-          meal || undefined,
-          day,
-        );
-      }
+      const key = JSON.stringify([source.id, day, meal, quantity]);
+      // An uncertain retry must use the same server request ID.
+      const requestId = repeatRequests.current.get(key) ?? randomUUID();
+      repeatRequests.current.set(key, requestId);
+      const entry = await api.nutrition.repeat(source.id, {
+        day,
+        meal: meal || null,
+        multiplier: quantity,
+        request_id: requestId,
+      });
+      repeatRequests.current.delete(key);
       setReceipts([entry]);
       setActive(null);
       onChanged();
@@ -156,89 +122,33 @@ export function QuickFoods({
     entry.raw_text.toLocaleLowerCase().includes(search),
   );
   const visibleRecent = search || showAll ? matches : matches.slice(0, 3);
-  const visibleFoods = foods.filter((food) =>
-    food.name.toLocaleLowerCase().includes(search),
-  );
 
-  function portionEditor(
-    source: NutritionLog | SavedFood,
-    kind: "recent" | "saved",
-  ) {
-    const food = kind === "saved" ? (source as SavedFood) : null;
-    const factor = food
-      ? ((unit === "servings" ? food.serving_size_g || 1 : 1) *
-          Number(amount)) /
-        100
-      : Number(amount);
-    const incomplete = [
-      source.kcal,
-      source.protein_g,
-      source.carbs_g,
-      source.fat_g,
-    ].some((value) => value === null);
+  function portionEditor(source: NutritionLog) {
+    const factor = Number(amount);
     return (
       <form
         className="mb-3 space-y-3 rounded-xl bg-muted/50 p-3"
         onSubmit={(event) => {
           event.preventDefault();
-          void log(source, kind, Number(amount));
+          void log(source, Number(amount));
         }}
       >
         <div className="flex flex-wrap items-end gap-2">
           <label className="min-w-0 flex-1 text-sm">
-            {food ? "Amount" : "× last recorded portion"}
+            × last recorded portion
             <Input
               aria-label="Portion amount"
               type="number"
               inputMode="decimal"
               min="0.001"
-              max={food ? undefined : 20}
+              max={20}
               step="any"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               required
             />
           </label>
-          {food && (
-            <label className="min-w-0 flex-1 text-sm">
-              Measure
-              <select
-                aria-label="Portion measure"
-                className="h-12 w-full rounded-xl border border-input bg-background px-2 text-base"
-                value={unit}
-                onChange={(event) => {
-                  const next = event.target.value as "grams" | "servings";
-                  if (food.serving_size_g && Number(amount) > 0) {
-                    setAmount(
-                      String(
-                        Number(
-                          (
-                            Number(amount) *
-                            (next === "grams"
-                              ? food.serving_size_g
-                              : 1 / food.serving_size_g)
-                          ).toFixed(3),
-                        ),
-                      ),
-                    );
-                  }
-                  setUnit(next);
-                }}
-              >
-                <option value="grams">Grams</option>
-                {food.serving_size_g && (
-                  <option value="servings">
-                    {food.serving_name || "Serving"} ({food.serving_size_g} g)
-                  </option>
-                )}
-              </select>
-            </label>
-          )}
-          <Button
-            className={food ? "w-full" : undefined}
-            disabled={busy || !day || (kind === "saved" && incomplete)}
-            type="submit"
-          >
+          <Button disabled={busy || !day} type="submit">
             Log food
           </Button>
         </div>
@@ -246,14 +156,8 @@ export function QuickFoods({
           {source.kcal === null
             ? "Calories unknown"
             : `${Math.round(source.kcal * (Number.isFinite(factor) ? factor : 0))} kcal`}
-          {kind === "recent" && " · Uses the recorded nutrition values"}
+          {" · Uses the recorded nutrition values"}
         </p>
-        {kind === "saved" && incomplete && (
-          <p className="text-sm text-warning">
-            Add the missing calories and macros in Foods before logging this
-            food.
-          </p>
-        )}
       </form>
     );
   }
@@ -268,8 +172,8 @@ export function QuickFoods({
         <Input
           id="quick-food-search"
           type="search"
-          aria-label="Search recent and saved foods"
-          placeholder="Search recent & saved foods"
+          aria-label="Search recent foods"
+          placeholder="Search recent foods"
           className="pl-10"
           value={query}
           onChange={(event) => {
@@ -335,7 +239,7 @@ export function QuickFoods({
                         size="sm"
                         disabled={busy || !day}
                         aria-label={`Log ${entry.raw_text} again`}
-                        onClick={() => void log(entry, "recent")}
+                        onClick={() => void log(entry)}
                       >
                         Add again
                       </Button>
@@ -358,7 +262,7 @@ export function QuickFoods({
                       </div>
                     </div>
                     {active === `recent-${entry.id}` &&
-                      portionEditor(entry, "recent")}
+                      portionEditor(entry)}
                   </li>
                 ))}
               </ul>
@@ -373,63 +277,13 @@ export function QuickFoods({
               )}
             </div>
           )}
-          {(search || showAll || !recent.length) && visibleFoods.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold">Saved foods</h3>
-              <ul className="divide-y divide-border">
-                {visibleFoods.slice(0, showAll ? undefined : 8).map((food) => (
-                  <li key={food.id}>
-                    <button
-                      type="button"
-                      className="min-h-12 w-full py-3 text-left"
-                      aria-expanded={active === `saved-${food.id}`}
-                      onClick={() => {
-                        setActive(
-                          active === `saved-${food.id}`
-                            ? null
-                            : `saved-${food.id}`,
-                        );
-                        setAmount(food.serving_size_g ? "1" : "100");
-                        setUnit(food.serving_size_g ? "servings" : "grams");
-                      }}
-                    >
-                      <span className="block text-sm font-medium">
-                        {food.name}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {food.serving_size_g
-                          ? `${food.serving_name || "Serving"} · ${food.serving_size_g} g`
-                          : "Choose amount in grams"}
-                      </span>
-                    </button>
-                    {active === `saved-${food.id}` &&
-                      portionEditor(food, "saved")}
-                  </li>
-                ))}
-              </ul>
-              {!showAll && visibleFoods.length > 8 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAll(true)}
-                >
-                  Show all matches
-                </Button>
-              )}
-            </div>
-          )}
-          {!search && recent.length > 0 && !showAll && (
-            <Button variant="ghost" size="sm" onClick={() => setShowAll(true)}>
-              Browse saved foods
-            </Button>
-          )}
-          {!recent.length && !foods.length && (
+          {!recent.length && (
             <p className="text-sm text-muted-foreground">
               Your recent foods will appear here after you log a meal. Start
               with a description above.
             </p>
           )}
-          {search && !matches.length && !visibleFoods.length && (
+          {search && recent.length > 0 && !matches.length && (
             <p className="text-sm text-muted-foreground">
               No matching foods. Describe what you ate above.
             </p>

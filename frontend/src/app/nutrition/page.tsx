@@ -1343,14 +1343,19 @@ export default function NutritionPage() {
               </Card>
             </section>
             <section aria-label="Recently added foods">
-              <Card title="Recently added foods">
-                <QuickFoods
-                  day={selectedDay}
-                  meal={meal}
-                  revision={reloadTick}
-                  onChanged={refresh}
-                />
-              </Card>
+              <details className="rounded-2xl border border-border bg-card p-4">
+                <summary className="cursor-pointer font-medium">
+                  Recently added foods
+                </summary>
+                <div className="pt-4">
+                  <QuickFoods
+                    day={selectedDay}
+                    meal={meal}
+                    revision={reloadTick}
+                    onChanged={refresh}
+                  />
+                </div>
+              </details>
             </section>
             <div
               className="min-w-0 space-y-4"
