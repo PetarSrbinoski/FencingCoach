@@ -840,9 +840,10 @@ export default function NutritionPage() {
         (log) => log.day === selectedDay && log.id === Number(requested),
       )
     ) {
-      document
-        .getElementById(`diary-entry-${requested}`)
-        ?.scrollIntoView({ block: "center" });
+      const entry = document.getElementById(`diary-entry-${requested}`);
+      const list = entry?.closest<HTMLDetailsElement>("details");
+      if (list) list.open = true;
+      entry?.scrollIntoView({ block: "center" });
     }
   }, [selectedDay, logs]);
   const savedContext = plan?.plan.profile_context as
@@ -1356,13 +1357,14 @@ export default function NutritionPage() {
               aria-label="Foods eaten on selected day"
               role="region"
             >
-              <Card
-                title={
-                  selectedDay === today
-                    ? "Foods eaten today"
-                    : `Foods eaten · ${selectedDay}`
-                }
-              >
+              <details key={selectedDay} className="rounded-2xl border border-border bg-card p-4">
+                <summary className="cursor-pointer font-medium">
+                  {selectedDay === today ? "Foods eaten today" : `Foods eaten · ${selectedDay}`}
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    {todayLogs.length} {todayLogs.length === 1 ? "entry" : "entries"}
+                  </span>
+                </summary>
+                <div className="pt-4">
                 {loading && todayLogs.length === 0 ? (
                   <div className="space-y-3">
                     {Array.from({ length: 3 }).map((_, i) => (
@@ -1446,7 +1448,8 @@ export default function NutritionPage() {
                     ))}
                   </ul>
                 )}
-              </Card>
+                </div>
+              </details>
               <details className="rounded-2xl border border-border bg-card p-4">
                 <summary className="font-medium">
                   All nutrients & totals

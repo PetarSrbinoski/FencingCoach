@@ -15,6 +15,8 @@ Implemented local Future AI tickets 03, 04, 05, 07, 08, 09, and 10.
 
 The Diary header has no date changer or floating meal shortcut panel. Recent foods use searchable cards with Add
 again and Adjust portion; only an opened adjustment shows its amount controls.
+Foods eaten starts collapsed with an entry count; links to a specific diary entry
+expand the list automatically.
 
 ## Data and calculations
 
