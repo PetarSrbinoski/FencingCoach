@@ -75,10 +75,12 @@ alongside AI insights.
 Describe a meal and the AI estimates the macros — you confirm to save. Tracks
 intake vs. daily targets, and generates meal plans and shopping lists.
 
-The diary supports selected dates, manual macro entry, and editing or deleting
+The diary supports dated records, manual macro entry, and editing or deleting
 recorded meals. Targets show their source and respond to your goal, training day,
 and competition phase; you can override the day type or return it to automatic.
 Historical targets are recalculated with the current profile and rules.
+Recent foods use searchable cards: add the last portion again or open an amount
+editor. The diary header has no date navigation controls.
 
 **Voice logging** transcribes a recording into a draft you can inspect and correct.
 Review food matches, portions, and nutrition before choosing to save a food or log
@@ -93,6 +95,20 @@ Blank values stay unknown; incomplete foods can be saved, but calories, protein,
 carbs, and fat are required to log them. Editing or removing a food preserves
 past meal logs. Optional preparation times help constrain competition meal choices.
 Micronutrient totals show known amounts and flag incomplete coverage.
+
+**My recipes** stores ingredient quantities, their raw/cooked/as-sold basis, food
+value snapshots, and recipe yield. Compose a recipe or import pasted text, review
+it, and save it independently from logging a consumed portion. Edits preserve
+older meal records; grams require a known prepared weight. Chat can log an
+identified recipe or dated historical meal using the same calculations. Voice
+can review changes to individual ingredients without changing the source recipe.
+
+**Eat now**, under Plans, suggests meals using available foods, preparation time,
+profile restrictions, enabled coach memory, and the selected day's targets and
+recorded intake. Review or adjust quantities, then separately save a reusable
+recipe or confirm consumption. Changed day context requires renewed review.
+Details and forms open on demand to keep the main views compact. See
+[recipes and suggestions](./docs/recipes-and-meal-suggestions.md) for behavior and checks.
 
 You can also tell coach chat: “Save My yogurt: per 100 g, 62.3 kcal, 5.12 g protein,
 4.1 g carbs, 2.03 g fat, 125 mg calcium; one pot is 150 g.” Saving does not log a meal.

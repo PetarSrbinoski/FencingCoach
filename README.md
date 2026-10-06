@@ -8,7 +8,7 @@ The live version is hosted on my home server.
 
 - Home dashboard: readiness overview, key metrics, next competition, quick coach chat, one-click Garmin sync
 - Garmin data sync: recent and full-history imports, sync status, and data coverage
-- Nutrition: daily diaries, a personal food library, reviewed voice drafts, meal plans, and shopping lists
+- Nutrition: daily diaries, food and recipe libraries, reviewed voice drafts, practical meal suggestions, meal plans, and shopping lists
 - Training: daily workouts, coach edits, fencing session analysis, and mental check-ins
 - Competitions: calendar, results, and reviewed nutrition and meal plans for preparation, event days, and recovery
 - Coach chat: saved conversations, editable memory, dated nutrition answers, and action history with guarded undo
