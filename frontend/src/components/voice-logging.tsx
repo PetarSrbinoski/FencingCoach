@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { api, type AgentAction, type SavedFood, type VoiceDraft, type VoiceFood, type VoiceInterpretation } from "@/lib/api";
+import { api, type AgentAction, type SavedFood, type VoiceDraft, type VoiceFood, type VoiceInterpretation, type Recipe, type HistoricalMeal } from "@/lib/api";
 import { randomUUID } from "@/lib/uuid";
 import { Mic, Square } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -36,6 +36,9 @@ export function VoiceLogging({ day, meal, onCommitted, compact = false, actions,
   const [review, setReview] = useState<VoiceInterpretation | null>(null);
   const [reviewDirty, setReviewDirty] = useState(false);
   const [foods, setFoods] = useState<SavedFood[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [history, setHistory] = useState<HistoricalMeal[]>([]);
+  const [sourceDay, setSourceDay] = useState(day);
   const [logDay, setLogDay] = useState(day);
   const [logMeal, setLogMeal] = useState(meal || "");
   const [busy, setBusy] = useState(false);
@@ -50,6 +53,8 @@ export function VoiceLogging({ day, meal, onCommitted, compact = false, actions,
   useEffect(() => { setLogDay(day); }, [day]);
   useEffect(() => { setLogMeal(meal); }, [meal]);
   useEffect(() => { api.foods.list().then(setFoods).catch(() => {}); }, []);
+  useEffect(() => { api.recipes.list().then(setRecipes).catch(() => {}); }, []);
+  useEffect(() => { if (sourceDay) api.recipes.references(sourceDay).then(setHistory).catch(() => setHistory([])); }, [sourceDay]);
   useEffect(() => {
     const saved = sessionStorage.getItem(storageKey);
     if (saved && /^\d+$/.test(saved)) {
@@ -65,14 +70,14 @@ export function VoiceLogging({ day, meal, onCommitted, compact = false, actions,
     if (draft.accepted_action_id) {
       api.agentActions.get(draft.accepted_action_id).then(setReceipt).catch(() => {});
     }
-  }, [draft?.id, draft?.revision, draft?.status]);
+  }, [draft]);
   useEffect(() => {
     if (!draft || draft.status !== "pending") return;
     const poll = setInterval(() => {
       api.voice.get(draft.id).then(setDraft).catch((reason) => setError(errorText(reason)));
     }, 1500);
     return () => clearInterval(poll);
-  }, [draft?.id, draft?.status]);
+  }, [draft]);
 
   function stopRecording() {
     if (timer.current) clearInterval(timer.current);
@@ -236,6 +241,34 @@ export function VoiceLogging({ day, meal, onCommitted, compact = false, actions,
     {review && draft?.status === "done" && !draft.accepted_action_id && <div className="space-y-4 border border-border p-3">
       <h3 className="font-semibold">Review interpretation</h3>
       {review.question && <p role="status" className="text-sm">Clarification needed: {review.question}</p>}
+      {(review.recipe || review.intent === "clarify") && <details open={!!review.recipe} className="space-y-3 text-sm">
+        <summary className="cursor-pointer">Known recipe or previous meal</summary>
+        <label className="block">Historical source day<Input type="date" value={sourceDay} onChange={(event) => setSourceDay(event.target.value)} /></label>
+        <label className="block">Meal source<select className="mt-1 w-full rounded border border-border bg-background p-2"
+          value={review.recipe?.recipe_id ? `recipe:${review.recipe.recipe_id}` : review.recipe?.source_log_id ? `history:${review.recipe.source_log_id}` : ""}
+          onChange={(event) => {
+            const [kind, id] = event.target.value.split(":");
+            const recipe = recipes.find((item) => item.id === Number(id));
+            const previous = history.find((item) => item.source_log_id === Number(id));
+            const reference = kind === "recipe" && recipe ? { recipe_id: recipe.id, expected_revision: recipe.revision, portions: 1 }
+              : kind === "history" && previous ? { source_log_id: previous.source_log_id, expected_source_version: previous.source_version, portions: 1 } : null;
+            changeReview({ recipe: reference, ingredient_changes: [], intent: reference ? "log_consumption" : "clarify",
+              portions: [], food: null, other_foods: "", question: null, composition: undefined, preview: undefined });
+          }}>
+          <option value="">Choose the known meal</option>
+          {recipes.map((recipe) => <option key={`r${recipe.id}`} value={`recipe:${recipe.id}`}>{recipe.name} (saved recipe)</option>)}
+          {history.map((previous) => <option key={`h${previous.source_log_id}`} value={`history:${previous.source_log_id}`} disabled={!previous.composition}>{previous.name} ({previous.day}{previous.composition ? "" : ", composition unknown"})</option>)}
+        </select></label>
+        {review.recipe && <>
+          <p>Source version: {review.recipe.expected_revision || review.recipe.expected_source_version}. The source meal remains unchanged.</p>
+          <label className="block">Recipe portions consumed<Input type="number" min="0.01" step="any" value={review.recipe.portions} onChange={(event) => changeReview({ recipe: { ...review.recipe!, portions: Number(event.target.value) } })} /></label>
+          {(review.composition?.ingredients || (review.recipe.recipe_id ? recipes.find((item) => item.id === review.recipe?.recipe_id)?.ingredients : history.find((item) => item.source_log_id === review.recipe?.source_log_id)?.composition?.ingredients))?.map((line, index) => <label key={index} className="block">
+            {line.name} amount multiplier<Input type="number" min="0.01" step="any" value={review.ingredient_changes?.find((change) => change.ingredient_index === index)?.multiplier ?? 1}
+              onChange={(event) => changeReview({ ingredient_changes: [...(review.ingredient_changes || []).filter((change) => change.ingredient_index !== index), { ingredient_index: index, multiplier: Number(event.target.value) }] })} />
+          </label>)}
+          <p>0.5 halves the named ingredient only. Update the review to see the calculated quantities.</p>
+        </>}
+      </details>}
       <label className="block text-sm">Intended action
         <select className="mt-1 w-full rounded border border-border bg-background p-2" value={review.intent}
           onChange={(event) => changeReview({ intent: event.target.value as VoiceInterpretation["intent"] })}>

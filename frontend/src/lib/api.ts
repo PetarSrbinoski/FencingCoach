@@ -83,6 +83,41 @@ export type SavedFoodInput = {
 };
 export type SavedFood = SavedFoodInput & { id: number };
 export type FoodPortion = { food_id: number; grams?: number; servings?: number };
+export type IngredientInput = {
+  name?: string | null; food_id?: number | null; qty_g: number | null;
+  basis: "raw" | "cooked" | "as_sold" | null;
+  source?: "saved" | "supplied" | "estimated"; values?: SavedFoodInput | null;
+  snapshot_index?: number | null;
+};
+export type RecipeInput = {
+  name: string; portions: number | null; prepared_weight_g: number | null;
+  prep_time_min: number | null; ingredients: IngredientInput[];
+};
+export type RecipeComposition = {
+  name: string; portions: number | null; prepared_weight_g: number | null; prep_time_min: number | null;
+  ingredients: { name: string; food_id?: number; food_revision?: string; qty_g: number | null;
+    basis: IngredientInput["basis"]; source: string; nutrients_per_100g: Record<string, number | null> }[];
+  totals: Record<string, number | null>; per_portion: Record<string, number | null>;
+  known_subtotals: Record<string, number>; incomplete_nutrients: string[];
+  questions: string[]; loggable: boolean;
+};
+export type Recipe = RecipeComposition & { id: number; revision: string };
+export type NutritionDraft = {
+  id: number; kind: "recipe" | "suggestions"; status: "pending" | "done" | "error" | "cancelled";
+  revision: string; error: string | null; accepted_actions: Record<string, number>;
+  inputs: { recipe?: RecipeInput; text?: string; recipe_id?: number; expected_recipe_revision?: string;
+    day?: string; available_foods?: string[]; prep_limit_min?: number; diary_complete?: boolean | null };
+  payload: { recipe?: RecipeComposition; options?: MealOption[];
+    context?: { targets: Record<string, unknown>; recorded_intake: Record<string, number | null>;
+      remaining: Record<string, number | null>; diary_complete: boolean | null };
+    warnings?: string[]; question?: string | null; explanation?: string } | null;
+};
+export type MealOption = {
+  recipe: RecipeComposition; input: RecipeInput;
+  fit: { remaining_after_one_portion: Record<string, number | null>; exceeds_remaining: string[];
+    estimated_ingredients: string[]; explanation: string };
+};
+export type HistoricalMeal = { source_log_id: number; source_version: number; day: string; name: string; composition: RecipeComposition | null };
 export type VoiceFood = SavedFoodInput & {
   basis: "per_100g" | "per_serving";
   basis_grams: number | null;
@@ -94,6 +129,10 @@ export type VoiceInterpretation = {
   food: VoiceFood | null;
   portions: FoodPortion[];
   other_foods: string;
+  recipe?: { recipe_id?: number | null; source_log_id?: number | null; expected_revision?: string | null; expected_source_version?: number | null; portions: number } | null;
+  ingredient_changes?: { ingredient_index: number; multiplier: number }[];
+  source?: { recipe_id?: number; recipe_revision?: string; source_log_id?: number; source_version?: number };
+  composition?: RecipeComposition;
   preview?: {
     kcal: number; protein_g: number; carbs_g: number; fat_g: number;
     fiber_g: number | null; items: NutritionEstimateItem[];
@@ -482,7 +521,7 @@ export type CoachMemoryList = { enabled: boolean; timezone: string; items: Coach
 export type MemoryContent = { content: string; expires_on: string | null };
 export type MemoryGuard = { request_id: string; expected_revision: string };
 
-export type AgentActionKind = "memory" | "workout" | "competition" | "food_create" | "food_update" | "meal" | "nutrition_plan" | "reversal";
+export type AgentActionKind = "memory" | "workout" | "competition" | "food_create" | "food_update" | "meal" | "nutrition_plan" | "reversal" | "recipe";
 export type AgentActionStatus = "committed" | "undone" | "failed" | "conflict" | "missing";
 
 export type AgentAction = {
@@ -676,6 +715,27 @@ export const api = {
     accept: (id: number, body: { expected_revision: string; action: "save_food" | "log_consumption";
       request_id: string; day?: string; meal?: string }) =>
       request<AgentAction>(`/nutrition/voice/${id}/accept`, { method: "POST", body: JSON.stringify(body) }),
+  },
+
+  recipes: {
+    list: () => request<Recipe[]>("/nutrition/recipes"),
+    get: (id: number) => request<Recipe>(`/nutrition/recipes/${id}`),
+    references: (day: string) => request<HistoricalMeal[]>(`/nutrition/recipes/references?day=${day}`),
+    draft: (body: { recipe?: RecipeInput; text?: string; recipe_id?: number; expected_recipe_revision?: string }) =>
+      request<NutritionDraft>("/nutrition/recipes/drafts", { method: "POST", body: JSON.stringify(body) }),
+    getDraft: (id: number) => request<NutritionDraft>(`/nutrition/recipes/drafts/${id}`),
+    review: (id: number, recipe: RecipeInput, expected_revision: string) => request<NutritionDraft>(`/nutrition/recipes/drafts/${id}/review`, { method: "PUT", body: JSON.stringify({ recipe, expected_revision }) }),
+    accept: (id: number, expected_revision: string, request_id: string) => request<AgentAction>(`/nutrition/recipes/drafts/${id}/accept`, { method: "POST", body: JSON.stringify({ expected_revision, request_id }) }),
+    cancel: (id: number) => request<NutritionDraft>(`/nutrition/recipes/drafts/${id}/cancel`, { method: "POST" }),
+    log: (id: number, body: { expected_revision: string; request_id: string; portions?: number; grams?: number; day: string; meal: string }) => request<AgentAction>(`/nutrition/recipes/${id}/log`, { method: "POST", body: JSON.stringify(body) }),
+  },
+  suggestions: {
+    create: (body: { day: string; available_foods: string[]; prep_limit_min: number; diary_complete: boolean | null }) => request<NutritionDraft>("/nutrition/suggestions", { method: "POST", body: JSON.stringify(body) }),
+    get: (id: number) => request<NutritionDraft>(`/nutrition/suggestions/${id}`),
+    cancel: (id: number) => request<NutritionDraft>(`/nutrition/suggestions/${id}/cancel`, { method: "POST" }),
+    refresh: (id: number, expected_revision: string) => request<NutritionDraft>(`/nutrition/suggestions/${id}/refresh`, { method: "POST", body: JSON.stringify({ expected_revision }) }),
+    review: (id: number, option_index: number, recipe: RecipeInput, expected_revision: string) => request<NutritionDraft>(`/nutrition/suggestions/${id}/review`, { method: "PUT", body: JSON.stringify({ option_index, recipe, expected_revision }) }),
+    accept: (id: number, body: { expected_revision: string; option_index: number; action: "save_recipe" | "log_consumption"; request_id: string; portions?: number; meal?: string }) => request<AgentAction>(`/nutrition/suggestions/${id}/accept`, { method: "POST", body: JSON.stringify(body) }),
   },
 
   brief: {
