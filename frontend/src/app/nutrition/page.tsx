@@ -10,6 +10,8 @@ import { MacroProgress } from "@/components/charts";
 import { CompetitionNutritionPlanner } from "@/components/competition-nutrition-planner";
 import { FoodLibrary } from "@/components/food-library";
 import { VoiceLogging } from "@/components/voice-logging";
+import { RecipeLibrary } from "@/components/recipe-library";
+import { MealSuggestions } from "@/components/meal-suggestions";
 import {
   Editor,
   ErrorNotice,
@@ -54,8 +56,6 @@ import {
   Cookie,
   Loader2,
   Moon,
-  Search,
-  PencilLine,
   ShoppingCart,
   Sun,
   Trash2,
@@ -119,11 +119,6 @@ function nutrient(value: number | undefined, unit: string): string {
     : `Unknown ${unit}`;
 }
 
-function addDays(day: string, count: number): string {
-  const date = new Date(`${day}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + count);
-  return date.toISOString().slice(0, 10);
-}
 
 function slotLabel(slot: string): string {
   return slot.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -134,21 +129,23 @@ export default function NutritionPage() {
     ["diary", "plans", "foods"] as const,
     "diary",
     (query) =>
-      query.has("food") || window.location.hash === "#my-foods"
+      query.has("food") || query.has("recipe") || window.location.hash === "#my-foods"
         ? "foods"
-        : query.has("competition") || query.has("plan")
+        : query.has("competition") || query.has("plan") || query.has("suggestion")
           ? "plans"
           : undefined,
   );
   const [planView, setPlanView] = useView(
-    ["daily", "competition", "shopping"] as const,
+    ["daily", "suggestions", "competition", "shopping"] as const,
     "daily",
     (query) =>
-      query.has("competition") || query.has("plan") ? "competition" : undefined,
+      query.has("suggestion") ? "suggestions" : query.has("competition") || query.has("plan") ? "competition" : undefined,
     "planView",
   );
-  const loggerRef = useRef<HTMLDivElement>(null);
-  const [loggerVisible, setLoggerVisible] = useState(true);
+  const [libraryView, setLibraryView] = useView(
+    ["products", "recipes"] as const, "products",
+    (query) => query.has("recipe") ? "recipes" : undefined, "library",
+  );
   const [today, setToday] = useState("");
   const [selectedDay, setSelectedDay] = useState("");
   const [text, setText] = useState("");
@@ -235,16 +232,6 @@ export default function NutritionPage() {
     }
     return () => stopEstimatePolling();
   }, []);
-
-  useEffect(() => {
-    const element = loggerRef.current;
-    if (!element) return;
-    const observer = new IntersectionObserver(([entry]) =>
-      setLoggerVisible(entry.isIntersecting),
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [view]);
 
   function focusLogger(id: string) {
     const field = document.getElementById(id);
@@ -899,44 +886,9 @@ export default function NutritionPage() {
       />
       {view === "diary" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_auto] items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSelectedDay(addDays(selectedDay, -1))}
-              disabled={!selectedDay}
-              aria-label="Previous diary day"
-            >
-              ‹
-            </Button>
-            <label className="min-w-0 flex-1 text-sm text-muted-foreground">
-              <span className="sr-only">Selected day</span>
-              <Input
-                type="date"
-                value={selectedDay}
-                onChange={(event) => setSelectedDay(event.target.value)}
-                aria-label="Diary date"
-              />
-            </label>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSelectedDay(addDays(selectedDay, 1))}
-              disabled={!selectedDay}
-              aria-label="Next diary day"
-            >
-              ›
-            </Button>
-            <Button
-              className="px-2"
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedDay(today)}
-              disabled={!today || selectedDay === today}
-            >
-              Today
-            </Button>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {selectedDay === today ? "Today’s diary" : `Diary · ${selectedDay}`}
+          </p>
           {dayError && (
             <div role="alert" className="mt-3 text-sm text-destructive">
               Could not load {selectedDay}: {dayError}{" "}
@@ -1139,7 +1091,7 @@ export default function NutritionPage() {
                     </select>
                   </label>
                 </div>
-                <div ref={loggerRef} className="space-y-4">
+                <div className="space-y-4">
                   <div className="flex flex-col gap-3">
                     <label
                       htmlFor="meal-description"
@@ -1597,32 +1549,15 @@ export default function NutritionPage() {
               </details>
             </div>
           </div>
-          {!loggerVisible && (
-            <div
-              data-mobile-dock
-              className="fixed inset-x-4 bottom-[var(--dock-space)] z-30 flex gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg lg:hidden"
-            >
-              <Button
-                className="flex-1"
-                onClick={() => focusLogger("meal-description")}
-              >
-                <PencilLine />
-                Describe meal
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => focusLogger("quick-food-search")}
-              >
-                <Search />
-                Find food
-              </Button>
-            </div>
-          )}
         </div>
       )}
       {view === "foods" && (
-        <div id="my-foods">
+        <div id="my-foods" className="space-y-4">
+          <ViewTabs label="Food library views" value={libraryView} onChange={setLibraryView}
+            items={[{ value: "products", label: "My foods" }, { value: "recipes", label: "My recipes" }]} />
+          {libraryView === "recipes" ? <RecipeLibrary day={selectedDay} onLogged={(loggedDay) => {
+            setSelectedDay(loggedDay); refresh(); setEntryMessage(`Logged recipe portion for ${loggedDay}`);
+          }} /> :
           <FoodLibrary
             mode="manage"
             onLogged={(loggedDay) => {
@@ -1634,6 +1569,7 @@ export default function NutritionPage() {
             meal={meal}
             day={selectedDay}
           />
+          }
         </div>
       )}
       {view === "plans" && (
@@ -1644,10 +1580,14 @@ export default function NutritionPage() {
             onChange={setPlanView}
             items={[
               { value: "daily", label: "Today" },
+              { value: "suggestions", label: "Eat now" },
               { value: "competition", label: "Competition" },
               { value: "shopping", label: "Shopping" },
             ]}
           />
+          {planView === "suggestions" && <MealSuggestions day={selectedDay} onLogged={(loggedDay) => {
+            setSelectedDay(loggedDay); refresh(); setEntryMessage(`Logged chosen meal for ${loggedDay}`);
+          }} />}
           {planView === "competition" && (
             <CompetitionNutritionPlanner
               onChanged={refresh}

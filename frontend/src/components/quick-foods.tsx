@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, type NutritionLog, type SavedFood } from "@/lib/api";
 import { randomUUID } from "@/lib/uuid";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const errorText = (error: unknown) =>
@@ -318,15 +318,31 @@ export function QuickFoods({
                 <h3 className="text-sm font-semibold">Recent matches</h3>
               )}
               <p className="mt-1 text-xs text-muted-foreground">
-                Tap + for the same portion. Tap the name to adjust.
+                Add the same portion again, or adjust the amount first.
               </p>
-              <ul className="mt-1 divide-y divide-border">
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
                 {visibleRecent.map((entry) => (
-                  <li key={entry.id}>
-                    <div className="flex items-center gap-2 py-1">
+                  <li key={entry.id} className="min-w-0 rounded-xl border border-border p-3">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="break-words text-sm font-medium">{entry.raw_text}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {entry.kcal === null ? "Calories unknown" : `${Math.round(entry.kcal)} kcal`} · Last portion
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        disabled={busy || !day}
+                        aria-label={`Log ${entry.raw_text} again`}
+                        onClick={() => void log(entry, "recent")}
+                      >
+                        Add again
+                      </Button>
                       <button
                         type="button"
-                        className="min-h-12 min-w-0 flex-1 py-2 text-left"
+                        className="min-h-10 rounded-lg px-3 text-sm underline underline-offset-4"
+                        aria-label={`Adjust portion of ${entry.raw_text}`}
                         aria-expanded={active === `recent-${entry.id}`}
                         onClick={() => {
                           setActive(
@@ -337,25 +353,9 @@ export function QuickFoods({
                           setAmount("1");
                         }}
                       >
-                        <span className="block break-words text-sm font-medium">
-                          {entry.raw_text}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          Last recorded portion ·{" "}
-                          {entry.kcal === null
-                            ? "Calories unknown"
-                            : `${Math.round(entry.kcal)} kcal`}
-                        </span>
+                        {active === `recent-${entry.id}` ? "Close" : "Adjust portion"}
                       </button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        disabled={busy || !day}
-                        aria-label={`Log ${entry.raw_text} again`}
-                        onClick={() => void log(entry, "recent")}
-                      >
-                        <Plus />
-                      </Button>
+                      </div>
                     </div>
                     {active === `recent-${entry.id}` &&
                       portionEditor(entry, "recent")}
