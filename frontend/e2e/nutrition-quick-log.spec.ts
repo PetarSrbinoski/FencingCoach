@@ -157,7 +157,15 @@ test("one tap repeats to the selected day and meal; Undo removes only the copy",
   page,
 }, info) => {
   const state = await fixture(page);
-  await page.goto("/nutrition");
+  await page.goto(`/nutrition?day=${day}`);
+  const toggle = page.getByText("Recently added foods", { exact: true });
+  await expect(page.getByLabel("Search recent foods", { exact: true })).toBeHidden();
+  await toggle.click();
+  await expect(page.getByLabel("Search recent foods", { exact: true })).toBeVisible();
+  await toggle.click();
+  await expect(page.getByLabel("Search recent foods", { exact: true })).toBeHidden();
+  await toggle.click();
+  await expect(page.getByRole("button", { name: "Browse saved foods" })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: `Log ${name} again` }),
   ).toBeVisible();
@@ -187,7 +195,12 @@ test("one tap repeats to the selected day and meal; Undo removes only the copy",
     path: `.scratch/nutrition-${info.project.name}.png`,
     fullPage: true,
   });
-  await page.getByLabel("Diary date", { exact: true }).fill("2026-09-27");
+  await page.evaluate(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("day", "2026-09-27");
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   await page.getByLabel("Meal slot", { exact: true }).selectOption("lunch");
   await page.getByRole("button", { name: `Log ${name} again` }).click();
   await expect(
@@ -215,11 +228,12 @@ test("repeat retries reuse the request id and inline portions scale the copy", a
   page,
 }) => {
   const state = await fixture(page, { failRepeat: true });
-  await page.goto("/nutrition");
+  await page.goto(`/nutrition?day=${day}`);
+  await page.getByText("Recently added foods", { exact: true }).click();
   const quick = page.getByRole("region", { name: "Quick food logging" });
   await quick
     .getByRole("button", {
-      name: `${name} Last recorded portion`,
+      name: `Adjust portion of ${name}`,
       exact: false,
     })
     .click();
@@ -239,28 +253,25 @@ test("repeat retries reuse the request id and inline portions scale the copy", a
   expect(state.rows.find((row: any) => row.id === 100).kcal).toBe(270);
 });
 
-test("saved food search opens an inline portion with the named serving prefilled", async ({
+test("saved foods are browsed, added and logged from the third nutrition tab", async ({
   page,
 }) => {
   const state = await fixture(page);
   await page.goto("/nutrition?day=2026-09-27");
-  await page.getByLabel("Search recent and saved foods").fill("Greek yogurt");
-  await page
-    .getByRole("button", { name: "Greek yogurt one pot · 150 g", exact: true })
-    .click();
-  await expect(page.getByLabel("Portion amount")).toHaveValue("1");
-  await expect(page.getByLabel("Portion measure")).toHaveValue("servings");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByLabel("Portion measure").selectOption("grams");
-  await expect(page.getByLabel("Portion amount")).toHaveValue("150");
-  await page.getByLabel("Portion amount").fill("200");
-  await page.getByRole("button", { name: "Log food", exact: true }).click();
-  await expect(
-    page.getByRole("button", {
-      name: "Undo logging Greek yogurt",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByLabel("Search my foods")).toHaveCount(0);
+  const tabs = page.getByRole("navigation", { name: "Nutrition views" });
+  await expect(tabs.getByRole("button").nth(2)).toHaveText("Foods");
+  await tabs.getByRole("button", { name: "Foods", exact: true }).click();
+  await page.getByRole("button", { name: "Add food", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Add food", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByLabel("Search my foods").fill("Greek yogurt");
+  await page.getByRole("button", { name: /^Greek yogurt .*kcal/ }).click();
+  const editor = page.getByRole("dialog", { name: "Log Greek yogurt", exact: true });
+  await expect(editor.getByLabel("Diary date", { exact: true })).toHaveValue("2026-09-27");
+  await editor.getByLabel("Amount eaten").fill("200");
+  await editor.getByRole("button", { name: "Log food", exact: true }).click();
+  await expect(page.getByText("Logged food for 2026-09-27", { exact: true })).toBeVisible();
   expect(state.portions).toEqual([
     { day: "2026-09-27", portions: [{ food_id: 1, grams: 200 }] },
   ]);
@@ -270,12 +281,17 @@ test("inline estimate preserves its description and destination until reviewed a
   page,
 }) => {
   const state = await fixture(page, { pending: true });
-  await page.goto("/nutrition");
+  await page.goto(`/nutrition?day=${day}`);
   await page.getByLabel("Meal slot", { exact: true }).selectOption("dinner");
   await page.getByLabel("Meal description").fill("200 g chicken with rice");
   await page.getByRole("button", { name: "Estimate", exact: true }).click();
   await expect(page.getByLabel("Meal description")).toBeDisabled();
-  await page.getByLabel("Diary date", { exact: true }).fill("2026-09-27");
+  await page.evaluate(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("day", "2026-09-27");
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
   state.finishEstimate();
   await expect(
     page.getByText("Review estimate", { exact: true }),
@@ -301,8 +317,9 @@ test("recent-food failure leaves description usable and mobile controls fit at 3
 }) => {
   await fixture(page, { failRecent: true });
   await page.setViewportSize({ width: 320, height: 740 });
-  await page.goto("/nutrition");
-  await expect(page.getByText(/Some foods could not be loaded/)).toBeVisible();
+  await page.goto(`/nutrition?day=${day}`);
+  await page.getByText("Recently added foods", { exact: true }).click();
+  await expect(page.getByText(/Recent foods could not be loaded/)).toBeVisible();
   await page.getByLabel("Meal description").fill("Rice and vegetables");
   await expect(
     page.getByRole("button", { name: "Estimate", exact: true }),
@@ -314,8 +331,6 @@ test("recent-food failure leaves description usable and mobile controls fit at 3
   ).toBe(true);
   await page.getByText("All nutrients & totals", { exact: true }).click();
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  const find = page.getByRole("button", { name: "Find food", exact: true });
-  await expect(find).toBeInViewport();
-  await find.click();
-  await expect(page.getByLabel("Search recent and saved foods")).toBeFocused();
+  await page.getByText("Recently added foods", { exact: true }).click();
+  await expect(page.getByLabel("Search recent foods", { exact: true })).toBeHidden();
 });
