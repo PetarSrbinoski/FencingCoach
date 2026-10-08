@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pydantic_ai import Agent, RunContext
 
 from app.agents.deps import CoachDeps, get_active_model, get_model, strip_think_tags
+from app.core.config import settings
 from app.models import MentalEntry
 from llm.prompts.mental import MENTAL_INSTRUCTIONS
 
@@ -21,7 +22,7 @@ mental_agent = Agent(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.4,
-        "max_tokens": 512,
+        "max_tokens": settings.LLM_MAX_TOKENS,
     },
 )
 

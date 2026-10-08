@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "deepseek-ai/deepseek-v4-flash"
     
-    LLM_FALLBACK_MODEL: str = "meta/llama-3.3-70b-instruct"
+    LLM_FALLBACK_MODEL: str = "meta/muse-glimmer-30b"
     LLM_FALLBACK_BASE_URL: str = ""
     LLM_FALLBACK_API_KEY: str = ""
 

@@ -44,6 +44,7 @@ from app.agents.retry import (
 from app.agents.retry import (
     llm_slot as _llm_slot,
 )
+from app.core.config import settings
 from app.models import CoachPlanProposal, Competition, WorkoutOverride
 from app.schemas import ExerciseOverrideIn, TrainingSessionOut
 from app.schemas.coach_memory import MemoryContent
@@ -124,7 +125,7 @@ _COACH_AGENT_KWARGS: dict[str, Any] = dict(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.4,
-        "max_tokens": 1800,
+        "max_tokens": settings.LLM_MAX_TOKENS,
     },
 )
 

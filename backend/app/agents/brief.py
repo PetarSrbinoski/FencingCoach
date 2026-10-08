@@ -18,6 +18,7 @@ from app.agents.deps import (
     strip_think_tags,
 )
 from app.core.clock import athlete_today
+from app.core.config import settings
 from app.models import DailyBrief
 from app.services.context import build_context
 from app.services.readiness import compute_readiness
@@ -34,7 +35,7 @@ brief_agent = Agent(
     deps_type=CoachDeps,
     model_settings={
         "temperature": 0.5,
-        "max_tokens": 1200,
+        "max_tokens": settings.LLM_MAX_TOKENS,
     },
 )
 
