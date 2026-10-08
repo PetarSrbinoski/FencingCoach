@@ -16,6 +16,7 @@ load, nutrition, upcoming competitions, and your goals.
 
 It can also **take action** (use tools):
 
+- Read planned workouts for a day or date range from the Training calendar, including exercise details and manual edits
 - Edit a day's gym workout (swap exercises, change sets/reps/load)
 - Add a competition to your calendar
 - Save foods with your supplied label values and log portions from your personal library

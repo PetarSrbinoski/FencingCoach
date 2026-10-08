@@ -8,6 +8,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date as Date
+from datetime import timedelta
 from typing import Any, Literal
 
 from pydantic_ai import Agent, RunContext
@@ -44,7 +45,7 @@ from app.agents.retry import (
     llm_slot as _llm_slot,
 )
 from app.models import CoachPlanProposal, Competition, WorkoutOverride
-from app.schemas import ExerciseOverrideIn
+from app.schemas import ExerciseOverrideIn, TrainingSessionOut
 from app.schemas.coach_memory import MemoryContent
 from app.schemas.foods import FoodPortion, PositiveAmount, SavedFoodInput, SavedFoodOut
 from app.services import coach_memory, foods, recipes
@@ -52,7 +53,7 @@ from app.services.agent_actions import record_action, snapshot
 from app.services.competition_nutrition import preview as preview_competition_nutrition
 from app.services.grounding import find_ungrounded_claims
 from app.services.nutrition_lookup import lookup_targets
-from app.services.training import clear_workout_override, set_workout_override
+from app.services.training import build_session, clear_workout_override, set_workout_override
 from app.services.transactions import lock_nutrition_inputs, lock_resource
 from llm.prompts.coach import COACH_SYSTEM_PROMPT
 
@@ -149,6 +150,38 @@ async def _inject_context(ctx: RunContext[CoachDeps]) -> str:
 @coach_agent_search.output_validator
 async def _strip_think(ctx: RunContext[CoachDeps], result: str) -> str:
     return strip_think_tags(result)
+
+
+@coach_agent.tool
+@coach_agent_search.tool
+async def training_sessions_for_dates(
+    ctx: RunContext[CoachDeps], start_day: str, end_day: str | None = None,
+) -> list[TrainingSessionOut]:
+    """Read the planned workouts shown in the Training tab calendar.
+
+    Use before describing an existing workout or editing part of one. Returns
+    each day's activity type, full exercise prescriptions, manual edits, notes,
+    phase, readiness and competitions. A null session means no prescribed gym
+    workout; use activity_type to distinguish fencing, rest and competition.
+    These are current plans, not records of completed workouts. This is read-only.
+
+    Args:
+        start_day: First day to read, as an ISO date (YYYY-MM-DD). Resolve relative
+            dates using the athlete's current date in context; clarify ambiguity.
+        end_day: Inclusive last day, as an ISO date. Omit for a single day.
+            Read at most 31 days per call; split longer ranges into smaller calls.
+    """
+    start = _parse_iso_date(start_day, field_name="start_day")
+    end = _parse_iso_date(end_day, field_name="end_day") if end_day is not None else start
+    if end < start:
+        raise ModelRetry("end_day must be on or after start_day.")
+    day_count = (end - start).days + 1
+    if day_count > 31:
+        raise ModelRetry("Read at most 31 days per call; split the requested date range.")
+    return [
+        TrainingSessionOut(**build_session(ctx.deps.db, start + timedelta(days=offset)))
+        for offset in range(day_count)
+    ]
 
 
 @coach_agent.tool
