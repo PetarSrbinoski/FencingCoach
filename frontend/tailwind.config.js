@@ -5,8 +5,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-manrope)", "system-ui", "sans-serif"],
+        display: ["var(--font-manrope)", "system-ui", "sans-serif"],
       },
       colors: {
         success: "hsl(var(--success))",
@@ -46,11 +46,11 @@ module.exports = {
         },
       },
       borderRadius: {
-        lg: "4px",
-        md: "4px",
-        sm: "2px",
-        xl: "6px",
-        "2xl": "8px",
+        lg: "12px",
+        md: "8px",
+        sm: "4px",
+        xl: "8px",
+        "2xl": "16px",
       },
       boxShadow: {
         "hard-sm": "none",
@@ -59,12 +59,15 @@ module.exports = {
         "hard-lg": "none",
       },
       letterSpacing: {
-        tighter: "-0.06em",
-        tight: "-0.04em",
-        normal: "-0.01em",
-        wide: "0.05em",
-        wider: "0.1em",
-        widest: "0.2em",
+        tighter: "-0.04em",
+        tight: "-0.025em",
+        normal: "0em",
+        wide: "0em",
+        wider: "0em",
+        widest: "0em",
+      },
+      transitionTimingFunction: {
+        DEFAULT: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
       lineHeight: {
         none: "1",
@@ -74,7 +77,7 @@ module.exports = {
         relaxed: "1.75",
       },
       fontSize: {
-        "2xs": ["0.65rem", { lineHeight: "0.9rem" }],
+        "2xs": ["0.6875rem", { lineHeight: "1rem" }],
         xs: ["0.75rem", { lineHeight: "1rem" }],
         sm: ["0.875rem", { lineHeight: "1.25rem" }],
         base: ["1rem", { lineHeight: "1.6" }],
@@ -91,7 +94,7 @@ module.exports = {
       },
       keyframes: {
         "fade-in-up": {
-          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "0%": { opacity: "0", transform: "translateY(4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         "scale-in": {
@@ -100,7 +103,7 @@ module.exports = {
         },
       },
       animation: {
-        "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.25, 0, 0, 1) forwards",
+        "fade-in-up": "fade-in-up 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards",
         "scale-in": "scale-in 0.15s cubic-bezier(0.25, 0, 0, 1) forwards",
       },
     },
