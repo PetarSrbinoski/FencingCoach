@@ -35,7 +35,7 @@ export function Card({
         <CardHeader className="pb-3">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <CardTitle className="flex items-center gap-2">
-              {icon && <span className="text-accent">{icon}</span>}
+              {icon && <span className="text-muted-foreground [&_svg]:size-4">{icon}</span>}
               {title}
             </CardTitle>
             {action}
@@ -59,16 +59,16 @@ export function BandPill({
 }) {
   const colorClass =
     band === "green"
-      ? "border-emerald-500 text-success"
+      ? "text-success"
       : band === "amber"
-        ? "border-amber-500 text-warning"
+        ? "text-warning"
         : band === "red"
-          ? "border-accent text-accent"
-          : "border-muted-foreground text-muted-foreground";
+          ? "text-destructive"
+          : "text-muted-foreground";
   return (
     <span
       className={cn(
-        "inline-flex items-center border px-2 py-0.5 text-sm font-medium",
+        "inline-flex items-center gap-2 text-xs font-medium before:size-1.5 before:rounded-full before:bg-current",
         colorClass,
       )}
     >
@@ -87,9 +87,9 @@ export function StatRow({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm py-2.5 border-b border-border last:border-0">
+    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm py-3 border-b border-border last:border-0">
       <span className="text-muted-foreground text-sm font-medium">{label}</span>
-      <span className="font-sans text-foreground font-medium text-sm">
+      <span className="font-sans text-foreground font-medium text-sm tabular-nums text-right">
         {value}
         {hint && (
           <span className="text-muted-foreground text-xs ml-1.5">{hint}</span>
