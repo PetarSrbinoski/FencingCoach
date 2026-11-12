@@ -1,0 +1,58 @@
+/* Motion has two layers: a capped canvas and inert native route snapshots.
+   Real form geometry never moves; pause and OS preferences disable both. */
+.motion-shell { position: relative; min-height: 100vh; isolation: isolate; overflow-x: clip; }
+.kinetic-background { position: fixed; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+.motion-page { position: relative; }
+.route-wake { position: fixed; inset: 0; z-index: 70; overflow: hidden; pointer-events: none; animation: atmosphere-clear 900ms cubic-bezier(.22,1,.36,1) both; }
+.route-wake > span { position: absolute; inset: 0; background: radial-gradient(ellipse at 80% 30%, hsl(var(--signal) / .08), transparent 65%); }
+@keyframes atmosphere-clear { from { opacity: 1; } to { opacity: 0; } }
+
+@supports (view-transition-name: none) {
+  html[data-motion="on"] [data-motion-page] { view-transition-name: coach-page; }
+  html[data-motion="on"] .page-heading { view-transition-name: coach-heading; }
+  html[data-motion="on"] nav[aria-label="Main navigation"] a[aria-current="page"] { view-transition-name: coach-selection; }
+  ::view-transition-group(root) { animation-duration: 0s; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+  ::view-transition-group(coach-page) { animation-duration: 900ms; animation-timing-function: cubic-bezier(.22,1,.36,1); }
+  ::view-transition-old(coach-page) { animation: page-dissolve 520ms cubic-bezier(.22,1,.36,1) both; mix-blend-mode: normal; }
+  ::view-transition-new(coach-page) { animation: page-bloom 900ms cubic-bezier(.22,1,.36,1) both; mix-blend-mode: normal; }
+  ::view-transition-group(coach-heading) { animation-duration: 760ms; animation-timing-function: cubic-bezier(.22,1,.36,1); }
+  ::view-transition-old(coach-heading) { animation: heading-out 220ms ease-out both; }
+  ::view-transition-new(coach-heading) { animation: heading-in 760ms cubic-bezier(.22,1,.36,1) both; }
+  ::view-transition-group(coach-selection) { animation-duration: 600ms; animation-timing-function: cubic-bezier(.22,1,.36,1); }
+  ::view-transition-old(coach-selection) { animation: heading-out 220ms ease-out both; }
+  ::view-transition-new(coach-selection) { animation: heading-in 600ms cubic-bezier(.22,1,.36,1) both; }
+  ::view-transition { pointer-events: none; }
+  html[data-nav-direction="backward"]::view-transition-new(coach-page) { animation-name: page-bloom-back; }
+}
+@keyframes page-dissolve { from { opacity: 1; } to { opacity: 0; transform: scale(1.025); filter: blur(8px); } }
+@keyframes page-bloom {
+  from { opacity: 0; transform: translateY(32px) scale(.97); clip-path: inset(3% 1% 3% 1% round 24px); filter: blur(12px); }
+  42% { opacity: 1; filter: blur(0); }
+  to { opacity: 1; transform: none; clip-path: inset(0 0 0 0 round 0); filter: blur(0); }
+}
+@keyframes page-bloom-back {
+  from { opacity: 0; transform: translateY(-24px) scale(.97); clip-path: inset(3% 1% 3% 1% round 24px); filter: blur(12px); }
+  42% { opacity: 1; filter: blur(0); }
+  to { opacity: 1; transform: none; clip-path: inset(0 0 0 0 round 0); filter: blur(0); }
+}
+@keyframes heading-out { to { opacity: 0; filter: blur(4px); } }
+@keyframes heading-in { from { opacity: 0; transform: translateY(12px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] :is(.event-card, .training-session, .competition-feature) { transition: border-color 220ms ease, box-shadow 220ms ease; }
+  html[data-motion="on"] :is(.event-card, .training-session, .competition-feature):hover { border-color: hsl(var(--accent) / .32); box-shadow: 0 8px 24px #00000006; }
+  html[data-motion="on"] nav a svg { transition: opacity 200ms ease; }
+  html[data-motion="on"] nav a:hover svg { opacity: .65; }
+}
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+html[data-motion="off"] .route-wake { display: none; }
+@media (max-width: 767px) {
+  ::view-transition-group(coach-page), ::view-transition-new(coach-page) { animation-duration: 620ms; }
+  ::view-transition-old(coach-page) { animation-duration: 320ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-wake { display: none; }
+  *, *::before, *::after { animation-iteration-count: 1 !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: .01ms !important; }
+}

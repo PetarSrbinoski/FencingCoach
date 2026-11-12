@@ -1,13 +1,15 @@
 import "../styles/globals.css";
+import "../styles/motion.css";
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { SidebarLayout } from "@/components/sidebar-layout";
+import { AppMotion } from "@/components/app-motion";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -32,11 +34,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={manrope.variable} suppressHydrationWarning>
       <body className="min-h-screen font-sans antialiased">
         <ThemeProvider>
           <ToastProvider>
-            <SidebarLayout>{children}</SidebarLayout>
+            <AppMotion>
+              <SidebarLayout>{children}</SidebarLayout>
+            </AppMotion>
           </ToastProvider>
         </ThemeProvider>
       </body>
