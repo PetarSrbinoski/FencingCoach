@@ -12,10 +12,10 @@ const components: Components = {
   strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   h1: ({ children }) => (
-    <h3 className="mb-2 mt-4 text-base font-bold tracking-tight first:mt-0">{children}</h3>
+    <h3 className="mb-2 mt-4 text-base font-medium first:mt-0">{children}</h3>
   ),
   h2: ({ children }) => (
-    <h3 className="mb-2 mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground first:mt-0">
+    <h3 className="mb-2 mt-4 text-sm font-semibold first:mt-0">
       {children}
     </h3>
   ),
@@ -33,7 +33,7 @@ const components: Components = {
     </a>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="mb-3 border-l-2 border-accent pl-3 text-foreground/70 italic last:mb-0">
+    <blockquote className="mb-3 border-l-2 border-border pl-3 text-muted-foreground last:mb-0">
       {children}
     </blockquote>
   ),
@@ -64,7 +64,7 @@ const components: Components = {
     </div>
   ),
   th: ({ children }) => (
-    <th className="border-b border-border pb-1.5 pr-3 text-left text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+    <th className="border-b border-border pb-2 pr-3 text-left text-xs font-medium text-muted-foreground">
       {children}
     </th>
   ),
