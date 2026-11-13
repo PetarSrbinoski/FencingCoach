@@ -2,6 +2,8 @@
 
 import { PageHeading } from "@/components/page-heading";
 import { Gauge } from "@/components/charts";
+import { FencerStudy } from "@/components/fencer-study";
+import { SignalForm } from "@/components/signal-form";
 import { StaleDataBanner } from "@/components/data-coverage-panel";
 import { ErrorNotice, ReadMore } from "@/components/mobile-ui";
 import { Badge } from "@/components/ui/badge";
@@ -212,7 +214,7 @@ export default function Home() {
     : null;
 
   return (
-    <div className="space-y-8 md:space-y-10">
+    <div className="dashboard-home">
       <PageHeading
         title="Today"
         eyebrow={new Date().toLocaleDateString(undefined, {
@@ -237,45 +239,16 @@ export default function Home() {
           {syncState}
         </p>
       )}
+      <div className="dashboard-primary">
       <section
         className="performance-panel space-y-4"
         aria-label="Today's readiness"
       >
-        <svg
-          className="fencing-illustration"
-          viewBox="0 0 240 145"
-          fill="none"
-          aria-hidden="true"
-        >
-          <path
-            d="M8 131H232M32 139H208"
-            stroke="currentColor"
-            strokeOpacity=".25"
-          />
-          <g
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <ellipse
-              cx="105"
-              cy="29"
-              rx="12"
-              ry="15"
-              transform="rotate(15 105 29)"
-            />
-            <path d="M99 44L77 76L112 82L142 121L160 125M77 76L57 106L30 126L15 128M84 74L64 111L35 132M111 83L132 125L158 129M98 47L127 62L162 51M96 54L125 69L165 56M96 46L69 40L53 22M91 51L66 46L48 26M164 46L169 61M167 52L228 29" />
-          </g>
-        </svg>
-        <div className="performance-overview flex flex-wrap items-center gap-4">
-          {readiness?.score != null && (
-            <Gauge score={readiness.score} size={120} />
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 className="font-sans font-bold tracking-tight text-2xl">
-              Readiness
-            </h2>
+        <div className="readiness-scene">
+          <FencerStudy />
+          <div className="readiness-data">
+            <h2>Readiness</h2>
+            {readiness?.score != null && <Gauge score={readiness.score} size={112} />}
             {readiness ? (
               <>
                 <p className="text-sm">
@@ -317,10 +290,7 @@ export default function Home() {
         )}
         <StaleDataBanner revision={coverageRevision} />
         <div className="grid grid-cols-[1.5fr_1fr] gap-2 sm:grid-cols-2">
-          <Button
-            asChild
-            className="bg-accent text-accent-foreground border-accent hover:bg-accent/90"
-          >
+          <Button asChild>
             <a href="/training">
               Today&apos;s training <span aria-hidden="true">↗</span>
             </a>
@@ -330,13 +300,14 @@ export default function Home() {
           </Button>
         </div>
       </section>
-      <section className="dashboard-section" aria-labelledby="ask-coach-title">
+      <section className="dashboard-section coach-question" aria-labelledby="ask-coach-title">
         <h2
           id="ask-coach-title"
-          className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
+          className="dashboard-section-heading font-sans font-medium text-lg"
         >
           Ask your coach
         </h2>
+        <p className="mb-4 text-sm text-muted-foreground">Make sense of today’s data before you train</p>
         <form onSubmit={sendToCoach} className="flex gap-3">
           <Input
             value={chatInput}
@@ -358,12 +329,12 @@ export default function Home() {
       </section>
       <section
         aria-labelledby="recovery-metrics-title"
-        className="dashboard-section"
+        className="dashboard-section recovery-section"
       >
         <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
           <h2
             id="recovery-metrics-title"
-            className="font-sans font-bold tracking-tight text-2xl"
+            className="font-sans font-medium text-lg"
           >
             Recovery metrics
           </h2>
@@ -371,31 +342,35 @@ export default function Home() {
             <a href="/weekly">View trends</a>
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-5">
-          <StatCard title="HRV" series={hrv} unit="ms" error={loadErrors.hrv} />
+        <div className="recovery-grid">
+          <StatCard title="HRV" series={hrv} unit="ms" error={loadErrors.hrv} variant={0} />
           <StatCard
             title="Resting HR"
             series={rhr}
             unit="bpm"
             error={loadErrors.rhr}
+            variant={1}
           />
           <StatCard
             title="Sleep score"
             series={sleepScore}
             unit=""
             error={loadErrors.sleep}
+            variant={2}
           />
           <StatCard
             title="Readiness"
             series={readinessSeries}
             unit=""
             error={loadErrors.readiness}
+            variant={3}
           />
           <StatCard
             title="Calories"
             series={calories}
             unit="kcal"
             error={loadErrors.calories}
+            variant={4}
           />
         </div>
         {Object.keys(loadErrors).length > 0 && (
@@ -409,6 +384,7 @@ export default function Home() {
           </Button>
         )}
       </section>
+      </div>
       <div className="dashboard-editorial">
         <section
           className="dashboard-section coach-brief"
@@ -417,7 +393,7 @@ export default function Home() {
           <div className="dashboard-section-heading flex flex-wrap items-center justify-between gap-2">
             <h2
               id="coach-brief-title"
-              className="font-sans font-bold tracking-tight text-2xl"
+              className="font-sans font-medium text-lg"
             >
               Coach brief
             </h2>
@@ -461,7 +437,7 @@ export default function Home() {
         >
           <h2
             id="next-competition-title"
-            className="dashboard-section-heading font-sans font-bold tracking-tight text-2xl"
+            className="dashboard-section-heading font-sans font-medium text-lg"
           >
             Next competition
           </h2>
@@ -489,7 +465,7 @@ export default function Home() {
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">Priority {nextComp.priority}</Badge>
               </div>
-              <p className="text-xl font-semibold leading-snug">
+              <p className="text-lg font-medium leading-snug">
                 {nextComp.name}
               </p>
               <p className="text-sm text-muted-foreground">
@@ -524,69 +500,40 @@ function StatCard({
   series,
   unit,
   error,
+  variant,
 }: {
   title: string;
   series: MetricSeries | null;
   unit: string;
   error?: string;
+  variant: number;
 }) {
-  const last = series?.points.filter((point) => point.value !== null).at(-1);
+  const readings = series?.points.filter((point) => point.value !== null) ?? [];
+  const last = readings.at(-1);
+  const previous = readings.at(-2);
+  const delta = last?.value != null && previous?.value != null ? last.value - previous.value : null;
   return (
-    <div className="min-w-0 bg-card p-3 sm:p-4 space-y-2 last:col-span-2 sm:last:col-span-1">
-      <h3 className="text-sm text-muted-foreground">{title}</h3>
+    <div className="metric-tile">
+      <h3>{title}</h3>
       {error ? (
         <p className="text-sm">Unavailable</p>
       ) : !series ? (
         <Skeleton className="h-7 w-14" />
       ) : (
         <>
-          <p className="text-3xl font-semibold tracking-tight tabular-nums">
+          <p className="metric-value tabular-nums">
             {last?.value != null
               ? last.value.toFixed(last.value >= 100 ? 0 : 1)
               : "—"}{" "}
             <span className="text-xs font-normal">{unit}</span>
           </p>
-          <MetricTrace points={series.points} />
-          <p className="text-xs text-muted-foreground">
-            {last?.day ?? "No readings"}
-          </p>
+          {last?.value != null && <SignalForm variant={variant} />}
+          <div className="metric-meta">
+            <p>{delta !== null ? `${delta > 0 ? "+" : ""}${delta.toFixed(1)} vs prior reading` : "No comparison yet"}</p>
+            <p>{last?.day ?? "No readings"}</p>
+          </div>
         </>
       )}
     </div>
-  );
-}
-
-function MetricTrace({ points }: { points: MetricSeries["points"] }) {
-  const recent = points.slice(-14);
-  const values = recent.flatMap((point) =>
-    point.value == null ? [] : [point.value],
-  );
-  if (values.length < 2) return null;
-  const min = Math.min(...values),
-    range = Math.max(...values) - min || 1;
-  const x = (index: number) =>
-    2 + (index / Math.max(1, recent.length - 1)) * 116;
-  const y = (value: number) => 25 - ((value - min) / range) * 22;
-  return (
-    <svg
-      viewBox="0 0 120 28"
-      className="h-7 w-full text-accent"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      {recent.map((point, index) => {
-        const previous = recent[index - 1];
-        return index > 0 && previous.value != null && point.value != null ? (
-          <path
-            key={index}
-            d={`M${x(index - 1)},${y(previous.value)} L${x(index)},${y(point.value)}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
-        ) : null;
-      })}
-    </svg>
   );
 }
