@@ -69,9 +69,9 @@ export function ViewTabs<T extends string>({
           aria-current={value === item.value ? "page" : undefined}
           onClick={() => onChange(item.value)}
           className={cn(
-            "min-h-12 min-w-0 flex-1 border-b-2 px-3 py-3 text-sm font-semibold transition-colors",
+            "min-h-12 min-w-0 flex-1 border-b-2 px-3 py-3 text-sm font-medium transition-colors",
             value === item.value
-              ? "border-accent text-accent"
+              ? "border-accent text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
@@ -213,6 +213,8 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
     };
   }, [dirty]);
   return (
+    <>
+    <span hidden data-navigation-guard={dirty ? "dirty" : undefined} />
     <Dialog
       open={destination !== null}
       onOpenChange={(open) => {
@@ -240,5 +242,6 @@ export function UnsavedChangesGuard({ dirty }: { dirty: boolean }) {
         </Button>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

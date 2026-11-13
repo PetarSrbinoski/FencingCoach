@@ -56,15 +56,17 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         tabIndex={-1}
         className={cn(
           "min-w-0 min-h-dvh",
-          collapsed ? "lg:pl-[4.5rem]" : "lg:pl-56",
+          collapsed ? "lg:pl-[4.5rem]" : "lg:pl-52",
         )}
       >
         <div
+          data-motion-page
+          data-page={pathname.split("/")[1] || "dashboard"}
           className={cn(
-            "mx-auto min-w-0 max-w-5xl px-4 lg:px-8",
+            "motion-page mx-auto min-w-0 max-w-[1600px] px-4 sm:px-6 lg:px-8",
             chat
               ? "pt-[calc(0.75rem+env(safe-area-inset-top))] pb-0"
-              : "pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(var(--dock-space)+1rem)] lg:pt-8",
+              : "pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(var(--dock-space)+1rem)] lg:pt-10",
           )}
         >
           {children}

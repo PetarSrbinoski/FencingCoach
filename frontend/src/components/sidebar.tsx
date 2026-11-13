@@ -1,6 +1,7 @@
 "use client";
 
 import { LlmProviderToggle } from "@/components/llm-provider-toggle";
+import { useAppMotion } from "@/components/app-motion";
 import { cn } from "@/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -12,7 +13,10 @@ import {
   MessageCircle,
   Moon,
   MoreHorizontal,
+  Pause,
+  Play,
   Sun,
+  Swords,
   Trophy,
   User,
   Utensils,
@@ -55,6 +59,8 @@ export function Sidebar({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
+  const { enabled: motionEnabled, reduced: reducedMotion, toggle: toggleMotion } = useAppMotion();
+  const motionLabel = reducedMotion ? "Animations reduced by system" : motionEnabled ? "Pause animations" : "Resume animations";
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)");
     const closeOnDesktop = () => {
@@ -76,26 +82,26 @@ export function Sidebar({
         <nav
           aria-label="Mobile navigation"
           data-mobile-dock="true"
-          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-xl border border-border bg-card/95 p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-xl lg:hidden"
+          className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-40 mx-auto grid max-w-md grid-cols-5 gap-1 rounded-2xl border border-border bg-card p-2 shadow-sm lg:hidden"
         >
           {DOCK_ITEMS.map((item) => {
-            const active = pathname === item.href;
+            const active = pathname === item.href || (item.href === "/chat" && pathname.startsWith("/chat/"));
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active
-                    ? "bg-accent text-accent-foreground"
+                    ? "bg-muted text-accent"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <item.icon
                   aria-hidden="true"
                   className="h-5 w-5"
-                  strokeWidth={active ? 2 : 1.5}
+                  strokeWidth={1.5}
                 />
                 {item.label}
               </Link>
@@ -105,9 +111,9 @@ export function Sidebar({
             <button
               aria-label="More navigation and settings"
               className={cn(
-                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 mobileOpen || MORE_ITEMS.some((item) => pathname === item.href)
-                  ? "bg-accent text-accent-foreground"
+                  ? "bg-muted text-accent"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
@@ -121,7 +127,7 @@ export function Sidebar({
           </Dialog.Trigger>
         </nav>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm lg:hidden" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 lg:hidden" />
           <Dialog.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[85dvh] max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card px-5 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none lg:hidden">
             <div className="mb-5 flex items-center justify-between">
               <div>
@@ -180,6 +186,15 @@ export function Sidebar({
                 />
                 Change color theme
               </button>
+              <button
+                onClick={toggleMotion}
+                disabled={reducedMotion}
+                aria-pressed={motionEnabled}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                {motionEnabled ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
+                {motionLabel}
+              </button>
               <div className="px-3 [&_button]:min-h-11">
                 <LlmProviderToggle />
               </div>
@@ -191,30 +206,28 @@ export function Sidebar({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 border-r border-border bg-background transition-all duration-200",
-          collapsed ? "w-[4.5rem]" : "w-56",
+          "hidden lg:flex flex-col fixed inset-y-0 left-0 z-40 border-r border-border bg-card",
+          collapsed ? "w-[4.5rem]" : "w-52",
         )}
       >
         {/* Logo */}
         <div
           className={cn(
-            "flex items-center h-16 shrink-0 border-b border-border",
-            collapsed ? "justify-center px-2" : "px-5 gap-2",
+            "flex items-center h-24 shrink-0 gap-3",
+            collapsed ? "justify-center px-2" : "px-5",
           )}
         >
           {/* Accent mark */}
-          <span className="h-4 w-1 bg-accent shrink-0" />
+          <Swords aria-hidden="true" className="h-6 w-6 shrink-0 text-foreground" strokeWidth={1.25} />
           {!collapsed && (
-            <span className="font-bold tracking-tighter text-3xl">
-              Coach<span className="text-accent">.</span>
-            </span>
+            <span className="font-medium tracking-tight text-2xl">Coach</span>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 flex flex-col py-4 overflow-y-auto">
+        <nav aria-label="Main navigation" className="flex-1 flex flex-col gap-1 px-3 py-4 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href;
+            const active = pathname === item.href || (item.href === "/chat" && pathname.startsWith("/chat/"));
 
             return (
               <Link
@@ -223,17 +236,15 @@ export function Sidebar({
                 title={collapsed ? item.label : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex items-center text-xs font-medium uppercase tracking-wider transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
-                  collapsed
-                    ? "justify-center px-2 py-3.5"
-                    : "gap-3 px-5 py-2.5",
+                  "group relative flex h-10 items-center rounded-xl text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+                  collapsed ? "justify-center px-2" : "gap-3 px-3",
                   active
-                    ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-accent" />
                 )}
                 <item.icon className="h-4 w-4 shrink-0" strokeWidth={1.5} />
                 {!collapsed && item.label}
@@ -253,13 +264,23 @@ export function Sidebar({
           >
             {collapsed && <LlmProviderToggle collapsed />}
             <button
-              className="h-11 w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="h-11 w-11 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               onClick={toggleTheme}
               title="Toggle theme"
               aria-label="Change color theme"
             >
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <Sun className="h-4 w-4 dark:hidden" />
+              <Moon className="hidden h-4 w-4 dark:block" />
+            </button>
+            <button
+              className="h-11 w-11 inline-flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              onClick={toggleMotion}
+              disabled={reducedMotion}
+              aria-pressed={motionEnabled}
+              title={motionLabel}
+              aria-label={motionLabel}
+            >
+              {motionEnabled ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
             <button
               className="h-11 w-11 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
