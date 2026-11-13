@@ -46,7 +46,7 @@ function SparklineTooltip({
 export function Sparkline({
   points,
   color = "hsl(var(--foreground))",
-  height = 64,
+  height = 200,
   unit,
 }: SparklineProps) {
   const gradientId = useId();
@@ -55,7 +55,7 @@ export function Sparkline({
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart
           data={points}
-          margin={{ top: 2, right: 2, bottom: 2, left: 2 }}
+          margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -63,8 +63,9 @@ export function Sparkline({
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="day" hide />
-          <YAxis hide />
+          <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 5" />
+          <XAxis dataKey="day" tickFormatter={(day: string) => day.slice(5)} tickLine={false} axisLine={false} minTickGap={48} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis width={36} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
           <Tooltip
             content={({ active, payload }) => (
               <SparklineTooltip
@@ -77,6 +78,7 @@ export function Sparkline({
           />
           <Area
             type="monotone"
+            isAnimationActive={false}
             dataKey="value"
             stroke={color}
             strokeWidth={2}
@@ -170,7 +172,7 @@ export function BarChartComponent({
             )}
             cursor={{ fill: "hsl(var(--muted-foreground))", opacity: 0.08 }}
           />
-          <Bar dataKey="value" fill={color} radius={0} />
+          <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
       <ChartValues values={values} unit={unit} />
@@ -223,10 +225,9 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
           fill="none"
           stroke={arcColor}
           strokeWidth={strokeWidth}
-          strokeLinecap="butt"
+          strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="transition-all duration-300 ease-out"
         />
 
         {/* score text */}
@@ -236,13 +237,13 @@ export function Gauge({ score, size = 120, label = "readiness" }: GaugeProps) {
           textAnchor="middle"
           dominantBaseline="central"
           className="fill-foreground font-sans"
-          style={{ fontSize: size * 0.32, fontWeight: 700 }}
+          style={{ fontSize: size * 0.32, fontWeight: 500 }}
         >
           {Math.round(clamped)}
         </text>
       </svg>
 
-      <span className="text-xs uppercase tracking-[0.15em] font-semibold text-muted-foreground">
+      <span className="text-xs font-medium text-muted-foreground">
         {label}
       </span>
     </div>
@@ -294,7 +295,7 @@ export function MacroProgress({
         className="h-2 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
-          className="h-full rounded-full transition-all duration-300 ease-out"
+          className="h-full rounded-full"
           style={{
             width: `${clampedWidth}%`,
             backgroundColor: barColor,

@@ -1,22 +1,7 @@
 import type { ReactNode } from "react";
 
 export function PageTitle({ title }: { title: string }) {
-  return (
-    <h1 className="page-title">
-      {title === "Competitions" ? (
-        <>
-          Compe
-          <wbr />
-          titions
-        </>
-      ) : (
-        title
-      )}
-      <span className="text-accent" aria-hidden="true">
-        .
-      </span>
-    </h1>
-  );
+  return <h1 className="page-title">{title}</h1>;
 }
 
 export function PageHeading({
@@ -30,21 +15,11 @@ export function PageHeading({
 }) {
   return (
     <header className="page-heading">
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <p className="eyebrow min-w-0">{eyebrow}</p>
-        {action}
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
+      <div className="min-w-0">
+        <p className="eyebrow">{eyebrow}</p>
         <PageTitle title={title} />
-        <span
-          className={`piste-mark ${title.length > 10 ? "hidden sm:flex" : ""}`}
-          aria-hidden="true"
-        >
-          <i />
-          <i />
-          <i />
-        </span>
       </div>
+      {action && <div className="shrink-0">{action}</div>}
     </header>
   );
 }
