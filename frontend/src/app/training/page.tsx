@@ -32,7 +32,7 @@ import {
   Minus,
   RotateCcw,
   Send,
-  Sparkles,
+  PencilLine,
   Swords,
   Trash2,
   TrendingDown,
@@ -99,8 +99,8 @@ function FencingAnalysisSection() {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2 mb-6">
-        <Swords className="h-5 w-5 text-accent" />
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+        <Swords className="h-4 w-4 text-muted-foreground" />
+        <h2 className="text-lg font-medium">
           Fencing sessions
         </h2>
       </div>
@@ -117,7 +117,7 @@ function FencingAnalysisSection() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
             <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+              <span className="text-sm text-muted-foreground block mb-2">
                 Sessions ({analysis.window_days}d)
               </span>
               <span className="text-2xl font-sans font-medium">
@@ -125,7 +125,7 @@ function FencingAnalysisSection() {
               </span>
             </div>
             <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+              <span className="text-sm text-muted-foreground block mb-2">
                 Avg duration
               </span>
               <span className="text-2xl font-sans font-medium">
@@ -135,7 +135,7 @@ function FencingAnalysisSection() {
               </span>
             </div>
             <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+              <span className="text-sm text-muted-foreground block mb-2">
                 Avg load
               </span>
               <span className="text-2xl font-sans font-medium">
@@ -145,7 +145,7 @@ function FencingAnalysisSection() {
               </span>
             </div>
             <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground block mb-1">
+              <span className="text-sm text-muted-foreground block mb-2">
                 Trend
               </span>
               <span className="flex items-center gap-1.5 text-sm font-medium">
@@ -207,7 +207,7 @@ function FencingAnalysisSection() {
               <div className="hidden overflow-x-auto lg:block">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-widest text-muted-foreground">
+                    <tr className="text-left text-xs text-muted-foreground">
                       <th className="font-medium pb-2">Day</th>
                       <th className="font-medium pb-2">Duration</th>
                       <th className="font-medium pb-2">Avg HR</th>
@@ -360,7 +360,7 @@ function MentalTrainingSection() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
           <Brain className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground font-sans">
+          <p className="text-lg font-medium">
             Mental training
           </p>
         </div>
@@ -385,7 +385,7 @@ function MentalTrainingSection() {
       )}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* ── Check-in / Editor ──────────────────────────── */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 rounded-2xl border border-border bg-card p-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Entry type selector */}
             <div className="flex flex-wrap gap-2">
@@ -425,7 +425,7 @@ function MentalTrainingSection() {
               ).map(([label, value, setter]) => (
                 <div key={label} className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase tracking-widest text-muted-foreground font-sans">
+                    <span className="text-sm text-muted-foreground">
                       {label}
                     </span>
                     <span className="text-xs font-sans text-foreground">
@@ -470,7 +470,7 @@ function MentalTrainingSection() {
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex min-h-12 rounded-xl items-center gap-2 px-4 py-2 text-sm font-semibold uppercase tracking-widest bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors duration-150"
+              className="inline-flex min-h-12 rounded-xl items-center gap-2 px-4 py-2 text-sm font-medium bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition-colors duration-150"
             >
               <Send className="h-3 w-3" strokeWidth={1.5} />
               {submitting ? "Saving..." : "Log entry"}
@@ -502,7 +502,7 @@ function MentalTrainingSection() {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-widest text-accent">
+                      <span className="text-xs font-medium text-foreground">
                         {ENTRY_TYPE_LABELS[entry.entry_type] ||
                           entry.entry_type}
                       </span>
@@ -563,7 +563,7 @@ function MentalTrainingSection() {
                   strokeWidth={1.5}
                 />
                 <span
-                  className={`text-xs font-sans uppercase tracking-wide ${trendColor}`}
+                  className={`text-xs font-medium capitalize ${trendColor}`}
                 >
                   {insight.trend}
                 </span>
@@ -583,10 +583,10 @@ function MentalTrainingSection() {
                   ] as [string, number | null][]
                 ).map(([label, val]) => (
                   <div key={label} className="border border-border p-2">
-                    <p className="text-xs uppercase tracking-widest text-muted-foreground font-sans">
+                    <p className="text-xs text-muted-foreground">
                       {label}
                     </p>
-                    <p className="text-lg font-bold tracking-tight">
+                    <p className="text-lg font-medium">
                       {val != null ? val.toFixed(1) : "\u2014"}
                     </p>
                   </div>
@@ -832,14 +832,9 @@ export default function TrainingPage() {
                       key={session.day}
                       className={`
                   training-session relative rounded-lg bg-card border p-4 sm:p-6 transition-colors duration-150
-                  ${isToday ? "border-accent" : "border-border hover:border-muted-foreground/30"}
+                  ${isToday ? "border-muted-foreground/40" : "border-border"}
                 `}
                     >
-                      {/* Top accent bar for today */}
-                      {isToday && (
-                        <div className="absolute top-0 left-0 h-0.5 w-full bg-accent" />
-                      )}
-
                       {/* Day header */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2.5">
@@ -879,7 +874,7 @@ export default function TrainingPage() {
                       {/* Fencing day */}
                       {dayType === "competition" && (
                         <div className="space-y-3">
-                          <span className="text-xs font-semibold uppercase tracking-widest text-accent">
+                          <span className="text-xs font-medium text-muted-foreground">
                             Competition day
                           </span>
                           {session.competitions.map((event) => (
@@ -909,7 +904,7 @@ export default function TrainingPage() {
 
                       {dayType === "fencing" && (
                         <div className="space-y-2">
-                          <span className="text-xs font-semibold uppercase tracking-widest text-foreground/80">
+                          <span className="text-xs font-medium text-muted-foreground">
                             Fencing
                           </span>
                           <p className="text-base text-foreground/90 leading-relaxed">
@@ -924,7 +919,7 @@ export default function TrainingPage() {
                       {/* Rest day */}
                       {dayType === "rest" && (
                         <div className="space-y-2">
-                          <span className="text-xs font-semibold uppercase tracking-widest text-foreground/70">
+                          <span className="text-xs font-medium text-muted-foreground">
                             Rest
                           </span>
                           <p className="text-base text-foreground/80 leading-relaxed">
@@ -938,7 +933,7 @@ export default function TrainingPage() {
                         session.session && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-semibold uppercase tracking-widest text-accent">
+                              <span className="text-xs font-medium text-muted-foreground">
                                 {dayType === "competition"
                                   ? "Additional planned work"
                                   : "Gym"}
@@ -947,9 +942,9 @@ export default function TrainingPage() {
                                 {session.session.name.replace(/_/g, " ")}
                               </span>
                               {session.source === "manual" && (
-                                <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-widest text-accent border border-accent/40 px-1.5 py-0.5">
-                                  <Sparkles
-                                    className="h-3 w-3"
+                                <span className="inline-flex items-center gap-2 rounded-md bg-muted text-xs font-medium text-muted-foreground px-2 py-1">
+                                  <PencilLine
+                                    className="h-4 w-4"
                                     strokeWidth={1.5}
                                   />
                                   Coach edit
@@ -985,7 +980,7 @@ export default function TrainingPage() {
                               <button
                                 onClick={() => setResetDay(session.day)}
                                 disabled={resettingDay === session.day}
-                                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors duration-150"
+                                className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors duration-150"
                               >
                                 <RotateCcw
                                   className="h-3 w-3"

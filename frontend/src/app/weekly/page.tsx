@@ -261,7 +261,7 @@ export default function WeeklyPage() {
             <>
               <Sparkline
                 points={selected.series?.points ?? []}
-                height={160}
+                height={280}
                 color="hsl(var(--accent))"
                 unit={selected.unit}
               />
@@ -353,9 +353,9 @@ export default function WeeklyPage() {
                       <TableRow>
                         <TableHead>When</TableHead>
                         <TableHead>Type</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>HR avg/max</TableHead>
-                        <TableHead>Load</TableHead>
+                        <TableHead className="text-right">Duration</TableHead>
+                        <TableHead className="text-right">HR avg/max</TableHead>
+                        <TableHead className="text-right">Load</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -367,15 +367,15 @@ export default function WeeklyPage() {
                           <TableCell>
                             {activity.activity_type ?? "Unknown"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-right">
                             {activity.duration_s
                               ? `${Math.round(activity.duration_s / 60)}m`
                               : "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-right">
                             {activity.avg_hr ?? "—"}/{activity.max_hr ?? "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-right">
                             {activity.training_load?.toFixed(0) ?? "—"}
                           </TableCell>
                         </TableRow>
