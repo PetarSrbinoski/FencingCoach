@@ -324,7 +324,7 @@ export default function CompetitionsPage() {
 
   const priorityBadge = (p: string) => {
     const variant =
-      p === "A" ? "destructive" : p === "B" ? "secondary" : "outline";
+      p === "A" ? "default" : p === "B" ? "secondary" : "outline";
     return <Badge variant={variant}>Priority {p}</Badge>;
   };
 
@@ -336,7 +336,7 @@ export default function CompetitionsPage() {
       <article
         key={c.id}
         id={`competition-${c.id}`}
-        className="event-card scroll-mt-6 rounded-lg border border-border bg-card p-4 sm:p-5 space-y-3"
+        className="event-card scroll-mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -346,7 +346,7 @@ export default function CompetitionsPage() {
                 ? ` – ${c.end_date}`
                 : ""}
             </p>
-            <h2 className="text-lg font-semibold break-words">{c.name}</h2>
+            <h2 className="text-xl font-medium tracking-tight break-words">{c.name}</h2>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -464,7 +464,7 @@ export default function CompetitionsPage() {
           </p>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           {(view === "upcoming" ? upcoming : past.slice().reverse()).map(
             eventCard,
           )}

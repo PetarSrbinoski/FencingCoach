@@ -3,6 +3,7 @@
 import { PageHeading } from "@/components/page-heading";
 
 import { DataCoveragePanel } from "@/components/data-coverage-panel";
+import { Button } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/mobile-ui";
 import { useToast } from "@/components/ui/toast";
 import { api, type Readiness } from "@/lib/api";
@@ -139,76 +140,32 @@ export default function GarminPage() {
   }
 
   return (
-    <div className="space-y-10 md:space-y-16">
+    <div className="space-y-6">
       <PageHeading title="Garmin" eyebrow="Wearable data" />
       {err && <ErrorNotice message={err} retry={refresh} />}
-      <section className="relative" aria-label="Garmin sync actions">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-8 left-0 hidden select-none text-[16rem] font-bold leading-none tracking-tighter text-border/30 md:block"
-        >
-          S
-        </span>
-        <div className="relative grid grid-cols-1 items-start gap-10 md:grid-cols-[3fr_2fr] md:gap-16">
-          <button
-            type="button"
-            onClick={syncRecent}
-            disabled={busy || historyBusy}
-            aria-busy={busy}
-            aria-label="Sync recent data"
-            className="group min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-          >
-            <span className="eyebrow mb-2 flex items-center gap-3 text-muted-foreground">
-              Last 2 days{" "}
-              {busy && (
-                <Loader2
-                  className="h-4 w-4 animate-spin text-accent"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-            <span className="block text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold leading-none tracking-tighter transition-colors group-hover:text-accent">
-              Sync
-            </span>
-            <span className="mt-3 block h-0.5 bg-accent" aria-hidden="true" />
-            <span className="mt-4 block max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Pull the latest metrics, sleep, and activity data from Garmin
-              Connect.
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={syncFullHistory}
-            disabled={busy || historyBusy}
-            aria-busy={historyBusy}
-            aria-label="Sync all history"
-            className="group min-w-0 text-left disabled:cursor-not-allowed disabled:opacity-50 md:pt-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-          >
-            <span className="eyebrow mb-2 flex items-center gap-3 text-muted-foreground">
-              Full history — 1 year{" "}
-              {historyBusy && (
-                <Loader2
-                  className="h-4 w-4 animate-spin text-accent"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-            <span className="block text-4xl sm:text-5xl md:text-6xl font-bold leading-none tracking-tighter text-muted-foreground transition-colors group-hover:text-foreground">
-              Sync All
-            </span>
-            <span
-              className="mt-3 block h-px bg-muted-foreground/50"
-              aria-hidden="true"
-            />
-            <span className="mt-4 block max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Backfill your entire Garmin history. May take several minutes.
-            </span>
-          </button>
+      <section className="grid gap-4 md:grid-cols-[3fr_2fr]" aria-label="Garmin sync actions">
+        <div className="sync-panel flex flex-col items-start border p-6">
+          <p className="text-xs text-muted-foreground">Last 2 days</p>
+          <h2 className="mt-2 text-xl font-medium tracking-tight">Bring your readings up to date</h2>
+          <p className="mt-3 mb-6 max-w-md text-sm leading-relaxed text-muted-foreground">Pull the latest metrics, sleep, and activity data from Garmin Connect</p>
+          <Button className="mt-auto" onClick={syncRecent} disabled={busy || historyBusy} aria-busy={busy} aria-label="Sync recent data">
+            {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {busy ? "Syncing…" : "Sync recent data"}
+          </Button>
+        </div>
+        <div className="sync-panel sync-panel-history flex flex-col items-start border p-6">
+          <p className="text-xs text-muted-foreground">Full history · 1 year</p>
+          <h2 className="mt-2 text-xl font-medium tracking-tight">Fill in your history</h2>
+          <p className="mt-3 mb-6 text-sm leading-relaxed text-muted-foreground">Backfill your Garmin history for longer-term trends. This may take several minutes.</p>
+          <Button variant="outline" className="mt-auto" onClick={syncFullHistory} disabled={busy || historyBusy} aria-busy={historyBusy} aria-label="Sync all history">
+            {historyBusy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {historyBusy ? "Importing…" : "Sync all history"}
+          </Button>
         </div>
       </section>
       <section
         aria-label="Sync status"
-        className="space-y-3 border-t border-border pt-6"
+        className="space-y-3 rounded-2xl border border-border bg-card p-6"
       >
         {status ? (
           <>
@@ -257,7 +214,7 @@ export default function GarminPage() {
         <DataCoveragePanel revision={coverageRevision} />
       </section>
       <details className="rounded-2xl border border-border bg-card p-4 text-sm">
-        <summary className="font-semibold">Technical details</summary>
+        <summary className="font-medium">Technical details</summary>
         <p>
           Rows synced: {status?.metric_rows.toLocaleString() ?? "Unavailable"}
         </p>
