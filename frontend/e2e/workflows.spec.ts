@@ -624,7 +624,7 @@ test("dated nutrition page shows meal draft and accepts without claiming consump
   await page.getByRole("button", { name: "Diary", exact: true }).click();
   targetKcal = 3100;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByText("/ 3100 kcal", { exact: false })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Calories", exact: true })).toHaveAttribute("aria-valuemax", "3100");
 });
 
 test("competition results validate, save, and clear on the selected event", async ({
@@ -870,7 +870,8 @@ test("dated diary edit conflict and repeat keep the selected day", async ({
     return json(route, {});
   });
   await page.goto(`/nutrition?day=${day}`);
-  await expect(page.getByLabel("Diary date")).toHaveValue(day);
+  await expect(page).toHaveURL(new RegExp(`[?&]day=${day}(?:&|$)`));
+  await page.getByRole("region", { name: "Foods eaten on selected day" }).locator("summary").first().click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByLabel("Calories (kcal)").last().fill("550");
   await page.getByRole("button", { name: "Save changes" }).click();
@@ -887,6 +888,7 @@ test("dated diary edit conflict and repeat keep the selected day", async ({
   await expect(
     page.getByText(`Repeated meal for ${day}`, { exact: false }),
   ).toBeVisible();
+  await page.getByText("Targets & details", { exact: true }).click();
   await expect(
     page.getByText("Recorded intake reflects 2 entries", { exact: false }),
   ).toBeVisible();
