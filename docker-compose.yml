@@ -21,6 +21,13 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    # Public DNS cannot resolve the private Tailscale LLM hostname.
+    extra_hosts:
+      - "petarsrbinoski-1.tail92f72e.ts.net:100.73.26.64"
+    # Keep Garmin reachable when the host's Tailscale DNS is unavailable.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     env_file: .env
     depends_on:
       db:
@@ -39,6 +46,10 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    # Use the same external resolvers as the backend for scheduled syncs.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     env_file: .env
     depends_on:
       db:

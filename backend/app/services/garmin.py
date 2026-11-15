@@ -65,13 +65,29 @@ class GarminService:
         client.login(str(self.token_dir))
         self._client = client
 
+    def _fetch(self, method: str, *args: Any) -> Any:
+        """Reload shared tokens once when a cached session is rejected.
+
+        The API caches its client across syncs, while the worker can refresh
+        the shared token store in another process. Never keep retrying a
+        rejected in-memory session or turn auth errors into missing metrics.
+        """
+        for attempt in range(2):
+            try:
+                return getattr(self._client_or_login(), method)(*args)
+            except GarminConnectAuthenticationError:
+                self._client = None
+                if attempt:
+                    raise
+                log.info("Garmin session rejected; reloading authentication once.")
+
     def fetch_day(self, day: date) -> dict[str, Any]:
         """Pull a comprehensive snapshot for `day`. Returns dict of raw payloads.
 
         Each fetch is wrapped in try/except so a single endpoint failure
-        doesn't kill the whole sync.
+        doesn't kill the whole sync. Authentication failures abort the sync.
         """
-        c = self._client_or_login()
+        self._client_or_login()
         out: dict[str, Any] = {}
         failures: list[str] = []
         ds = day.isoformat()
@@ -79,30 +95,33 @@ class GarminService:
         def _safe(name: str, fn):
             try:
                 out[name] = fn()
+            except GarminConnectAuthenticationError:
+                raise
             except Exception as e:  # noqa: BLE001
                 log.warning("Garmin fetch %s failed: %s", name, e)
                 out[name] = None
                 failures.append(name)
 
-        _safe("stats", lambda: c.get_stats(ds))
-        _safe("user_summary", lambda: c.get_user_summary(ds))
-        _safe("sleep", lambda: c.get_sleep_data(ds))
-        _safe("hrv", lambda: c.get_hrv_data(ds))
-        _safe("body_battery", lambda: c.get_body_battery(ds, ds))
-        _safe("stress", lambda: c.get_stress_data(ds))
-        _safe("rhr", lambda: c.get_rhr_day(ds))
-        _safe("steps", lambda: c.get_steps_data(ds))
-        _safe("training_status", lambda: c.get_training_status(ds))
-        _safe("training_readiness", lambda: c.get_training_readiness(ds))
-        _safe("max_metrics", lambda: c.get_max_metrics(ds))  # VO2max
-        _safe("intensity_minutes", lambda: c.get_intensity_minutes_data(ds))
+        _safe("stats", lambda: self._fetch("get_stats", ds))
+        _safe("user_summary", lambda: self._fetch("get_user_summary", ds))
+        _safe("sleep", lambda: self._fetch("get_sleep_data", ds))
+        _safe("hrv", lambda: self._fetch("get_hrv_data", ds))
+        _safe("body_battery", lambda: self._fetch("get_body_battery", ds, ds))
+        _safe("stress", lambda: self._fetch("get_stress_data", ds))
+        _safe("rhr", lambda: self._fetch("get_rhr_day", ds))
+        _safe("steps", lambda: self._fetch("get_steps_data", ds))
+        _safe("training_status", lambda: self._fetch("get_training_status", ds))
+        _safe("training_readiness", lambda: self._fetch("get_training_readiness", ds))
+        _safe("max_metrics", lambda: self._fetch("get_max_metrics", ds))  # VO2max
+        _safe("intensity_minutes", lambda: self._fetch("get_intensity_minutes_data", ds))
         out["fetch_failures"] = failures
         return out
 
     def fetch_recent_activities(self, limit: int = 20) -> list[dict[str, Any]]:
-        c = self._client_or_login()
         try:
-            return c.get_activities(0, limit) or []
+            return self._fetch("get_activities", 0, limit) or []
+        except GarminConnectAuthenticationError:
+            raise
         except Exception as e:  # noqa: BLE001
             log.warning("Garmin activities fetch failed: %s", e)
             raise RuntimeError("Garmin activities are unavailable") from e
@@ -212,6 +231,8 @@ class GarminService:
             days_synced += 1
         try:
             activities = self.fetch_recent_activities(activity_limit)
+        except GarminConnectAuthenticationError:
+            raise
         except RuntimeError:
             fetch_failures.append({"day": None, "endpoints": ["activities"]})
             activities = []

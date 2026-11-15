@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import openai
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
 from app.core.config import settings
 
@@ -64,6 +64,8 @@ def is_transient_llm_error(exc: Exception) -> bool:
         if exc.status_code in RETRYABLE_HTTP_STATUS:
             return True
         return any(marker in str(exc).lower() for marker in TRANSIENT_ERROR_MARKERS)
+    if isinstance(exc, ModelAPIError) and isinstance(exc.__cause__, openai.APIConnectionError):
+        return True
     if isinstance(exc, openai.APIConnectionError):
 
         return True
