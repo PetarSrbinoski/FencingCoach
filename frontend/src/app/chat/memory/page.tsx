@@ -113,17 +113,17 @@ export default function CoachMemoryPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 pb-8">
+    <div className="w-full max-w-5xl space-y-6 pb-8">
       <header className="space-y-3">
         <Link href="/chat" className="text-sm underline underline-offset-4">Back to Coach</Link>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">What my coach knows</h1>
+        <h1 className="page-title">What my coach knows</h1>
         <p className="text-sm text-muted-foreground">Preferences, equipment, time limits and guidance you want your coach to remember.</p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => openEditor(null)} disabled={!data || busy}>Add memory</Button>
           <Button variant="outline" onClick={() => setLogsOpen(true)}>Agent logs</Button>
         </div>
       </header>
-      {data && <section className="border border-border bg-card p-4 space-y-2">
+      {data && <section className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-2">
         <label className="flex min-h-11 items-center gap-3 font-medium">
           <input type="checkbox" className="h-5 w-5 accent-accent" checked={pendingEnabled ?? data.enabled}
             disabled={busy} onChange={(event) => void toggle(event.target.checked)} />
@@ -141,7 +141,7 @@ export default function CoachMemoryPage() {
       {loading && <p role="status">Loading memories…</p>}
       {!loading && data?.items.length === 0 && <p className="text-muted-foreground">No memories yet.</p>}
       <div className="space-y-3">
-        {data?.items.map((memory) => <article key={memory.id} id={`memory-${memory.id}`} className="border border-border bg-card p-4 space-y-3 break-words">
+        {data?.items.map((memory) => <article key={memory.id} id={`memory-${memory.id}`} className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-3 break-words">
           <p className="whitespace-pre-wrap font-medium">{memory.content}</p>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{memory.provenance === "inferred" ? "Inferred" : "Explicit"}</span>

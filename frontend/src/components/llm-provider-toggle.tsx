@@ -73,7 +73,7 @@ export function LlmProviderToggle({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {error && (
         <div role="alert" className="text-sm text-destructive">
           {error}
@@ -85,10 +85,10 @@ export function LlmProviderToggle({
           </button>
         </div>
       )}
-      <span className="block text-sm font-medium uppercase tracking-widest text-muted-foreground">
+      <span className="block text-xs font-medium text-muted-foreground">
         Coach provider
       </span>
-      <div className="flex border border-border text-sm font-semibold uppercase tracking-wider">
+      <div className="flex overflow-hidden rounded-xl border border-border text-xs font-medium">
         <button
           onClick={() => choose("local")}
           disabled={busy || provider === null}
@@ -100,7 +100,7 @@ export function LlmProviderToggle({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <Cpu className="h-3 w-3" strokeWidth={1.5} />
+          <Cpu className="h-4 w-4" strokeWidth={1.5} />
           Local
         </button>
         <button
@@ -114,7 +114,7 @@ export function LlmProviderToggle({
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <Cloud className="h-3 w-3" strokeWidth={1.5} />
+          <Cloud className="h-4 w-4" strokeWidth={1.5} />
           Cloud
         </button>
       </div>

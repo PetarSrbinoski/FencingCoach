@@ -441,7 +441,7 @@ export default function ChatPage() {
               <div
                 key={conversation.id}
                 className={cn(
-                  "group border border-transparent px-3 py-3 transition-colors duration-150",
+                  "group rounded-xl border border-transparent px-3 py-3 transition-colors duration-150",
                   active ? "border-border bg-muted/40" : "hover:bg-muted/20",
                 )}
               >
@@ -552,9 +552,9 @@ export default function ChatPage() {
       </header>
 
       <div className="grid flex-1 min-h-0 gap-5 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="hidden border border-border bg-card min-h-[220px] xl:flex xl:flex-col xl:h-full xl:min-h-0">
-          <div className="border-b border-border px-4 py-3.5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-foreground">
+        <aside className="hidden overflow-hidden rounded-2xl border border-border bg-card min-h-[220px] xl:flex xl:flex-col xl:h-full xl:min-h-0">
+          <div className="border-b border-border px-4 py-4">
+            <p className="text-sm font-medium text-foreground">
               Chat history
             </p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -576,18 +576,18 @@ export default function ChatPage() {
                 el.scrollHeight - el.scrollTop - el.clientHeight < 80;
               if (nearBottom.current) setNewReply(false);
             }}
-            className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-5 overscroll-contain"
+            className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-6 overscroll-contain"
           >
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="h-14 w-14 border border-border flex items-center justify-center mb-4">
+                <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
                   <MessageCircle
-                    className="h-6 w-6 text-accent"
+                    className="h-5 w-5 text-muted-foreground"
                     strokeWidth={1.5}
                   />
                 </div>
-                <p className="text-lg font-semibold tracking-tight text-foreground">
-                  Your AI fencing coach
+                <p className="text-lg font-medium text-foreground">
+                  Talk through your next session
                 </p>
                 <p className="text-sm text-muted-foreground mt-2 max-w-xs leading-relaxed">
                   Ask about training, nutrition, peaking, technique, recovery,
@@ -622,10 +622,10 @@ export default function ChatPage() {
                   >
                     <div
                       className={cn(
-                        "hidden sm:flex h-8 w-8 shrink-0 items-center justify-center border border-border",
+                        "hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
                         isUser
                           ? "bg-foreground text-background"
-                          : "bg-accent/10 text-accent",
+                          : "bg-muted text-muted-foreground",
                       )}
                     >
                       {isUser ? (
@@ -636,10 +636,10 @@ export default function ChatPage() {
                     </div>
                     <div
                       className={cn(
-                        "min-w-0 max-w-full rounded-xl px-3 py-3 text-base leading-relaxed border [overflow-wrap:anywhere]",
+                        "chat-message min-w-0 max-w-full sm:max-w-[88%] rounded-2xl px-4 py-3 text-base leading-relaxed border [overflow-wrap:anywhere]",
                         isUser
                           ? "whitespace-pre-wrap bg-foreground text-background border-foreground"
-                          : "bg-transparent border-border text-foreground",
+                          : "bg-transparent border-transparent text-foreground",
                       )}
                     >
                       {isUser ? (
@@ -675,7 +675,7 @@ export default function ChatPage() {
                           )}
                         {m.contextSnapshot && (
                           <details className="group">
-                            <summary className="flex items-center gap-1 text-sm font-sans uppercase tracking-wider text-muted-foreground cursor-pointer select-none">
+                            <summary className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                               <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
                               What the coach saw
                             </summary>
