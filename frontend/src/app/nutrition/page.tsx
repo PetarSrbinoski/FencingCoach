@@ -755,7 +755,7 @@ export default function NutritionPage() {
         {sorted.map((mealItem, i) => {
           const Icon = SLOT_ICONS[mealItem.slot] ?? Utensils;
           return (
-            <div key={i} className="border border-border p-4">
+            <div key={i} className="rounded-xl border border-border p-4">
               <div className="flex flex-col gap-2 mb-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Icon
@@ -799,7 +799,7 @@ export default function NutritionPage() {
               </div>
 
               {mealItem.notes && (
-                <p className="text-xs text-muted-foreground mt-2 italic leading-relaxed">
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                   {mealItem.notes}
                 </p>
               )}
@@ -809,7 +809,7 @@ export default function NutritionPage() {
 
         {totals && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-xs text-muted-foreground border-t border-border pt-3 mt-1">
-            <span className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               Day totals
             </span>
             <span className="text-foreground/90 font-medium">
@@ -865,8 +865,8 @@ export default function NutritionPage() {
       <PageHeading title="Nutrition" eyebrow="Fuel & recovery" />
 
       {err && (
-        <div className="border border-accent/30 bg-accent/5 px-5 py-4">
-          <p className="text-accent text-sm">{err}</p>
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
+          <p className="text-destructive text-sm">{err}</p>
         </div>
       )}
 
@@ -908,13 +908,13 @@ export default function NutritionPage() {
           {loading && !targets ? (
             <Card>
               <div
-                className="grid grid-cols-4 gap-2 sm:gap-6"
+                className="grid grid-cols-2 gap-6 sm:grid-cols-4"
                 aria-label="Loading daily intake"
               >
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="space-y-3">
-                    <Skeleton className="mx-auto aspect-square w-full max-w-32 rounded-full sm:max-w-36" />
-                    <Skeleton className="mx-auto h-3 w-12" />
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-2 w-full" />
                   </div>
                 ))}
               </div>
@@ -922,7 +922,7 @@ export default function NutritionPage() {
           ) : targets && totals ? (
             <Card className="nutrition-intake">
               <div
-                className="grid grid-cols-4 gap-2 sm:gap-6"
+                className="grid grid-cols-2 gap-6 sm:grid-cols-4"
                 aria-label="Daily intake"
               >
                 {(
@@ -1158,7 +1158,7 @@ export default function NutritionPage() {
                   {estimate && (
                     <div className="mt-5 border border-border p-4 space-y-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <span className="text-xs font-medium text-muted-foreground">
                           Review estimate
                         </span>
                         <Badge
@@ -1231,7 +1231,7 @@ export default function NutritionPage() {
                             <div key={key} className="space-y-1">
                               <label
                                 htmlFor={`nutrition-review-${key}`}
-                                className="text-xs font-medium uppercase tracking-widest text-muted-foreground block"
+                                className="text-xs font-medium text-muted-foreground block"
                               >
                                 {label}
                               </label>
