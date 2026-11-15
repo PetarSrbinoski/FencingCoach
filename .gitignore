@@ -31,3 +31,4 @@ Thumbs.db
 
 .scratch/
 .hypothesis/
+.playwright-cli/
