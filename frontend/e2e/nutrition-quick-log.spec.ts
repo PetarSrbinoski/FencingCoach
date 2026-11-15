@@ -172,9 +172,10 @@ test("one tap repeats to the selected day and meal; Undo removes only the copy",
   await expect(
     page.getByRole("heading", { name: "Nutrition", exact: true }),
   ).toHaveClass("page-title");
-  await expect(
-    page.locator('.nutrition-intake [role="progressbar"] svg'),
-  ).toHaveCount(4);
+  await expect(page.locator('.nutrition-intake [role="progressbar"]')).toHaveCount(4);
+  const calories = page.getByRole("progressbar", { name: "Calories", exact: true });
+  await expect(calories).toHaveAttribute("aria-valuenow", "1220");
+  await expect(calories).toHaveAttribute("aria-valuemax", "2600");
   const input = (await page.getByLabel("Meal description").boundingBox())!;
   const mic = (await page
     .getByRole("button", { name: "Record voice", exact: true })
