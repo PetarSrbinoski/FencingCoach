@@ -106,22 +106,16 @@ test("nutrition views survive Back and food portions use the chosen date", async
   await expect(
     page.getByRole("button", { name: "Shopping", exact: true }),
   ).toHaveAttribute("aria-current", "page");
-  await page.getByRole("button", { name: "Diary", exact: true }).click();
-  await page.getByLabel("Diary date").fill("2026-09-27");
-  await page.getByLabel("Search recent and saved foods").fill("Greek yogurt");
-  await page
-    .getByRole("button", { name: "Greek yogurt one pot · 150 g", exact: true })
-    .click();
-  await page.getByLabel("Portion amount").fill("2");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Log food", exact: true }).click();
-  await expect(
-    page.getByRole("button", {
-      name: "Undo logging Greek yogurt",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(page.getByLabel("Diary date")).toHaveValue("2026-09-27");
+  await page.getByRole("button", { name: "Foods", exact: true }).click();
+  await page.getByLabel("Search my foods").fill("Greek yogurt");
+  await page.getByRole("button", { name: /^Greek yogurt .*kcal/ }).click();
+  const editor = page.getByRole("dialog", { name: "Log Greek yogurt", exact: true });
+  await editor.getByLabel("Diary date", { exact: true }).fill("2026-09-27");
+  await editor.getByLabel("Amount eaten").fill("2");
+  await editor.getByLabel("Measure", { exact: true }).selectOption("servings");
+  await editor.getByRole("button", { name: "Log food", exact: true }).click();
+  await expect(page.getByText("Logged food for 2026-09-27", { exact: true })).toBeVisible();
+  await expect(editor).toHaveCount(0);
   expect(submitted).toMatchObject({
     day: "2026-09-27",
     portions: [{ food_id: 1, servings: 2 }],
@@ -143,6 +137,7 @@ test("failed deletion remains reviewable and retryable in the confirmation", asy
         }),
   );
   await page.goto("/nutrition");
+  await page.getByText(/^Foods eaten today/).click();
   await page
     .getByRole("button", { name: "Delete entry", exact: true })
     .first()

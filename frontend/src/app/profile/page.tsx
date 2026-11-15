@@ -178,14 +178,14 @@ export default function ProfilePage() {
           </div>
         </Card>
       ) : profile ? (
-        <div className="space-y-3 pb-32">
+        <div className="max-w-5xl space-y-4 pb-32">
           {/* Basic info */}
           <details
             open
-            className="rounded-2xl border border-border bg-card p-4"
+            className="profile-section border border-border bg-card p-5 sm:p-6"
           >
-            <summary className="font-semibold text-lg">Athlete basics</summary>
-            <div className="space-y-4">
+            <summary className="font-medium">Athlete basics</summary>
+            <div className="grid gap-6 pt-4 sm:grid-cols-2">
               <Field label="Name">
                 <Input
                   autoComplete="name"
@@ -275,9 +275,9 @@ export default function ProfilePage() {
               </Field>
             </div>
           </details>
-          <details className="rounded-2xl border border-border bg-card p-4">
-            <summary className="font-semibold text-lg">Training goals</summary>
-            <div className="space-y-4 pt-3">
+          <details className="profile-section border border-border bg-card p-5 sm:p-6">
+            <summary className="font-medium">Training goals</summary>
+            <div className="grid gap-6 pt-4 sm:grid-cols-2">
               <Field label="Fencing style">
                 <Select
                   value={form.fencing_style ?? "distance_control"}
@@ -345,11 +345,9 @@ export default function ProfilePage() {
           </details>
 
           {/* Goals & Nutrition */}
-          <details className="rounded-2xl border border-border bg-card p-4">
-            <summary className="font-semibold text-lg">
-              Nutrition preferences
-            </summary>
-            <div className="space-y-4">
+          <details className="profile-section border border-border bg-card p-5 sm:p-6">
+            <summary className="font-medium">Nutrition preferences</summary>
+            <div className="grid gap-6 pt-4 sm:grid-cols-2">
               <Field label="Body composition goal">
                 <Select
                   value={form.body_comp_goal ?? "performance"}
@@ -431,10 +429,8 @@ export default function ProfilePage() {
               </Field>
             </div>
           </details>
-          <details className="rounded-2xl border border-border bg-card p-4">
-            <summary className="font-semibold text-lg">
-              Additional notes
-            </summary>
+          <details className="profile-section border border-border bg-card p-5 sm:p-6">
+            <summary className="font-medium">Additional notes</summary>
             <div className="space-y-4 pt-3">
               <Field label="Notes">
                 <Textarea
@@ -461,7 +457,7 @@ function Field({
 }) {
   const id = useId();
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-2">
       <label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </label>
