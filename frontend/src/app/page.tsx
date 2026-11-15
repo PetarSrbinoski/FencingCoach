@@ -1,9 +1,8 @@
 "use client";
 
 import { PageHeading } from "@/components/page-heading";
-import { Gauge } from "@/components/charts";
+import { Gauge, Sparkline } from "@/components/charts";
 import { FencerStudy } from "@/components/fencer-study";
-import { SignalForm } from "@/components/signal-form";
 import { StaleDataBanner } from "@/components/data-coverage-panel";
 import { ErrorNotice, ReadMore } from "@/components/mobile-ui";
 import { Badge } from "@/components/ui/badge";
@@ -527,7 +526,7 @@ function StatCard({
               : "—"}{" "}
             <span className="text-xs font-normal">{unit}</span>
           </p>
-          {last?.value != null && <SignalForm variant={variant} />}
+          {last?.value != null && <Sparkline points={series.points} compact label={`${title} recent readings`} unit={unit} height={variant === 0 ? 192 : 56} />}
           <div className="metric-meta">
             <p>{delta !== null ? `${delta > 0 ? "+" : ""}${delta.toFixed(1)} vs prior reading` : "No comparison yet"}</p>
             <p>{last?.day ?? "No readings"}</p>

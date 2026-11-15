@@ -47,9 +47,81 @@
 }
 html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 html[data-motion="off"] .route-wake { display: none; }
-@media (max-width: 767px) {
-  ::view-transition-group(coach-page), ::view-transition-new(coach-page) { animation-duration: 620ms; }
-  ::view-transition-old(coach-page) { animation-duration: 320ms; }
+/* 48 breathing/hand inbetweens repeat three times, then 16 sword-cut poses.
+   The 8x8 atlas advances every 75ms; pause/reduced motion uses the still PNG. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .fencer-study { visibility: hidden; }
+  html[data-motion="on"] .fencer-strip { display: block; animation: fencer-cycle 12s steps(1, end) infinite; }
+}
+@keyframes fencer-cycle {
+  0%, 30%, 60%, 100% { background-position: 0% 0%; }
+  0.625%, 30.625%, 60.625% { background-position: 14.285714% 0%; }
+  1.25%, 31.25%, 61.25% { background-position: 28.571429% 0%; }
+  1.875%, 31.875%, 61.875% { background-position: 42.857143% 0%; }
+  2.5%, 32.5%, 62.5% { background-position: 57.142857% 0%; }
+  3.125%, 33.125%, 63.125% { background-position: 71.428571% 0%; }
+  3.75%, 33.75%, 63.75% { background-position: 85.714286% 0%; }
+  4.375%, 34.375%, 64.375% { background-position: 100% 0%; }
+  5%, 35%, 65% { background-position: 0% 14.285714%; }
+  5.625%, 35.625%, 65.625% { background-position: 14.285714% 14.285714%; }
+  6.25%, 36.25%, 66.25% { background-position: 28.571429% 14.285714%; }
+  6.875%, 36.875%, 66.875% { background-position: 42.857143% 14.285714%; }
+  7.5%, 37.5%, 67.5% { background-position: 57.142857% 14.285714%; }
+  8.125%, 38.125%, 68.125% { background-position: 71.428571% 14.285714%; }
+  8.75%, 38.75%, 68.75% { background-position: 85.714286% 14.285714%; }
+  9.375%, 39.375%, 69.375% { background-position: 100% 14.285714%; }
+  10%, 40%, 70% { background-position: 0% 28.571429%; }
+  10.625%, 40.625%, 70.625% { background-position: 14.285714% 28.571429%; }
+  11.25%, 41.25%, 71.25% { background-position: 28.571429% 28.571429%; }
+  11.875%, 41.875%, 71.875% { background-position: 42.857143% 28.571429%; }
+  12.5%, 42.5%, 72.5% { background-position: 57.142857% 28.571429%; }
+  13.125%, 43.125%, 73.125% { background-position: 71.428571% 28.571429%; }
+  13.75%, 43.75%, 73.75% { background-position: 85.714286% 28.571429%; }
+  14.375%, 44.375%, 74.375% { background-position: 100% 28.571429%; }
+  15%, 45%, 75% { background-position: 0% 42.857143%; }
+  15.625%, 45.625%, 75.625% { background-position: 14.285714% 42.857143%; }
+  16.25%, 46.25%, 76.25% { background-position: 28.571429% 42.857143%; }
+  16.875%, 46.875%, 76.875% { background-position: 42.857143% 42.857143%; }
+  17.5%, 47.5%, 77.5% { background-position: 57.142857% 42.857143%; }
+  18.125%, 48.125%, 78.125% { background-position: 71.428571% 42.857143%; }
+  18.75%, 48.75%, 78.75% { background-position: 85.714286% 42.857143%; }
+  19.375%, 49.375%, 79.375% { background-position: 100% 42.857143%; }
+  20%, 50%, 80% { background-position: 0% 57.142857%; }
+  20.625%, 50.625%, 80.625% { background-position: 14.285714% 57.142857%; }
+  21.25%, 51.25%, 81.25% { background-position: 28.571429% 57.142857%; }
+  21.875%, 51.875%, 81.875% { background-position: 42.857143% 57.142857%; }
+  22.5%, 52.5%, 82.5% { background-position: 57.142857% 57.142857%; }
+  23.125%, 53.125%, 83.125% { background-position: 71.428571% 57.142857%; }
+  23.75%, 53.75%, 83.75% { background-position: 85.714286% 57.142857%; }
+  24.375%, 54.375%, 84.375% { background-position: 100% 57.142857%; }
+  25%, 55%, 85% { background-position: 0% 71.428571%; }
+  25.625%, 55.625%, 85.625% { background-position: 14.285714% 71.428571%; }
+  26.25%, 56.25%, 86.25% { background-position: 28.571429% 71.428571%; }
+  26.875%, 56.875%, 86.875% { background-position: 42.857143% 71.428571%; }
+  27.5%, 57.5%, 87.5% { background-position: 57.142857% 71.428571%; }
+  28.125%, 58.125%, 88.125% { background-position: 71.428571% 71.428571%; }
+  28.75%, 58.75%, 88.75% { background-position: 85.714286% 71.428571%; }
+  29.375%, 59.375%, 89.375% { background-position: 100% 71.428571%; }
+  90% { background-position: 0% 85.714286%; }
+  90.625% { background-position: 14.285714% 85.714286%; }
+  91.25% { background-position: 28.571429% 85.714286%; }
+  91.875% { background-position: 42.857143% 85.714286%; }
+  92.5% { background-position: 57.142857% 85.714286%; }
+  93.125% { background-position: 71.428571% 85.714286%; }
+  93.75% { background-position: 85.714286% 85.714286%; }
+  94.375% { background-position: 100% 85.714286%; }
+  95% { background-position: 0% 100%; }
+  95.625% { background-position: 14.285714% 100%; }
+  96.25% { background-position: 28.571429% 100%; }
+  96.875% { background-position: 42.857143% 100%; }
+  97.5% { background-position: 57.142857% 100%; }
+  98.125% { background-position: 71.428571% 100%; }
+  98.75% { background-position: 85.714286% 100%; }
+  99.375% { background-position: 100% 100%; }
+}
+@media (max-width: 1023px), (hover: none) and (pointer: coarse) {
+  .route-wake { display: none; }
+  html[data-motion="on"] :is([data-motion-page], .page-heading, nav[aria-label="Main navigation"] a[aria-current="page"]) { view-transition-name: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .route-wake { display: none; }

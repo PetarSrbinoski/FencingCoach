@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-/** Slow color-field drift and fine signal contours; no WebGL or image payload. */
+/** Slow neutral-field drift and fine signal contours; no WebGL or image payload. */
 export function KineticBackground({ enabled }: { enabled: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const clockRef = useRef(0);
@@ -48,17 +48,17 @@ export function KineticBackground({ enabled }: { enabled: boolean }) {
       driftY += (pointerY * 12 - driftY) * 0.025;
       const radius = Math.max(width, height) * 0.62;
       const fields = [
-        { hue: 116, x: 0.78, y: 0.34, phase: 0 },
-        { hue: 31, x: 0.4, y: 0.88, phase: 2.1 },
-        { hue: 67, x: 0.98, y: 0.85, phase: 4.2 },
+        { x: 0.78, y: 0.34, phase: 0 },
+        { x: 0.4, y: 0.88, phase: 2.1 },
+        { x: 0.98, y: 0.85, phase: 4.2 },
       ];
       for (const field of fields) {
         const x = width * (field.x + Math.sin(time * 0.13 + field.phase) * 0.12) + driftX;
         const y = height * (field.y + Math.cos(time * 0.1 + field.phase) * 0.14) + driftY;
         const wash = context.createRadialGradient(x, y, 0, x, y, radius);
-        wash.addColorStop(0, `hsl(${field.hue} 35% ${dark ? 38 : 68}% / ${dark ? 0.12 : 0.14})`);
-        wash.addColorStop(0.55, `hsl(${field.hue} 28% 60% / ${dark ? 0.025 : 0.035})`);
-        wash.addColorStop(1, `hsl(${field.hue} 28% 60% / 0)`);
+        wash.addColorStop(0, `hsl(${ink} / ${dark ? 0.018 : 0.025})`);
+        wash.addColorStop(0.55, `hsl(${ink} / 0.008)`);
+        wash.addColorStop(1, `hsl(${ink} / 0)`);
         context.fillStyle = wash;
         context.fillRect(0, 0, width, height);
       }

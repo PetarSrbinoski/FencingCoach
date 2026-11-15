@@ -2,14 +2,15 @@ import { expect, test } from "@playwright/test";
 
 const { data } = require("./mobile-fixtures.cjs");
 
-test.beforeEach(async ({ page }) => {
-  await page.route("http://localhost:8000/**", async (route) => {
+test.beforeEach(async ({ page, baseURL }) => {
+  await page.route(/^http:\/\/localhost:8000\/|\/api\//, async (route) => {
     const url = new URL(route.request().url());
+    url.pathname = url.pathname.replace(/^\/api(?=\/)/, "");
     await route.fulfill({
       status: route.request().method() === "OPTIONS" ? 204 : 200,
       contentType: "application/json",
       headers: {
-        "Access-Control-Allow-Origin": "http://localhost:3000",
+        "Access-Control-Allow-Origin": new URL(baseURL ?? "http://localhost:3000").origin,
         "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
@@ -19,7 +20,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const theme of ["light", "dark"]) {
-  test(`luminous panels preserve metric data and readable summary text in ${theme} mode`, async ({ page }) => {
+  test(`theme-aware panels preserve metric data and readable summary text in ${theme} mode`, async ({ page }) => {
     await page.addInitScript((theme) => {
       localStorage.setItem("theme", theme);
       localStorage.setItem("coach-motion", "paused");
@@ -27,19 +28,22 @@ for (const theme of ["light", "dark"]) {
     await page.goto("/");
     const tiles = page.locator(".metric-tile");
     await expect(tiles).toHaveCount(5);
-    await expect(page.locator(".metric-tile .signal-form")).toHaveCount(5);
+    await expect(page.locator(".metric-tile .metric-trend")).toHaveCount(5);
     for (const tile of await tiles.all()) {
       await expect(tile.locator(".metric-value")).not.toContainText("—");
       await expect(tile.locator(".metric-meta")).toContainText("vs prior reading");
-      await expect(tile.locator(".signal-form")).toHaveAttribute("aria-hidden", "true");
+      await expect(tile.locator(".recharts-area-curve")).toBeVisible();
+      await expect(tile.locator(".metric-trend .sr-only")).toContainText("recent readings");
+      await expect(tile).toHaveCSS("background-image", "none");
     }
     await page.goto("/weekly");
     const summary = page.locator(".weekly-summary");
-    // Pale fields keep dark ink even when the surrounding shell is dark.
-    await expect(summary.getByRole("heading", { name: "Weekly summary" })).toHaveCSS("color", "rgb(37, 55, 42)");
-    await expect(summary.locator(".text-2xl").first()).toHaveCSS("color", "rgb(37, 55, 42)");
+    const foreground = await page.locator("body").evaluate((body) => getComputedStyle(body).color);
+    await expect(summary.getByRole("heading", { name: "Weekly summary" })).toHaveCSS("color", foreground);
+    await expect(summary.locator(".text-2xl").first()).toHaveCSS("color", foreground);
+    await expect(summary).toHaveCSS("background-image", "none");
     await summary.locator("summary").click();
-    await expect(summary.locator("summary")).toHaveCSS("color", "rgb(37, 55, 42)");
+    await expect(summary.locator("summary")).toHaveCSS("color", foreground);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
@@ -47,6 +51,67 @@ for (const theme of ["light", "dark"]) {
 async function canvasFrame(page: import("@playwright/test").Page) {
   return page.locator(".kinetic-background").evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
 }
+
+test("comic fencer idles, cuts with the sword, and stops when paused", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
+  const strip = page.locator(".fencer-strip");
+  await expect(strip).toBeVisible();
+  await expect(page.locator(".fencer-mascot")).toHaveAttribute("aria-hidden", "true");
+  await expect(strip).toHaveCSS("animation-duration", "12s");
+  const poses = await strip.evaluate(async (element) => {
+    const animation = element.getAnimations()[0];
+    animation.pause();
+    const transforms: string[] = [];
+    for (const time of [0, 1800, 11100, 11400, 12000]) {
+      animation.currentTime = time;
+      await new Promise(requestAnimationFrame);
+      transforms.push(getComputedStyle(element).backgroundPosition);
+    }
+    animation.play();
+    return transforms;
+  });
+  expect(new Set(poses.slice(0, 4)).size).toBe(4);
+  expect(poses[4]).toBe(poses[0]);
+  const idle = await strip.evaluate(async (element) => {
+    const animation = element.getAnimations()[0];
+    animation.pause();
+    const frames: string[] = [];
+    for (let frame = 0; frame < 48; frame++) {
+      animation.currentTime = frame * 75 + 1;
+      frames.push(getComputedStyle(element).backgroundPosition);
+    }
+    animation.currentTime = 3601;
+    const loop = getComputedStyle(element).backgroundPosition;
+    const image = new Image();
+    image.src = "/fencer-sprites.png";
+    await image.decode();
+    animation.play();
+    return { frames, loop, width: image.naturalWidth, height: image.naturalHeight };
+  });
+  expect(new Set(idle.frames).size).toBe(48);
+  expect(idle.loop).toBe(idle.frames[0]);
+  expect([idle.width, idle.height]).toEqual([1792, 2048]);
+  await expect.poll(() => page.evaluate(() => performance.getEntriesByType("resource").some((r) => r.name.endsWith("/fencer-sprites.png")))).toBe(true);
+  await page.getByRole("button", { name: "Pause animations", exact: true }).click();
+  await expect(strip).toBeHidden();
+  await expect(page.locator("img.fencer-study")).toBeVisible();
+  await expect(strip).toHaveCSS("animation-name", "none");
+  await page.getByRole("button", { name: "Resume animations", exact: true }).click();
+  await expect(strip).toBeVisible();
+});
+
+test("fencer stays still for system reduced motion, including live preference changes", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.locator(".fencer-strip")).toBeHidden();
+  await expect(page.locator("img.fencer-study")).toBeVisible();
+  await expect(page.locator(".fencer-strip")).toHaveCSS("animation-name", "none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator(".fencer-strip")).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".fencer-strip")).toBeHidden();
+});
 
 test("the ambient background moves, can be paused, and remembers the preference", async ({ page }) => {
   await page.goto("/");
@@ -147,6 +212,52 @@ test("background rendering is capped and stops while the document is hidden", as
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect.poll(() => page.evaluate(() => (window as any).backdropFrames)).toBeGreaterThan(hiddenCount);
+});
+
+test.describe("phone transitions", () => {
+  test.use({ isMobile: true, hasTouch: true });
+  for (const width of [390, 844]) {
+    test(`${width}px phone uses a short fade without snapshot, blur or layout movement`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 390 });
+      await page.goto("/");
+      await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
+      await page.evaluate(() => {
+        const state = window as unknown as { mobileSnapshots: number; mobileFades: { duration: number; keys: string[] }[] };
+        state.mobileSnapshots = 0;
+        state.mobileFades = [];
+        const start = document.startViewTransition.bind(document);
+        document.startViewTransition = (callback) => { state.mobileSnapshots++; return start(callback); };
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (frames, options) {
+          if (this.hasAttribute("data-motion-page") && Array.isArray(frames)) {
+            state.mobileFades.push({ duration: typeof options === "object" ? Number(options.duration) : Number(options), keys: Object.keys(frames[0]) });
+          }
+          return animate.call(this, frames, options);
+        };
+      });
+      const nav = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
+      await nav.getByRole("link", { name: "Training", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Training", level: 1 })).toBeVisible();
+      await nav.getByRole("link", { name: "Nutrition", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Nutrition", level: 1 })).toBeVisible();
+      await page.goBack();
+      await expect(page.getByRole("heading", { name: "Training", level: 1 })).toBeVisible();
+      const state = await page.evaluate(() => {
+        const state = window as unknown as { mobileSnapshots: number; mobileFades: { duration: number; keys: string[] }[] };
+        return { snapshots: state.mobileSnapshots, fades: state.mobileFades };
+      });
+      expect(state.snapshots).toBe(0);
+      expect(state.fades.length).toBeGreaterThanOrEqual(3);
+      for (const fade of state.fades) {
+        expect(fade.duration).toBeLessThanOrEqual(180);
+        expect(fade.keys).toEqual(["opacity"]);
+      }
+      await expect(page.locator(".route-wake")).toBeHidden();
+      await expect(page.locator("[data-motion-page]")).toHaveCSS("view-transition-name", "none");
+      await expect.poll(() => page.locator("[data-motion-page]").evaluate((el) => el.getAnimations().filter((a) => a.playState === "running").length)).toBe(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+  }
 });
 
 test("unsupported browsers use real-DOM transitions without blocking forms", async ({ page }) => {

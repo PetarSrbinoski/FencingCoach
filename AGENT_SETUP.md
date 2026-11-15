@@ -87,6 +87,13 @@ npm install
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 npm run dev
 ```
 
+To preview current frontend changes against the API already configured in the
+repository's `.env`, run `cd frontend && npm run dev:preview` and open port
+13000. This uses a same-origin `/api` proxy (also usable from a phone) and a
+separate `.next-coach-preview` build directory. It does not start or alter the
+backend, database, workers, or production frontend. Keep this preview on your
+trusted network, like the app itself: it has no authentication.
+
 ## 7. Quality gates
 
 Run from the repo root (the uv project root):

@@ -6,14 +6,15 @@ const { data: fixtureData } = require("./mobile-fixtures.cjs");
 // version keeps DOM order: readiness, coach, recovery, then the editorial row.
 for (const width of [320, 390, 768, 1280, 1440]) {
   for (const state of ["ready", "error", "sync", "error-and-sync", "empty"] as const) {
-    test(`${width}px dashboard: ${state}`, async ({ page }) => {
+    test(`${width}px dashboard: ${state}`, async ({ page, baseURL }) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.emulateMedia({ reducedMotion: "reduce" });
-      await page.route("http://localhost:8000/**", async (route) => {
+      await page.route(/^http:\/\/localhost:8000\/|\/api\//, async (route) => {
         const url = new URL(route.request().url());
+        url.pathname = url.pathname.replace(/^\/api(?=\/)/, "");
         const path = url.pathname;
         const headers = {
-          "access-control-allow-origin": "*",
+          "access-control-allow-origin": new URL(baseURL ?? "http://localhost:3000").origin,
           "access-control-allow-methods": "GET, POST, OPTIONS",
           "access-control-allow-headers": "*",
         };

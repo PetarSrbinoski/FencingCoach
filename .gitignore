@@ -13,6 +13,7 @@ wheels/
 # ── Node / Next.js ────────────────────────────────────────────────────
 node_modules/
 .next/
+.next-coach-preview/
 out/
 *.log
 

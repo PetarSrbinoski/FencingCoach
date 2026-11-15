@@ -18,6 +18,8 @@ interface SparklineProps {
   color?: string;
   height?: number;
   unit?: string;
+  compact?: boolean;
+  label?: string;
 }
 
 function SparklineTooltip({
@@ -33,7 +35,7 @@ function SparklineTooltip({
   const d = payload[0].payload;
   if (d.value == null) return null;
   return (
-    <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
+    <div className="chart-tooltip rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-sm">
       <p className="text-muted-foreground font-sans text-xs">{d.day}</p>
       <p className="font-semibold font-sans mt-0.5 text-foreground">
         {d.value.toLocaleString()}
@@ -45,27 +47,31 @@ function SparklineTooltip({
 
 export function Sparkline({
   points,
-  color = "hsl(var(--foreground))",
+  color = "hsl(var(--chart))",
   height = 200,
   unit,
+  compact = false,
+  label = "Readings",
 }: SparklineProps) {
   const gradientId = useId();
   return (
-    <div className="min-w-0">
+    <div className={compact ? "metric-trend min-w-0" : "min-w-0"}>
+      {compact && <span className="sr-only">{label}: {points.map((point) => `${point.day}: ${point.value == null ? "no reading" : `${point.value} ${unit ?? ""}`}`).join("; ")}</span>}
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart
           data={points}
-          margin={{ top: 12, right: 12, bottom: 4, left: 0 }}
+          margin={compact ? { top: 8, right: 4, bottom: 4, left: 4 } : { top: 12, right: 12, bottom: 4, left: 0 }}
+          accessibilityLayer={!compact}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 5" />
-          <XAxis dataKey="day" tickFormatter={(day: string) => day.slice(5)} tickLine={false} axisLine={false} minTickGap={48} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-          <YAxis width={36} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+          <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 5" horizontalCoordinatesGenerator={compact ? ({ height }) => [height / 2] : undefined} />
+          <XAxis hide={compact} dataKey="day" tickFormatter={(day: string) => day.slice(5)} tickLine={false} axisLine={false} minTickGap={48} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+          <YAxis hide={compact} domain={compact ? ["dataMin - 1", "dataMax + 1"] : undefined} width={44} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
           <Tooltip
             content={({ active, payload }) => (
               <SparklineTooltip
@@ -84,7 +90,7 @@ export function Sparkline({
             strokeWidth={2}
             fill={`url(#${gradientId})`}
             connectNulls={false}
-            dot={false}
+            dot={points.filter((point) => point.value !== null).length === 1 ? { r: 3, fill: color, stroke: color } : false}
             activeDot={{
               r: 4,
               strokeWidth: 2,
@@ -94,13 +100,13 @@ export function Sparkline({
           />
         </AreaChart>
       </ResponsiveContainer>
-      <ChartValues
+      {!compact && <ChartValues
         values={points.map((point) => ({
           label: point.day,
           value: point.value,
         }))}
         unit={unit}
-      />
+      />}
     </div>
   );
 }
@@ -123,8 +129,8 @@ function BarTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="border border-border bg-card px-3 py-2 text-xs shadow-md">
-      <p className="font-semibold font-sans text-foreground">
+    <div className="chart-tooltip rounded-lg border border-border bg-popover px-3 py-2 text-xs shadow-sm">
+      <p className="font-medium font-sans text-foreground">
         {payload[0].value.toLocaleString()}
         {unit ? ` ${unit}` : ""}
       </p>

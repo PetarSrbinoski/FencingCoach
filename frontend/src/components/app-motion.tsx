@@ -8,6 +8,7 @@ import {
 } from "react";
 
 const ROUTES = ["/", "/weekly", "/training", "/nutrition", "/competitions", "/chat", "/chat/memory", "/garmin", "/profile"];
+const LIGHTWEIGHT_MOTION = "(max-width: 1023px), (hover: none) and (pointer: coarse)";
 const MotionContext = createContext({ enabled: true, reduced: false, toggle: () => {} });
 export const useAppMotion = () => useContext(MotionContext);
 
@@ -69,6 +70,12 @@ export function AppMotion({ children }: { children: ReactNode }) {
     // Keep real form geometry fixed; reserve perspective for inert snapshots.
     const page = document.querySelector<HTMLElement>("[data-motion-page]");
     if (!page || !page.animate) return;
+    // Phone GPUs struggle with full-page snapshots, blur and clip-path. Fade
+    // only the live content; keep the fixed dock, scroll and form geometry still.
+    if (window.matchMedia(LIGHTWEIGHT_MOTION).matches) {
+      animations.current.push(page.animate([{ opacity: .72 }, { opacity: 1 }], { duration: 160, easing: "ease-out" }));
+      return;
+    }
     animations.current.push(page.animate([
       { opacity: 0, clipPath: backwards ? "inset(0 8% 0 0)" : "inset(0 0 0 8%)" },
       { opacity: 1, clipPath: "inset(0 0 0 0)" },
@@ -102,7 +109,7 @@ export function AppMotion({ children }: { children: ReactNode }) {
     const id = ++sequence.current;
     document.documentElement.dataset.navDirection = ROUTES.indexOf(destination.pathname) < ROUTES.indexOf(pathname) ? "backward" : "forward";
     window.dispatchEvent(new Event("coach:navigate"));
-    if (!enabled || !document.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!enabled || !document.startViewTransition || window.matchMedia(LIGHTWEIGHT_MOTION).matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       router.push(href);
       return;
     }

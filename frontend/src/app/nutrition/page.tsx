@@ -2,7 +2,7 @@
 
 import { QuickFoods } from "@/components/quick-foods";
 import { PageHeading } from "@/components/page-heading";
-import { NutritionProgress } from "@/components/nutrition-progress";
+import { NutritionRings } from "@/components/nutrition-rings";
 
 import { randomUUID } from "@/lib/uuid";
 
@@ -921,43 +921,7 @@ export default function NutritionPage() {
             </Card>
           ) : targets && totals ? (
             <Card className="nutrition-intake">
-              <div
-                className="grid grid-cols-2 gap-6 sm:grid-cols-4"
-                aria-label="Daily intake"
-              >
-                {(
-                  [
-                    ["kcal", "Calories", "kcal", "text-accent"],
-                    [
-                      "protein_g",
-                      "Protein",
-                      "g",
-                      "text-sky-600 dark:text-sky-400",
-                    ],
-                    [
-                      "carbs_g",
-                      "Carbs",
-                      "g",
-                      "text-amber-600 dark:text-amber-400",
-                    ],
-                    [
-                      "fat_g",
-                      "Fat",
-                      "g",
-                      "text-emerald-600 dark:text-emerald-400",
-                    ],
-                  ] as const
-                ).map(([key, label, unit, color]) => (
-                  <NutritionProgress
-                    key={key}
-                    label={label}
-                    actual={totals[key]}
-                    target={targets[key]}
-                    unit={unit}
-                    color={color}
-                  />
-                ))}
-              </div>
+              <NutritionRings actual={totals} target={targets} />
               <details className="mt-2 text-sm">
                 <summary className="text-muted-foreground">
                   Targets & details
